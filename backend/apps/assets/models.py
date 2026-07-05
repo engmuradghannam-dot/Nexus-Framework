@@ -1,11 +1,15 @@
 from django.db import models
-from apps.core.models import Company
+from apps.core.models import Company, Branch
 from apps.hr.models import Employee
 
 DEPRECIATION_METHODS = [
     ('Straight Line', 'Straight Line'),
     ('Declining Balance', 'Declining Balance'),
     ('None', 'None'),
+]
+ASSET_TYPES = [
+    ('Fixed', 'Fixed'), ('Movable', 'Movable'), ('IT Equipment', 'IT Equipment'),
+    ('Vehicle', 'Vehicle'), ('Furniture', 'Furniture'), ('Machinery', 'Machinery'),
 ]
 
 
@@ -20,8 +24,10 @@ class AssetCategory(models.Model):
 class Asset(models.Model):
     STATUS_CHOICES = [('Draft', 'Draft'), ('Submitted', 'Submitted'), ('In Maintenance', 'In Maintenance'), ('Disposed', 'Disposed')]
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='assets')
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     asset_name = models.CharField(max_length=255)
     asset_code = models.CharField(max_length=100, unique=True)
+    asset_type = models.CharField(max_length=50, choices=ASSET_TYPES, default='Fixed')
     category = models.ForeignKey(AssetCategory, on_delete=models.SET_NULL, null=True, blank=True)
     purchase_date = models.DateField(null=True, blank=True)
     purchase_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)

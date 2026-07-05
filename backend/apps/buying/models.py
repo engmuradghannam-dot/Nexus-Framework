@@ -1,5 +1,5 @@
 from django.db import models
-from apps.core.models import Company, Warehouse
+from apps.core.models import Company, Warehouse, Branch
 from apps.inventory.models import Item
 
 PAYMENT_TERMS = [
@@ -10,8 +10,10 @@ PAYMENT_METHODS = [('Bank Transfer', 'Bank Transfer'), ('Cash', 'Cash'), ('Chequ
 
 
 class Supplier(models.Model):
+    STATUS_CHOICES = [('Active', 'Active'), ('Inactive', 'Inactive'), ('Blacklisted', 'Blacklisted')]
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='suppliers')
     name = models.CharField(max_length=255)
+    contact_person = models.CharField(max_length=255, blank=True)
     tax_id = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=50, blank=True)
@@ -21,7 +23,10 @@ class Supplier(models.Model):
     bank_account = models.CharField(max_length=100, blank=True)
     bank_name = models.CharField(max_length=100, blank=True)
     iban = models.CharField(max_length=50, blank=True)
+    payment_terms = models.CharField(max_length=50, choices=PAYMENT_TERMS, blank=True)
     credit_limit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    currency = models.CharField(max_length=10, default='SAR')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Active')
     rating = models.PositiveSmallIntegerField(null=True, blank=True, choices=[(i, str(i)) for i in range(1, 6)])
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -43,6 +48,7 @@ class PurchaseOrder(models.Model):
     grand_total = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
     warehouse = models.ForeignKey(Warehouse, on_delete=models.SET_NULL, null=True, blank=True)
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     currency = models.CharField(max_length=10, default='SAR')
     payment_terms = models.CharField(max_length=50, choices=PAYMENT_TERMS, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -8,6 +8,8 @@ class BOMItemSerializer(serializers.ModelSerializer):
 
 class BOMSerializer(serializers.ModelSerializer):
     items = BOMItemSerializer(many=True, read_only=True)
+    raw_materials_cost = serializers.ReadOnlyField()
+    total_cost = serializers.ReadOnlyField()
     class Meta:
         model = BOM
         fields = '__all__'

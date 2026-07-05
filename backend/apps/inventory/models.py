@@ -1,5 +1,5 @@
 from django.db import models
-from apps.core.models import Company, Warehouse
+from apps.core.models import Company, Warehouse, Branch
 
 
 class ItemGroup(models.Model):
@@ -12,9 +12,11 @@ class ItemGroup(models.Model):
 
 
 class Item(models.Model):
+    ITEM_TYPES = [('Stock', 'Stock'), ('Service', 'Service'), ('Asset', 'Asset'), ('Bundle', 'Bundle')]
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='items')
     item_code = models.CharField(max_length=100, unique=True)
     item_name = models.CharField(max_length=255)
+    item_type = models.CharField(max_length=50, choices=ITEM_TYPES, default='Stock')
     item_group = models.ForeignKey(ItemGroup, on_delete=models.SET_NULL, null=True, blank=True)
     description = models.TextField(blank=True)
     standard_rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
@@ -40,6 +42,16 @@ class Item(models.Model):
 
     def __str__(self):
         return self.item_name
+
+    @property
+    def stock_quantity(self):
+        total = 0
+        for entry in self.stockentry_set.all():
+            if entry.entry_type == 'Receipt':
+                total += entry.quantity
+            elif entry.entry_type == 'Issue':
+                total -= entry.quantity
+        return total
 
 
 class ItemSerialNumber(models.Model):
@@ -70,16 +82,28 @@ class ItemBatch(models.Model):
 
 class StockEntry(models.Model):
     ENTRY_TYPES = [('Receipt', 'Receipt'), ('Issue', 'Issue'), ('Transfer', 'Transfer')]
+    STATUS_CHOICES = [('Draft', 'Draft'), ('Submitted', 'Submitted'), ('Cancelled', 'Cancelled')]
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
+    source_warehouse = models.ForeignKey(Warehouse, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    target_warehouse = models.ForeignKey(Warehouse, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
     entry_type = models.CharField(max_length=50, choices=ENTRY_TYPES)
+    transaction_date = models.DateTimeField(auto_now_add=True)
     quantity = models.DecimalField(max_digits=18, decimal_places=2)
+    uom = models.CharField(max_length=50, default='Unit')
     rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     posting_date = models.DateField(auto_now_add=True)
     reference = models.CharField(max_length=255, blank=True)
     batch_number = models.CharField(max_length=100, blank=True)
     serial_number = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Submitted')
+    created_by = models.ForeignKey('core.User', on_delete=models.SET_NULL, null=True, blank=True)
+
+    @property
+    def total_cost(self):
+        return self.quantity * self.rate
 
     def __str__(self):
         return f"{self.entry_type} - {self.item.item_code}"
@@ -93,6 +117,7 @@ class StockReconciliation(models.Model):
     STATUS_CHOICES = [('Draft', 'Draft'), ('Submitted', 'Submitted'), ('Cancelled', 'Cancelled')]
 
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='stock_reconciliations')
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     reconciliation_date = models.DateField()
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
     reason = models.CharField(max_length=50, choices=REASON_CHOICES, default='Physical Count')

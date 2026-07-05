@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from apps.core.views import UserViewSet, CompanyViewSet, BranchViewSet, WarehouseViewSet, PrintTemplateViewSet
+from apps.core.views import UserViewSet, CompanyViewSet, BranchViewSet, WarehouseViewSet, PrintTemplateViewSet, ModuleViewSet
 from apps.accounts.views import AccountViewSet, JournalEntryViewSet, CostCenterViewSet, BudgetViewSet
 from apps.inventory.views import (
     ItemViewSet, ItemGroupViewSet, StockEntryViewSet,
@@ -31,6 +31,7 @@ router.register(r'companies', CompanyViewSet)
 router.register(r'branches', BranchViewSet)
 router.register(r'warehouses', WarehouseViewSet)
 router.register(r'print-templates', PrintTemplateViewSet)
+router.register(r'modules', ModuleViewSet)
 router.register(r'accounts', AccountViewSet)
 router.register(r'journal-entries', JournalEntryViewSet)
 router.register(r'cost-centers', CostCenterViewSet)
