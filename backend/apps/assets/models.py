@@ -29,6 +29,7 @@ class Asset(models.Model):
     asset_code = models.CharField(max_length=100, unique=True)
     asset_type = models.CharField(max_length=50, choices=ASSET_TYPES, default='Fixed')
     category = models.ForeignKey(AssetCategory, on_delete=models.SET_NULL, null=True, blank=True)
+    description = models.TextField(blank=True)
     purchase_date = models.DateField(null=True, blank=True)
     purchase_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     current_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
@@ -49,6 +50,9 @@ class Asset(models.Model):
     supplier = models.ForeignKey('buying.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
     custodian = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
     location = models.CharField(max_length=255, blank=True)
+    department = models.ForeignKey('hr.Department', on_delete=models.SET_NULL, null=True, blank=True)
+    serial_number = models.CharField(max_length=100, blank=True)
+    image = models.ImageField(upload_to='asset_images/', blank=True, null=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

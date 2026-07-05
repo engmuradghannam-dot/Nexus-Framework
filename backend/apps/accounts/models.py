@@ -17,9 +17,12 @@ class Account(models.Model):
     root_type = models.CharField(max_length=50, choices=ROOT_TYPES, blank=True)
     parent_account = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     is_group = models.BooleanField(default=False, help_text='Group accounts are headers that contain child accounts and cannot hold transactions directly.')
+    is_bank_account = models.BooleanField(default=False)
     balance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     currency = models.CharField(max_length=10, default='SAR')
     is_active = models.BooleanField(default=True)
+    description = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
 
     def __str__(self):
         return f"{self.account_number} - {self.account_name}"

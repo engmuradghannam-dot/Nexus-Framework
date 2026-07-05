@@ -45,6 +45,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     branch = models.ForeignKey(
         'Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='users'
     )
+    department = models.ForeignKey('hr.Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    time_zone = models.CharField(max_length=50, default='Asia/Riyadh')
+    notifications_enabled = models.BooleanField(default=True)
+    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    notes = models.TextField(blank=True)
     accessible_modules = models.ManyToManyField(Module, blank=True, related_name='users')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -103,6 +108,8 @@ class Branch(models.Model):
     name = models.CharField(max_length=255)
     branch_code = models.CharField(max_length=50, blank=True)
     address = models.TextField(blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    country = models.CharField(max_length=100, default='Saudi Arabia')
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
     manager = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_branches')
@@ -111,6 +118,7 @@ class Branch(models.Model):
     google_maps_link = models.URLField(blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Active')
     is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
 
     def __str__(self):
         return self.name
@@ -124,9 +132,15 @@ class Warehouse(models.Model):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=50, unique=True)
     warehouse_type = models.CharField(max_length=50, choices=WAREHOUSE_TYPES, default='Main')
+    address = models.TextField(blank=True)
+    manager = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_warehouses')
+    phone = models.CharField(max_length=50, blank=True)
+    email = models.EmailField(blank=True)
     capacity = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    zones = models.TextField(blank=True, help_text='Comma-separated zone/aisle names within this warehouse')
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
 
     def __str__(self):
         return self.name

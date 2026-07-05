@@ -37,6 +37,11 @@ class Item(models.Model):
     supplier = models.ForeignKey('buying.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='items')
     lead_time_days = models.PositiveIntegerField(null=True, blank=True)
     tax_category = models.CharField(max_length=100, blank=True)
+    valuation_method = models.CharField(max_length=50, default='FIFO', choices=[
+        ('FIFO', 'FIFO'), ('LIFO', 'LIFO'), ('Moving Average', 'Moving Average'),
+    ])
+    image = models.ImageField(upload_to='item_images/', blank=True, null=True)
+    notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -100,6 +105,7 @@ class StockEntry(models.Model):
     serial_number = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Submitted')
     created_by = models.ForeignKey('core.User', on_delete=models.SET_NULL, null=True, blank=True)
+    notes = models.TextField(blank=True)
 
     @property
     def total_cost(self):
@@ -122,6 +128,7 @@ class StockReconciliation(models.Model):
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
     reason = models.CharField(max_length=50, choices=REASON_CHOICES, default='Physical Count')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
+    approved_by = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_reconciliations')
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

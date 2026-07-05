@@ -6,8 +6,10 @@ from apps.buying.models import PAYMENT_TERMS, PAYMENT_METHODS
 
 class Customer(models.Model):
     STATUS_CHOICES = [('Active', 'Active'), ('Inactive', 'Inactive'), ('Blacklisted', 'Blacklisted')]
+    CUSTOMER_TYPES = [('Company', 'Company'), ('Individual', 'Individual')]
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='customers')
     name = models.CharField(max_length=255)
+    customer_type = models.CharField(max_length=50, choices=CUSTOMER_TYPES, default='Company')
     contact_person = models.CharField(max_length=255, blank=True)
     tax_id = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True)
@@ -15,6 +17,8 @@ class Customer(models.Model):
     mobile = models.CharField(max_length=50, blank=True)
     website = models.URLField(blank=True)
     address = models.TextField(blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    country = models.CharField(max_length=100, default='Saudi Arabia')
     bank_account = models.CharField(max_length=100, blank=True)
     bank_name = models.CharField(max_length=100, blank=True)
     iban = models.CharField(max_length=50, blank=True)
@@ -24,6 +28,7 @@ class Customer(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Active')
     rating = models.PositiveSmallIntegerField(null=True, blank=True, choices=[(i, str(i)) for i in range(1, 6)])
     is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -46,6 +51,12 @@ class SalesOrder(models.Model):
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     currency = models.CharField(max_length=10, default='SAR')
     payment_terms = models.CharField(max_length=50, choices=PAYMENT_TERMS, blank=True)
+    discount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    incoterm = models.CharField(max_length=50, blank=True, choices=[
+        ('EXW', 'EXW'), ('FOB', 'FOB'), ('CIF', 'CIF'), ('DDP', 'DDP'), ('DAP', 'DAP'),
+    ])
+    sales_person = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='sales_orders_handled')
+    notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property

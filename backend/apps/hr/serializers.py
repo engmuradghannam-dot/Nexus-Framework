@@ -18,6 +18,7 @@ class TeamSerializer(serializers.ModelSerializer):
 
 class LeaveRequestSerializer(serializers.ModelSerializer):
     duration_days = serializers.ReadOnlyField()
+    remaining_balance = serializers.ReadOnlyField()
     class Meta:
         model = LeaveRequest
         fields = '__all__'
