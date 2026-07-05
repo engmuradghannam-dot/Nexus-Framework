@@ -31,6 +31,16 @@ class Asset(models.Model):
     depreciation_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='Annual depreciation rate as a percentage')
     useful_life_years = models.PositiveIntegerField(null=True, blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
+    condition = models.CharField(max_length=50, blank=True, choices=[
+        ('New', 'New'), ('Good', 'Good'), ('Fair', 'Fair'), ('Poor', 'Poor'),
+    ])
+    warranty_expiry = models.DateField(null=True, blank=True)
+    maintenance_schedule = models.CharField(max_length=100, blank=True, choices=[
+        ('Monthly', 'Monthly'), ('Quarterly', 'Quarterly'), ('Semi-Annual', 'Semi-Annual'),
+        ('Annual', 'Annual'), ('None', 'None'),
+    ])
+    insurance_policy = models.CharField(max_length=100, blank=True)
+    supplier = models.ForeignKey('buying.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
     custodian = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
     location = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)

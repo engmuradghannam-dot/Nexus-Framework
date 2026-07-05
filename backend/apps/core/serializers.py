@@ -4,7 +4,8 @@ from .models import User, Company, Branch, Warehouse, PrintTemplate
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'role', 'company', 'is_active', 'date_joined']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'role', 'company',
+                  'two_factor_enabled', 'language', 'is_active', 'date_joined']
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:

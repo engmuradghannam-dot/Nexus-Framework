@@ -33,6 +33,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    two_factor_enabled = models.BooleanField(default=False)
+    language = models.CharField(max_length=10, default='ar', choices=[('ar', 'Arabic'), ('en', 'English')])
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()
@@ -44,12 +46,37 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Company(models.Model):
     name = models.CharField(max_length=255)
+    legal_name = models.CharField(max_length=255, blank=True)
     tax_id = models.CharField(max_length=100, blank=True)
+    commercial_registration = models.CharField(max_length=100, blank=True)
+    vat_number = models.CharField(max_length=100, blank=True)
     address = models.TextField(blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    country = models.CharField(max_length=100, default='Saudi Arabia')
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
+    website = models.URLField(blank=True)
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)
-    currency = models.CharField(max_length=10, default='USD')
+    currency = models.CharField(max_length=10, default='SAR')
+    default_language = models.CharField(max_length=10, default='ar', choices=[('ar', 'Arabic'), ('en', 'English')])
+    fiscal_year_start = models.DateField(null=True, blank=True)
+    fiscal_year_end = models.DateField(null=True, blank=True)
+    time_zone = models.CharField(max_length=50, default='Asia/Riyadh')
+    date_format = models.CharField(max_length=20, default='DD-MM-YYYY')
+    number_format = models.CharField(max_length=20, default='#,###.##')
+    default_warehouse = models.ForeignKey('Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    default_branch = models.ForeignKey('Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    a4_top_margin = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    a4_bottom_margin = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    a4_left_margin = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    a4_right_margin = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    page_header = models.TextField(blank=True)
+    page_footer = models.TextField(blank=True)
+    terms_and_conditions = models.TextField(blank=True)
+    bank_name = models.CharField(max_length=100, blank=True)
+    bank_account = models.CharField(max_length=100, blank=True)
+    iban = models.CharField(max_length=50, blank=True)
+    social_media_links = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -70,7 +97,9 @@ class Warehouse(models.Model):
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='warehouses', null=True, blank=True)
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=50, unique=True)
+    capacity = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
