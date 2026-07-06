@@ -6,10 +6,36 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-nexus-dev-key-change-in-production')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+_INSECURE_DEFAULT_KEY = 'django-insecure-nexus-dev-key-change-in-production'
+SECRET_KEY = os.getenv('SECRET_KEY', _INSECURE_DEFAULT_KEY)
+if not DEBUG and SECRET_KEY == _INSECURE_DEFAULT_KEY:
+    raise RuntimeError(
+        'Refusing to start with DEBUG=False and no SECRET_KEY set. '
+        'Set the SECRET_KEY environment variable before deploying to production.'
+    )
+
+# In production, set ALLOWED_HOSTS to a comma-separated list of real domains,
+# e.g. ALLOWED_HOSTS=app.wassel.sa,api.wassel.sa
+_allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()]
+elif DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    raise RuntimeError(
+        'Refusing to start with DEBUG=False and no ALLOWED_HOSTS set. '
+        'Set the ALLOWED_HOSTS environment variable (comma-separated hostnames) before deploying.'
+    )
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
