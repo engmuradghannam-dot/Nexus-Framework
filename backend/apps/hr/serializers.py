@@ -63,6 +63,15 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
             validate_transition(LEAVE_TRANSITIONS, self.instance.status, new_status)
         return data
 
+    def update(self, instance, validated_data):
+        old_status = instance.status
+        new_status = validated_data.get('status', old_status)
+        instance = super().update(instance, validated_data)
+        if old_status != new_status and new_status in ('Approved', 'Rejected'):
+            from .tasks import send_leave_decision_email
+            send_leave_decision_email.delay(instance.id, new_status)
+        return instance
+
 class PayrollSerializer(serializers.ModelSerializer):
     overtime_amount = serializers.ReadOnlyField()
     gross_salary = serializers.ReadOnlyField()
@@ -95,3 +104,12 @@ class PayrollSerializer(serializers.ModelSerializer):
         if self.instance and new_status and new_status != self.instance.status:
             validate_transition(PAYROLL_TRANSITIONS, self.instance.status, new_status)
         return data
+
+    def update(self, instance, validated_data):
+        old_status = instance.status
+        new_status = validated_data.get('status', old_status)
+        instance = super().update(instance, validated_data)
+        if old_status != new_status and new_status == 'Paid':
+            from .tasks import send_payroll_paid_email
+            send_payroll_paid_email.delay(instance.id)
+        return instance

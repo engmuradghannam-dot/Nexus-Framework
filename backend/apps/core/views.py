@@ -1,12 +1,12 @@
 from rest_framework import viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from .models import User, Company, Branch, Warehouse, PrintTemplate, Module
+from .models import User, Company, Branch, Warehouse, PrintTemplate, Module, AuditLog
 from .serializers import (
     UserSerializer, CompanySerializer, BranchSerializer, WarehouseSerializer,
-    PrintTemplateSerializer, ModuleSerializer,
+    PrintTemplateSerializer, ModuleSerializer, AuditLogSerializer,
 )
-from .mixins import CompanyScopedMixin
+from .mixins import CompanyScopedMixin, AuditUserMixin
 
 
 class UserViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
@@ -17,7 +17,7 @@ class UserViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     company_field = 'company'
 
 
-class CompanyViewSet(viewsets.ModelViewSet):
+class CompanyViewSet(AuditUserMixin, viewsets.ModelViewSet):
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -60,7 +60,7 @@ class PrintTemplateViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     company_field = 'company'
 
 
-class ModuleViewSet(viewsets.ModelViewSet):
+class ModuleViewSet(AuditUserMixin, viewsets.ModelViewSet):
     """System-wide module list (Accounts, HR, Inventory, ...). Not tenant-scoped
     since modules are the same catalog for every company; restricted to staff
     to prevent regular users from editing the module catalog itself."""
@@ -73,4 +73,18 @@ class ModuleViewSet(viewsets.ModelViewSet):
         from rest_framework import permissions
         if self.action in ['list', 'retrieve']:
             return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only, staff-only. Audit entries are written exclusively by
+    signal handlers (apps.core.audit) — there is no create/update/delete
+    action here on purpose."""
+    queryset = AuditLog.objects.select_related('user').all()
+    serializer_class = AuditLogSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['action', 'app_label', 'model_name', 'object_id', 'user']
+
+    def get_permissions(self):
+        from rest_framework import permissions
         return [permissions.IsAdminUser()]

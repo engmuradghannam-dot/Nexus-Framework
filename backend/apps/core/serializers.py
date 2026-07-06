@@ -1,9 +1,15 @@
 from rest_framework import serializers
-from .models import User, Company, Branch, Warehouse, PrintTemplate, Module
+from .models import User, Company, Branch, Warehouse, PrintTemplate, Module, AuditLog
 
 class ModuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Module
+        fields = '__all__'
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    user_email = serializers.CharField(source='user.email', read_only=True, default=None)
+    class Meta:
+        model = AuditLog
         fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):

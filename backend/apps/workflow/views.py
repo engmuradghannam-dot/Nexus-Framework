@@ -2,9 +2,10 @@ from rest_framework import viewsets, permissions
 from rest_framework.filters import SearchFilter
 from .models import Workflow, WorkflowState, WorkflowTransition
 from .serializers import WorkflowSerializer, WorkflowStateSerializer, WorkflowTransitionSerializer
+from apps.core.mixins import AuditUserMixin
 
 
-class WorkflowViewSet(viewsets.ModelViewSet):
+class WorkflowViewSet(AuditUserMixin, viewsets.ModelViewSet):
     """Workflow definitions are cross-tenant system configuration
     (they have no `company` field), so they are restricted to staff/admin
     users instead of being company-scoped like business data."""

@@ -193,3 +193,25 @@ class PrintTemplate(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.document_type})"
+
+
+class AuditLog(models.Model):
+    """Immutable, append-only record of who changed what and when.
+    Populated automatically via signals (see apps/core/audit.py) — never
+    written to directly, and there is intentionally no update/delete API
+    for it."""
+    ACTION_CHOICES = [('Create', 'Create'), ('Update', 'Update'), ('Delete', 'Delete')]
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    user = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_entries')
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    app_label = models.CharField(max_length=100)
+    model_name = models.CharField(max_length=100, db_index=True)
+    object_id = models.CharField(max_length=50, db_index=True)
+    object_repr = models.CharField(max_length=255, blank=True)
+    changes = models.JSONField(default=dict, blank=True, help_text='For Update: {field: [old, new]}. For Create: {field: new}.')
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.action} {self.model_name}#{self.object_id} @ {self.timestamp}"

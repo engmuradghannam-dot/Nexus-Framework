@@ -19,6 +19,14 @@ class CompanyScopedMixin:
     do not use this mixin — restrict access with permission_classes instead.
     """
     company_field = 'company'
+
+    def initial(self, request, *args, **kwargs):
+        # Runs before every action (list/create/retrieve/update/delete) —
+        # stashes the authenticated user so the audit-log signal handlers
+        # (which have no access to the request) can attribute changes.
+        super().initial(request, *args, **kwargs)
+        from .threadlocal import set_current_user
+        set_current_user(request.user if request.user and request.user.is_authenticated else None)
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
@@ -117,3 +125,15 @@ class LockAfterSubmitMixin:
         parent = self._get_parent(instance=instance)
         self._assert_editable(parent)
         super().perform_destroy(instance)
+
+
+class AuditUserMixin:
+    """Standalone version of the user-stashing hook in CompanyScopedMixin,
+    for the handful of ViewSets that aren't company-scoped (e.g. Company
+    itself, system-wide Module catalog, Workflow definitions) but still
+    need their changes attributed in the audit log."""
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        from .threadlocal import set_current_user
+        set_current_user(request.user if request.user and request.user.is_authenticated else None)
