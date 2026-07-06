@@ -11,6 +11,7 @@ import Companies from './pages/Companies'
 import Suppliers from './pages/Suppliers'
 import Customers from './pages/Customers'
 import WorkOrders from './pages/WorkOrders'
+import Items from './pages/Items'
 import Teams from './pages/Teams'
 import Tasks from './pages/Tasks'
 import LeaveRequests from './pages/LeaveRequests'
@@ -36,6 +37,7 @@ function App() {
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="customers" element={<Customers />} />
         <Route path="work-orders" element={<WorkOrders />} />
+        <Route path="items" element={<Items />} />
         <Route path="teams" element={<Teams />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="leave-requests" element={<LeaveRequests />} />
