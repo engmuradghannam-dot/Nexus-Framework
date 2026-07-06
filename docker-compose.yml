@@ -1,6 +1,9 @@
 version: "3.9"
 
 services:
+  # ========================
+  # Core Infrastructure
+  # ========================
   db:
     image: postgres:15-alpine
     environment:
@@ -29,12 +32,92 @@ services:
     networks:
       - nexus_network
 
+  # ========================
+  # Observability Stack (LGTM)
+  # ========================
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./observability/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - nexus_network
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - nexus_network
+
+  loki:
+    image: grafana/loki:latest
+    volumes:
+      - ./observability/loki:/etc/loki:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"
+    networks:
+      - nexus_network
+
+  tempo:
+    image: grafana/tempo:latest
+    volumes:
+      - ./observability/tempo:/etc/tempo:ro
+      - tempo_data:/tmp/tempo
+    command: -config.file=/etc/tempo/tempo.yml
+    ports:
+      - "3200:3200"
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+    networks:
+      - nexus_network
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - nexus_network
+
+  # ========================
+  # Backend Services
+  # ========================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     command: >
-      sh -c "python /app/entrypoint.sh && 
+      sh -c "python manage.py migrate_schemas --shared &&
+             python manage.py migrate_schemas --tenant &&
+             python manage.py seed_plans &&
              gunicorn nexus.wsgi:application 
              --bind 0.0.0.0:8000 
              --workers 4 
@@ -51,11 +134,20 @@ services:
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me}
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/nexus
+      - DB_NAME=nexus
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,*.nexus-erp.com}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - PLATFORM_DOMAIN=${PLATFORM_DOMAIN:-nexus-erp.com}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
+      - ENVIRONMENT=production
     depends_on:
       db:
         condition: service_healthy
@@ -64,7 +156,7 @@ services:
     networks:
       - nexus_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -82,10 +174,16 @@ services:
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me}
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/nexus
+      - DB_NAME=nexus
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
     depends_on:
       - db
       - redis
@@ -104,7 +202,11 @@ services:
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me}
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/nexus
+      - DB_NAME=nexus
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -116,25 +218,30 @@ services:
       - nexus_network
     restart: unless-stopped
 
-  # Frontend Builder - builds and exits
-  frontend-builder:
+  # ========================
+  # Frontend (SPA Hosting)
+  # ========================
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
     volumes:
       - ./frontend:/app
-      - static_volume:/app/dist
       - /app/node_modules
     environment:
       - VITE_API_URL=/api/v1
-    command: >
-      sh -c "npm ci && npm run build && cp -r dist/* /app/dist/"
+      - CHOKIDAR_USEPOLLING=true
+    command: npm run dev
+    depends_on:
+      - backend
     networks:
       - nexus_network
-    profiles:
-      - build
-    restart: "no"
 
+  # ========================
+  # Nginx (Reverse Proxy + SPA Hosting)
+  # ========================
   nginx:
     image: nginx:alpine
     ports:
@@ -142,11 +249,13 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./frontend/dist:/var/www/frontend:ro
       - static_volume:/var/www/static:ro
       - media_volume:/var/www/media:ro
     depends_on:
       - backend
+      - frontend
     networks:
       - nexus_network
     restart: unless-stopped
@@ -156,6 +265,10 @@ volumes:
   redis_data:
   static_volume:
   media_volume:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
 
 networks:
   nexus_network:

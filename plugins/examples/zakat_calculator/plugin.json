@@ -1,0 +1,15 @@
+{
+  "name": "zakat_calculator",
+  "version": "1.0.0",
+  "description": "Calculate Zakat based on Saudi regulations",
+  "author": "Nexus Team",
+  "requires": [],
+  "permissions": ["accounts.read", "inventory.read"],
+  "settings": {
+    "nisab_threshold": 85000.00,
+    "zakat_rate": 0.025,
+    "currency": "SAR",
+    "hawl_period_days": 354
+  },
+  "enabled": true
+}
