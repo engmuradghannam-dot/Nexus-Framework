@@ -1,6 +1,11 @@
 from django.db import models, transaction
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import FileExtensionValidator
 from apps.core.models import Company, Warehouse, Branch
+from apps.core.validators import (
+    validate_image_size, validate_attachment_size,
+    ALLOWED_IMAGE_EXTENSIONS, ALLOWED_ATTACHMENT_EXTENSIONS,
+)
 
 
 class ItemGroup(models.Model):
@@ -41,7 +46,10 @@ class Item(models.Model):
     valuation_method = models.CharField(max_length=50, default='FIFO', choices=[
         ('FIFO', 'FIFO'), ('LIFO', 'LIFO'), ('Moving Average', 'Moving Average'),
     ])
-    image = models.ImageField(upload_to='item_images/', blank=True, null=True)
+    image = models.ImageField(
+        upload_to='item_images/', blank=True, null=True,
+        validators=[validate_image_size, FileExtensionValidator(ALLOWED_IMAGE_EXTENSIONS)]
+    )
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -130,7 +138,10 @@ class StockReconciliation(models.Model):
     reason = models.CharField(max_length=50, choices=REASON_CHOICES, default='Physical Count')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
     approved_by = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_reconciliations')
-    attachment = models.FileField(upload_to='stock_reconciliation_attachments/', blank=True, null=True)
+    attachment = models.FileField(
+        upload_to='stock_reconciliation_attachments/', blank=True, null=True,
+        validators=[validate_attachment_size, FileExtensionValidator(ALLOWED_ATTACHMENT_EXTENSIONS)]
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

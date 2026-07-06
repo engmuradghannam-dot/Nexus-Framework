@@ -1,5 +1,7 @@
 from django.db import models
+from django.core.validators import FileExtensionValidator
 from apps.core.models import Company, Branch, User
+from apps.core.validators import validate_image_size, ALLOWED_IMAGE_EXTENSIONS
 
 class Department(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='departments')
@@ -50,7 +52,10 @@ class Employee(models.Model):
     city = models.CharField(max_length=100, blank=True)
     country = models.CharField(max_length=100, default='Saudi Arabia')
     supervisor = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subordinates')
-    photo = models.ImageField(upload_to='employee_photos/', blank=True, null=True)
+    photo = models.ImageField(
+        upload_to='employee_photos/', blank=True, null=True,
+        validators=[validate_image_size, FileExtensionValidator(ALLOWED_IMAGE_EXTENSIONS)]
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

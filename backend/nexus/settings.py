@@ -103,13 +103,22 @@ DATABASES = {
     }
 }
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://redis:6379/1'),
-        'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
+_redis_url_env = os.getenv('REDIS_URL')
+if _redis_url_env or not DEBUG:
+    # Production (or anyone who explicitly set REDIS_URL) uses a real shared
+    # cache, which matters for correct rate limiting and Celery across
+    # multiple worker processes.
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': _redis_url_env or 'redis://redis:6379/1',
+            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
+        }
     }
-}
+else:
+    # Local development without Docker/Redis running: fall back to an
+    # in-process cache so the API (and its rate limiting) still works.
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -146,9 +155,25 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '300/minute',
+    },
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS: wide open only in local development. In production, set
+# CORS_ALLOWED_ORIGINS to a comma-separated list of real frontend origins,
+# e.g. CORS_ALLOWED_ORIGINS=https://app.wassel.sa
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    _cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_env.split(',') if o.strip()]
 
 AUTH_USER_MODEL = 'core.User'
 

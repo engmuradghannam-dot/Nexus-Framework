@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from django.contrib.auth.base_user import BaseUserManager
+from django.core.validators import FileExtensionValidator
+from apps.core.validators import validate_image_size, ALLOWED_IMAGE_EXTENSIONS
 
 class Module(models.Model):
     """Represents a functional module of the ERP (e.g. Accounts, HR, Inventory)
@@ -48,7 +50,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     department = models.ForeignKey('hr.Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     time_zone = models.CharField(max_length=50, default='Asia/Riyadh')
     notifications_enabled = models.BooleanField(default=True)
-    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    profile_photo = models.ImageField(
+        upload_to='profile_photos/', blank=True, null=True,
+        validators=[validate_image_size, FileExtensionValidator(ALLOWED_IMAGE_EXTENSIONS)]
+    )
     notes = models.TextField(blank=True)
     accessible_modules = models.ManyToManyField(Module, blank=True, related_name='users')
     is_active = models.BooleanField(default=True)
@@ -76,7 +81,10 @@ class Company(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
     website = models.URLField(blank=True)
-    logo = models.ImageField(upload_to='logos/', blank=True, null=True)
+    logo = models.ImageField(
+        upload_to='logos/', blank=True, null=True,
+        validators=[validate_image_size, FileExtensionValidator(ALLOWED_IMAGE_EXTENSIONS)]
+    )
     currency = models.CharField(max_length=10, default='SAR')
     default_language = models.CharField(max_length=10, default='ar', choices=[('ar', 'Arabic'), ('en', 'English')])
     fiscal_year_start = models.DateField(null=True, blank=True)

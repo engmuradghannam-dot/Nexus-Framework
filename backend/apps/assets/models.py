@@ -1,5 +1,7 @@
 from django.db import models
+from django.core.validators import FileExtensionValidator
 from apps.core.models import Company, Branch
+from apps.core.validators import validate_image_size, ALLOWED_IMAGE_EXTENSIONS
 from apps.hr.models import Employee
 
 DEPRECIATION_METHODS = [
@@ -52,7 +54,10 @@ class Asset(models.Model):
     location = models.CharField(max_length=255, blank=True)
     department = models.ForeignKey('hr.Department', on_delete=models.SET_NULL, null=True, blank=True)
     serial_number = models.CharField(max_length=100, blank=True)
-    image = models.ImageField(upload_to='asset_images/', blank=True, null=True)
+    image = models.ImageField(
+        upload_to='asset_images/', blank=True, null=True,
+        validators=[validate_image_size, FileExtensionValidator(ALLOWED_IMAGE_EXTENSIONS)]
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
