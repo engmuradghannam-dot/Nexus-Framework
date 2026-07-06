@@ -29,12 +29,36 @@ services:
     networks:
       - nexus_network
 
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - nexus_network
+    profiles:
+      - kafka
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - nexus_network
+    profiles:
+      - kafka
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     command: >
-      sh -c "python /app/entrypoint.sh && 
+      sh -c "python manage.py migrate &&
+             python manage.py seed_plans &&
              gunicorn nexus.wsgi:application 
              --bind 0.0.0.0:8000 
              --workers 4 
@@ -51,11 +75,18 @@ services:
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me}
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/nexus
+      - DB_NAME=nexus
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - PLATFORM_DOMAIN=${PLATFORM_DOMAIN:-nexus-erp.com}
     depends_on:
       db:
         condition: service_healthy
@@ -82,10 +113,15 @@ services:
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me}
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/nexus
+      - DB_NAME=nexus
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
     depends_on:
       - db
       - redis
@@ -104,10 +140,15 @@ services:
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me}
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/nexus
+      - DB_NAME=nexus
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
     depends_on:
       - db
       - redis
@@ -116,7 +157,6 @@ services:
       - nexus_network
     restart: unless-stopped
 
-  # Frontend Builder - builds and exits
   frontend-builder:
     build:
       context: ./frontend

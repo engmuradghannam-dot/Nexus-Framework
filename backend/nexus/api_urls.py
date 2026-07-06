@@ -15,80 +15,73 @@ from apps.selling.views import (
     CustomerViewSet, SalesOrderViewSet, SalesOrderItemViewSet,
     SalesTaxChargeViewSet, SalesPaymentViewSet,
 )
-from apps.manufacturing.views import WorkOrderViewSet, BOMViewSet, BOMItemViewSet
+from apps.manufacturing.views import (
+    BOMViewSet, WorkOrderViewSet, JobCardViewSet,
+)
 from apps.hr.views import (
-    EmployeeViewSet, DepartmentViewSet, TeamViewSet,
-    LeaveRequestViewSet, PayrollViewSet,
+    EmployeeViewSet, DepartmentViewSet, LeaveRequestViewSet,
+    AttendanceViewSet, PayrollEntryViewSet,
 )
 from apps.crm.views import LeadViewSet, OpportunityViewSet
-from apps.projects.views import (
-    ProjectViewSet, TaskViewSet, MilestoneViewSet, StakeholderViewSet,
-    RiskRegisterViewSet, IssueLogViewSet, ChangeRequestViewSet,
-    TimeEntryViewSet, TaskCommentViewSet,
-)
-from apps.projects.ai_views import ProjectAIAssistantViewSet
-from apps.assets.views import AssetViewSet, AssetCategoryViewSet
-from apps.workflow.views import WorkflowViewSet
+from apps.projects.views import ProjectViewSet, TaskViewSet
+from apps.assets.views import AssetCategoryViewSet, AssetViewSet
+from apps.workflow.views import WorkflowViewSet, WorkflowInstanceViewSet
 
 router = DefaultRouter()
-router.register(r'users', UserViewSet)
-router.register(r'companies', CompanyViewSet)
-router.register(r'branches', BranchViewSet)
-router.register(r'warehouses', WarehouseViewSet)
-router.register(r'print-templates', PrintTemplateViewSet)
-router.register(r'modules', ModuleViewSet)
-router.register(r'audit-logs', AuditLogViewSet)
-router.register(r'accounts', AccountViewSet)
-router.register(r'journal-entries', JournalEntryViewSet)
-router.register(r'cost-centers', CostCenterViewSet)
-router.register(r'budgets', BudgetViewSet)
-router.register(r'items', ItemViewSet)
-router.register(r'item-groups', ItemGroupViewSet)
-router.register(r'item-serial-numbers', ItemSerialNumberViewSet)
-router.register(r'item-batches', ItemBatchViewSet)
-router.register(r'stock-reconciliations', StockReconciliationViewSet)
-router.register(r'stock-reconciliation-items', StockReconciliationItemViewSet)
-router.register(r'stock-entries', StockEntryViewSet)
-router.register(r'suppliers', SupplierViewSet)
-router.register(r'purchase-orders', PurchaseOrderViewSet)
-router.register(r'purchase-order-items', PurchaseOrderItemViewSet)
-router.register(r'purchase-tax-charges', PurchaseTaxChargeViewSet)
-router.register(r'purchase-payments', PurchasePaymentViewSet)
-router.register(r'customers', CustomerViewSet)
-router.register(r'sales-orders', SalesOrderViewSet)
-router.register(r'sales-order-items', SalesOrderItemViewSet)
-router.register(r'sales-tax-charges', SalesTaxChargeViewSet)
-router.register(r'sales-payments', SalesPaymentViewSet)
-router.register(r'work-orders', WorkOrderViewSet)
-router.register(r'boms', BOMViewSet)
-router.register(r'bom-items', BOMItemViewSet)
-router.register(r'employees', EmployeeViewSet)
-router.register(r'departments', DepartmentViewSet)
-router.register(r'teams', TeamViewSet)
-router.register(r'leave-requests', LeaveRequestViewSet)
-router.register(r'payrolls', PayrollViewSet)
-router.register(r'leads', LeadViewSet)
-router.register(r'opportunities', OpportunityViewSet)
-router.register(r'projects', ProjectViewSet)
-router.register(r'tasks', TaskViewSet)
-router.register(r'milestones', MilestoneViewSet)
-router.register(r'stakeholders', StakeholderViewSet)
-router.register(r'risks', RiskRegisterViewSet)
-router.register(r'issues', IssueLogViewSet)
-router.register(r'change-requests', ChangeRequestViewSet)
-router.register(r'time-entries', TimeEntryViewSet)
-router.register(r'task-comments', TaskCommentViewSet)
-router.register(r'assets', AssetViewSet)
-router.register(r'asset-categories', AssetCategoryViewSet)
-router.register(r'workflows', WorkflowViewSet)
+router.register(r'users', UserViewSet, basename='user')
+router.register(r'companies', CompanyViewSet, basename='company')
+router.register(r'branches', BranchViewSet, basename='branch')
+router.register(r'warehouses', WarehouseViewSet, basename='warehouse')
+router.register(r'print-templates', PrintTemplateViewSet, basename='print-template')
+router.register(r'modules', ModuleViewSet, basename='module')
+router.register(r'audit-logs', AuditLogViewSet, basename='audit-log')
 
-# AI Assistant routes
-router.register(r'ai-assistant', ProjectAIAssistantViewSet, basename='ai-assistant')
+router.register(r'accounts', AccountViewSet, basename='account')
+router.register(r'journal-entries', JournalEntryViewSet, basename='journal-entry')
+router.register(r'cost-centers', CostCenterViewSet, basename='cost-center')
+router.register(r'budgets', BudgetViewSet, basename='budget')
 
-from rest_framework.authtoken.views import obtain_auth_token
+router.register(r'items', ItemViewSet, basename='item')
+router.register(r'item-groups', ItemGroupViewSet, basename='item-group')
+router.register(r'stock-entries', StockEntryViewSet, basename='stock-entry')
+router.register(r'serial-numbers', ItemSerialNumberViewSet, basename='serial-number')
+router.register(r'batches', ItemBatchViewSet, basename='batch')
+router.register(r'stock-reconciliations', StockReconciliationViewSet, basename='stock-reconciliation')
+
+router.register(r'suppliers', SupplierViewSet, basename='supplier')
+router.register(r'purchase-orders', PurchaseOrderViewSet, basename='purchase-order')
+router.register(r'purchase-order-items', PurchaseOrderItemViewSet, basename='purchase-order-item')
+router.register(r'purchase-tax-charges', PurchaseTaxChargeViewSet, basename='purchase-tax-charge')
+router.register(r'purchase-payments', PurchasePaymentViewSet, basename='purchase-payment')
+
+router.register(r'customers', CustomerViewSet, basename='customer')
+router.register(r'sales-orders', SalesOrderViewSet, basename='sales-order')
+router.register(r'sales-order-items', SalesOrderItemViewSet, basename='sales-order-item')
+router.register(r'sales-tax-charges', SalesTaxChargeViewSet, basename='sales-tax-charge')
+router.register(r'sales-payments', SalesPaymentViewSet, basename='sales-payment')
+
+router.register(r'boms', BOMViewSet, basename='bom')
+router.register(r'work-orders', WorkOrderViewSet, basename='work-order')
+router.register(r'job-cards', JobCardViewSet, basename='job-card')
+
+router.register(r'employees', EmployeeViewSet, basename='employee')
+router.register(r'departments', DepartmentViewSet, basename='department')
+router.register(r'leave-requests', LeaveRequestViewSet, basename='leave-request')
+router.register(r'attendance', AttendanceViewSet, basename='attendance')
+router.register(r'payroll', PayrollEntryViewSet, basename='payroll')
+
+router.register(r'leads', LeadViewSet, basename='lead')
+router.register(r'opportunities', OpportunityViewSet, basename='opportunity')
+
+router.register(r'projects', ProjectViewSet, basename='project')
+router.register(r'tasks', TaskViewSet, basename='task')
+
+router.register(r'asset-categories', AssetCategoryViewSet, basename='asset-category')
+router.register(r'assets', AssetViewSet, basename='asset')
+
+router.register(r'workflows', WorkflowViewSet, basename='workflow')
+router.register(r'workflow-instances', WorkflowInstanceViewSet, basename='workflow-instance')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('auth/', include('rest_framework.urls')),
-    path('auth-token/', obtain_auth_token, name='api_token_auth'),
 ]
