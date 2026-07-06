@@ -130,6 +130,7 @@ class StockReconciliation(models.Model):
     reason = models.CharField(max_length=50, choices=REASON_CHOICES, default='Physical Count')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
     approved_by = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_reconciliations')
+    attachment = models.FileField(upload_to='stock_reconciliation_attachments/', blank=True, null=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

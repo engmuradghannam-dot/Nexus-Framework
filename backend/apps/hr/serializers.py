@@ -66,6 +66,7 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
 class PayrollSerializer(serializers.ModelSerializer):
     overtime_amount = serializers.ReadOnlyField()
     gross_salary = serializers.ReadOnlyField()
+    total_deductions = serializers.ReadOnlyField()
     net_salary = serializers.ReadOnlyField()
     class Meta:
         model = Payroll

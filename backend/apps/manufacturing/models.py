@@ -41,6 +41,7 @@ class BOMItem(models.Model):
 
 class WorkOrder(models.Model):
     STATUS_CHOICES = [('Draft', 'Draft'), ('In Progress', 'In Progress'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')]
+    PRIORITY_CHOICES = [('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High'), ('Urgent', 'Urgent')]
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='work_orders')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     bom = models.ForeignKey(BOM, on_delete=models.SET_NULL, null=True, blank=True)
@@ -51,8 +52,13 @@ class WorkOrder(models.Model):
     produced_qty = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     uom = models.CharField(max_length=50, default='Unit')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
+    priority = models.CharField(max_length=50, choices=PRIORITY_CHOICES, default='Medium')
+    workstation = models.CharField(max_length=255, blank=True)
+    supervisor = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='supervised_work_orders')
     planned_start = models.DateField(null=True, blank=True)
     planned_end = models.DateField(null=True, blank=True)
+    actual_start = models.DateField(null=True, blank=True)
+    actual_end = models.DateField(null=True, blank=True)
     estimated_cost = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     actual_cost = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.SET_NULL, null=True, blank=True)

@@ -132,10 +132,16 @@ class Payroll(models.Model):
     basic_salary = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     housing_allowance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     transport_allowance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    food_allowance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     overtime_hours = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     overtime_rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     bonuses = models.DecimalField(max_digits=18, decimal_places=2, default=0)
-    deductions = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    social_insurance = models.DecimalField(max_digits=18, decimal_places=2, default=0, help_text='Employee GOSI contribution')
+    health_insurance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    loan_deductions = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    advance_payments = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    deductions = models.DecimalField(max_digits=18, decimal_places=2, default=0, help_text='Other/miscellaneous deductions')
     tax = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHODS, default='Bank Transfer')
     bank_account = models.CharField(max_length=100, blank=True)
@@ -151,11 +157,16 @@ class Payroll(models.Model):
     @property
     def gross_salary(self):
         return (self.basic_salary + self.housing_allowance + self.transport_allowance
-                + self.overtime_amount + self.bonuses)
+                + self.food_allowance + self.other_allowances + self.overtime_amount + self.bonuses)
+
+    @property
+    def total_deductions(self):
+        return (self.deductions + self.social_insurance + self.health_insurance
+                + self.loan_deductions + self.advance_payments + self.tax)
 
     @property
     def net_salary(self):
-        return self.gross_salary - self.deductions - self.tax
+        return self.gross_salary - self.total_deductions
 
     def __str__(self):
         return f"{self.employee} - {self.pay_period_start} to {self.pay_period_end}"
