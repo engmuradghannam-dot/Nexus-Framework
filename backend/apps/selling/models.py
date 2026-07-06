@@ -1,5 +1,6 @@
 from django.db import models, transaction
 from django.core.validators import MinValueValidator
+from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from apps.core.models import Company, Warehouse, Branch
 from apps.inventory.models import Item
@@ -116,7 +117,7 @@ class SalesOrder(models.Model):
 class SalesOrderItem(models.Model):
     sales_order = models.ForeignKey(SalesOrder, on_delete=models.CASCADE, related_name='items')
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
-    qty = models.DecimalField(max_digits=18, decimal_places=2, validators=[MinValueValidator(0.01)])
+    qty = models.DecimalField(max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     rate = models.DecimalField(max_digits=18, decimal_places=2, validators=[MinValueValidator(0)])
     amount = models.DecimalField(max_digits=18, decimal_places=2, editable=False, default=0)
     delivered_qty = models.DecimalField(max_digits=18, decimal_places=2, default=0, validators=[MinValueValidator(0)])
@@ -139,7 +140,7 @@ class SalesTaxCharge(models.Model):
 class SalesPayment(models.Model):
     sales_order = models.ForeignKey(SalesOrder, on_delete=models.CASCADE, related_name='payments')
     payment_date = models.DateField()
-    amount = models.DecimalField(max_digits=18, decimal_places=2, validators=[MinValueValidator(0.01)])
+    amount = models.DecimalField(max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHODS, default='Bank Transfer')
     reference = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
