@@ -10,6 +10,10 @@ class Account(models.Model):
         ('Asset', 'Asset'), ('Liability', 'Liability'), ('Equity', 'Equity'),
         ('Income', 'Income'), ('Expense', 'Expense')
     ]
+    # Standard accounting convention: Asset/Expense accounts increase with a
+    # Debit; Liability/Equity/Income accounts increase with a Credit.
+    DEBIT_INCREASES = {'Asset', 'Expense'}
+
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='accounts')
     account_name = models.CharField(max_length=255)
     account_number = models.CharField(max_length=50)
@@ -23,6 +27,16 @@ class Account(models.Model):
     is_active = models.BooleanField(default=True)
     description = models.TextField(blank=True)
     notes = models.TextField(blank=True)
+
+    def post(self, debit_amount=0, credit_amount=0):
+        """Apply a debit/credit to this account's running balance,
+        respecting normal accounting sign convention based on root_type."""
+        effective_type = self.root_type or self.account_type
+        net = (debit_amount or 0) - (credit_amount or 0)
+        if effective_type not in self.DEBIT_INCREASES:
+            net = -net
+        Account.objects.filter(pk=self.pk).update(balance=models.F('balance') + net)
+        self.refresh_from_db(fields=['balance'])
 
     def __str__(self):
         return f"{self.account_number} - {self.account_name}"
@@ -57,6 +71,28 @@ class JournalEntry(models.Model):
     status = models.CharField(max_length=50, default='Draft', choices=[('Draft', 'Draft'), ('Submitted', 'Submitted')])
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def post_to_ledger(self):
+        """Applies this entry's amounts to the real account balances.
+        Called exactly once, when the entry transitions to 'Submitted'
+        (see JournalEntrySerializer.update). Supports both the simple
+        two-account shortcut and full multi-line postings."""
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        lines = list(self.lines.all())
+        if lines:
+            for line in lines:
+                if line.account.is_group:
+                    raise DjangoValidationError(
+                        f"Cannot post to '{line.account}': it is a group account (header), not a postable account."
+                    )
+            for line in lines:
+                line.account.post(debit_amount=line.debit, credit_amount=line.credit)
+        elif self.debit_account and self.credit_account:
+            if self.debit_account.is_group or self.credit_account.is_group:
+                raise DjangoValidationError("Cannot post to a group account (header) — choose a postable leaf account.")
+            self.debit_account.post(debit_amount=self.amount)
+            self.credit_account.post(credit_amount=self.amount)
 
     def __str__(self):
         return self.entry_number

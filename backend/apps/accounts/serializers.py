@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.core.workflow import validate_transition
+from apps.core.workflow import validate_transition, run_side_effect
 from .models import Account, JournalEntry, JournalEntryLine, CostCenter, Budget
 
 JOURNAL_TRANSITIONS = {
@@ -53,6 +53,14 @@ class JournalEntrySerializer(serializers.ModelSerializer):
         if self.instance and status and status != self.instance.status:
             validate_transition(JOURNAL_TRANSITIONS, self.instance.status, status)
         return data
+
+    def update(self, instance, validated_data):
+        old_status = instance.status
+        new_status = validated_data.get('status', old_status)
+        instance = super().update(instance, validated_data)
+        if old_status != new_status and new_status == 'Submitted':
+            run_side_effect(instance.post_to_ledger)
+        return instance
 
 class CostCenterSerializer(serializers.ModelSerializer):
     class Meta:
