@@ -24,7 +24,9 @@ from apps.crm.views import LeadViewSet, OpportunityViewSet
 from apps.projects.views import (
     ProjectViewSet, TaskViewSet, MilestoneViewSet, StakeholderViewSet,
     RiskRegisterViewSet, IssueLogViewSet, ChangeRequestViewSet,
+    TimeEntryViewSet, TaskCommentViewSet,
 )
+from apps.projects.ai_views import ProjectAIAssistantViewSet
 from apps.assets.views import AssetViewSet, AssetCategoryViewSet
 from apps.workflow.views import WorkflowViewSet
 
@@ -74,9 +76,14 @@ router.register(r'stakeholders', StakeholderViewSet)
 router.register(r'risks', RiskRegisterViewSet)
 router.register(r'issues', IssueLogViewSet)
 router.register(r'change-requests', ChangeRequestViewSet)
+router.register(r'time-entries', TimeEntryViewSet)
+router.register(r'task-comments', TaskCommentViewSet)
 router.register(r'assets', AssetViewSet)
 router.register(r'asset-categories', AssetCategoryViewSet)
 router.register(r'workflows', WorkflowViewSet)
+
+# AI Assistant routes
+router.register(r'ai-assistant', ProjectAIAssistantViewSet, basename='ai-assistant')
 
 from rest_framework.authtoken.views import obtain_auth_token
 

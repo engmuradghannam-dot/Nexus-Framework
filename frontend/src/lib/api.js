@@ -30,8 +30,6 @@ api.interceptors.response.use(
 )
 
 // ---- Generic CRUD helper -------------------------------------------------
-// Every ERP resource follows the same REST shape, so build fetch/create/
-// update/remove functions from one factory instead of repeating axios calls.
 function resource(path) {
   return {
     list: (params) => api.get(`/${path}/`, { params }).then((r) => r.data),
@@ -87,6 +85,8 @@ export const stakeholders = resource('stakeholders')
 export const risks = resource('risks')
 export const issues = resource('issues')
 export const changeRequests = resource('change-requests')
+export const timeEntries = resource('time-entries')
+export const taskComments = resource('task-comments')
 
 export const assets = resource('assets')
 export const assetCategories = resource('asset-categories')
@@ -96,7 +96,25 @@ export const opportunities = resource('opportunities')
 
 export const printTemplates = resource('print-templates')
 
-// ---- Backwards-compatible named fetchers (used by existing pages) -------
+// ---- Custom API calls for PM features ----
+export const projectApi = {
+  timeline: (id) => api.get(`/projects/${id}/timeline/`).then((r) => r.data),
+  kanban: (id) => api.get(`/projects/${id}/kanban/`).then((r) => r.data),
+  timeReport: (id) => api.get(`/projects/${id}/time_report/`).then((r) => r.data),
+}
+
+export const taskApi = {
+  startTimer: (id, data) => api.post(`/tasks/${id}/start_timer/`, data).then((r) => r.data),
+  stopTimer: (id, data) => api.post(`/tasks/${id}/stop_timer/`, data).then((r) => r.data),
+  comments: (id) => api.get(`/tasks/${id}/comments/`).then((r) => r.data),
+}
+
+export const timeEntryApi = {
+  myEntries: () => api.get('/time-entries/my_entries/').then((r) => r.data),
+  dashboard: () => api.get('/time-entries/dashboard/').then((r) => r.data),
+}
+
+// ---- Backwards-compatible named fetchers ----
 export const fetchPurchaseOrders = purchaseOrders.list
 export const fetchSalesOrders = salesOrders.list
 export const fetchEmployees = employees.list

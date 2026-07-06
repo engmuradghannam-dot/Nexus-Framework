@@ -5,7 +5,8 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, Building2,
   Factory, Briefcase, BarChart3, Settings, Menu, X,
   Warehouse, Landmark, Contact, FolderKanban, Box, FileText,
-  UsersRound, CheckSquare, CalendarDays, Wallet, LogOut, ClipboardList, PiggyBank, Target
+  UsersRound, CheckSquare, CalendarDays, Wallet, LogOut, ClipboardList, PiggyBank, Target,
+  Timer, Brain, Columns3, GitGraph
 } from 'lucide-react'
 
 const menuItems = [
@@ -18,7 +19,7 @@ const menuItems = [
   { label: 'إدارة العملاء (CRM)', icon: Target, path: '/crm' },
   { label: 'المخزون', icon: Package, path: '/items' },
   { label: 'جرد المخزون', icon: ClipboardList, path: '/stock-reconciliation' },
-  { label: 'الفروع والمستودعات', icon: Warehouse, path: '/warehouses' },
+  { label: 'الفروع والمستودعات', icon: Warehouse, path: '/warehouses-branches' },
   { label: 'أوامر الإنتاج', icon: Factory, path: '/work-orders' },
   { label: 'الموظفين', icon: Users, path: '/employees' },
   { label: 'الفرق', icon: UsersRound, path: '/teams' },
@@ -26,6 +27,8 @@ const menuItems = [
   { label: 'الإجازات', icon: CalendarDays, path: '/leave-requests' },
   { label: 'الرواتب', icon: Wallet, path: '/payrolls' },
   { label: 'المشاريع', icon: FolderKanban, path: '/projects' },
+  { label: 'تتبع الوقت', icon: Timer, path: '/time-tracking' },
+  { label: 'المساعد الذكي', icon: Brain, path: '/ai-assistant' },
   { label: 'الأصول', icon: Box, path: '/assets' },
   { label: 'الحسابات', icon: Landmark, path: '/accounts' },
   { label: 'الميزانيات', icon: PiggyBank, path: '/budgets' },
@@ -39,46 +42,55 @@ export default function Layout() {
   const { user, logout } = useAuth()
 
   return (
-    <div className="flex h-screen bg-gray-100" dir="rtl">
+    <div className="flex h-screen bg-gray-50" dir="rtl">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white border-l transition-all duration-300 flex flex-col`}>
-        <div className="h-16 flex items-center justify-between px-4 border-b">
-          {sidebarOpen && <h1 className="text-xl font-bold text-blue-600">Nexus ERP</h1>}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1 hover:bg-gray-100 rounded">
+      <aside
+        className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white border-l transition-all duration-300 flex flex-col`}
+      >
+        <div className="p-4 flex items-center justify-between border-b">
+          {sidebarOpen && (
+            <h1 className="text-xl font-bold text-blue-600">Nexus ERP</h1>
+          )}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto py-4">
+        <nav className="flex-1 overflow-y-auto py-2">
           {menuItems.map((item) => {
             const Icon = item.icon
-            const isActive = location.pathname === item.path
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-colors ${
-                  isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
+                className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-600 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 <Icon size={20} />
-                {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
+                {sidebarOpen && <span className="text-sm">{item.label}</span>}
               </Link>
             )
           })}
         </nav>
-        <div className="border-t p-3">
+        <div className="p-4 border-t">
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50"
+            className="flex items-center gap-3 px-4 py-2 w-full text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <LogOut size={20} />
-            {sidebarOpen && <span className="text-sm font-medium">تسجيل الخروج{user?.email ? ` (${user.email})` : ''}</span>}
+            {sidebarOpen && <span className="text-sm">تسجيل الخروج</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-auto">
         <div className="p-6">
           <Outlet />
         </div>

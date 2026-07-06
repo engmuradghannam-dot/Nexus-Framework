@@ -166,3 +166,75 @@ class ChangeRequest(models.Model):
 
     def __str__(self):
         return self.title
+
+
+from django.db import models
+from apps.core.models import User
+from apps.hr.models import Employee
+
+
+class TimeEntry(models.Model):
+    """Time tracking for tasks and projects."""
+    ENTRY_TYPES = [
+        ('Regular', 'Regular'),
+        ('Overtime', 'Overtime'),
+        ('Billable', 'Billable'),
+        ('Non-Billable', 'Non-Billable'),
+    ]
+
+    task = models.ForeignKey('Task', on_delete=models.CASCADE, related_name='time_entries', null=True, blank=True)
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='time_entries', null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='time_entries')
+    description = models.TextField(blank=True)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField(null=True, blank=True)
+    duration_minutes = models.PositiveIntegerField(default=0, help_text='Auto-calculated from start/end')
+    entry_type = models.CharField(max_length=20, choices=ENTRY_TYPES, default='Regular')
+    is_billable = models.BooleanField(default=True)
+    hourly_rate = models.DecimalField(max_digits=18, decimal_places=2, default=0, help_text='Rate at time of entry')
+
+    @property
+    def duration_hours(self):
+        if self.duration_minutes:
+            return round(self.duration_minutes / 60, 2)
+        if self.end_time and self.start_time:
+            delta = self.end_time - self.start_time
+            return round(delta.total_seconds() / 3600, 2)
+        return 0
+
+    @property
+    def cost(self):
+        return self.duration_hours * (self.hourly_rate or 0)
+
+    def save(self, *args, **kwargs):
+        if self.end_time and self.start_time and not self.duration_minutes:
+            delta = self.end_time - self.start_time
+            self.duration_minutes = int(delta.total_seconds() / 60)
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ['-start_time']
+
+    def __str__(self):
+        return f"{self.employee} - {self.duration_hours}h - {self.task or self.project}"
+
+
+class TaskComment(models.Model):
+    """Comments and discussions on tasks."""
+    task = models.ForeignKey('Task', on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey('core.User', on_delete=models.CASCADE, related_name='task_comments')
+    content = models.TextField()
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    is_edited = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def reply_count(self):
+        return self.replies.count()
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.author.email} on {self.task.subject[:30]}"
