@@ -884,6 +884,273 @@ div.breadcrumbs a {
     color: var(--nexus-accent) !important;
 }
 
+
+
+/* =====================================================
+   WINDOWS START MENU - FLYOUT SIDEBAR
+   ===================================================== */
+
+/* Start Item (App with flyout) */
+.nexus-start-item {
+    position: relative;
+}
+
+.nexus-start-link {
+    position: relative;
+}
+
+.nexus-start-arrow {
+    font-size: 18px;
+    color: var(--nexus-text-muted);
+    transition: var(--nexus-transition);
+    margin-left: auto;
+    opacity: 0.6;
+}
+
+.nexus-start-item:hover .nexus-start-arrow {
+    color: var(--nexus-accent);
+    opacity: 1;
+}
+
+/* Windows Start Menu Flyout */
+.nexus-start-flyout {
+    position: fixed;
+    left: var(--nexus-sidebar-width);
+    top: 0;
+    width: 320px;
+    height: 100vh;
+    background: var(--nexus-bg-card);
+    border-left: 1px solid var(--nexus-border);
+    box-shadow: var(--nexus-shadow-lg);
+    z-index: 1001;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-20px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.nexus-start-item:hover .nexus-start-flyout {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+/* When sidebar is collapsed */
+.nexus-sidebar.collapsed .nexus-start-flyout {
+    left: var(--nexus-sidebar-collapsed);
+}
+
+/* Flyout Header */
+.nexus-flyout-header {
+    padding: 20px;
+    background: var(--nexus-bg-sidebar);
+    border-bottom: 1px solid var(--nexus-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.nexus-flyout-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--nexus-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+.nexus-flyout-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--nexus-text-primary);
+}
+
+/* Flyout Content - Scrollable */
+.nexus-flyout-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--nexus-border) transparent;
+}
+
+.nexus-flyout-content::-webkit-scrollbar {
+    width: 5px;
+}
+
+.nexus-flyout-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nexus-flyout-content::-webkit-scrollbar-thumb {
+    background: var(--nexus-border);
+    border-radius: 3px;
+}
+
+.nexus-flyout-content::-webkit-scrollbar-thumb:hover {
+    background: var(--nexus-text-muted);
+}
+
+/* Flyout List */
+.nexus-flyout-list {
+    list-style: none;
+    padding: 0;
+}
+
+.nexus-flyout-item {
+    position: relative;
+}
+
+.nexus-flyout-link {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    color: var(--nexus-text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    transition: var(--nexus-transition);
+    gap: 10px;
+}
+
+.nexus-flyout-link:hover {
+    background: var(--nexus-bg-hover);
+    color: var(--nexus-text-primary);
+}
+
+.nexus-flyout-link.active {
+    background: rgba(201, 169, 110, 0.1);
+    color: var(--nexus-accent);
+    border-left: 3px solid var(--nexus-accent);
+}
+
+.nexus-flyout-bullet {
+    color: var(--nexus-primary-light);
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.nexus-flyout-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nexus-flyout-add {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--nexus-bg-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--nexus-accent);
+    text-decoration: none;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.nexus-flyout-add:hover {
+    background: var(--nexus-primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Flyout Footer */
+.nexus-flyout-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--nexus-border);
+    flex-shrink: 0;
+}
+
+.nexus-flyout-view-all {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    background: var(--nexus-bg-hover);
+    color: var(--nexus-primary-light);
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: var(--nexus-transition);
+}
+
+.nexus-flyout-view-all:hover {
+    background: var(--nexus-primary);
+    color: white;
+}
+
+/* =====================================================
+   OLD SUBMENU - HIDDEN (replaced by flyout)
+   ===================================================== */
+.nexus-submenu {
+    display: none !important;
+}
+
+.nexus-nav-arrow {
+    display: none !important;
+}
+
+/* =====================================================
+   RESPONSIVE - Mobile Flyout
+   ===================================================== */
+@media (max-width: 1024px) {
+    .nexus-start-flyout {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 320px;
+        transform: translateX(-100%);
+    }
+
+    .nexus-start-item.open .nexus-start-flyout {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(0);
+    }
+
+    .nexus-start-item:hover .nexus-start-flyout {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(-100%);
+    }
+}
+
+@media (max-width: 480px) {
+    .nexus-start-flyout {
+        max-width: 280px;
+    }
+
+    .nexus-flyout-header {
+        padding: 16px;
+    }
+
+    .nexus-flyout-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+
+    .nexus-flyout-title {
+        font-size: 14px;
+    }
+}
+
+
 /* =====================================================
    RESPONSIVE
    ===================================================== */

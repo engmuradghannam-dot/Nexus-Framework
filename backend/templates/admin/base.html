@@ -21,8 +21,11 @@
 {% if LANGUAGE_BIDI %}rtl{% endif %}"
   data-admin-utc-offset="{% now "Z" %}">
 
-<!-- Nexus Sidebar Control Panel -->
+<!-- ============================================ -->
+<!-- NEXUS SIDEBAR - Windows Start Menu Style     -->
+<!-- ============================================ -->
 <div id="nexus-sidebar" class="nexus-sidebar">
+    <!-- Sidebar Header -->
     <div class="nexus-sidebar-header">
         <div class="nexus-logo-container">
             <img src="{% static "admin/nexus/img/nexus-logo.png" %}" alt="Nexus" class="nexus-logo">
@@ -31,13 +34,12 @@
                 <span class="nexus-brand-subtitle">ERP System</span>
             </div>
         </div>
-        <button id="nexus-sidebar-toggle" class="nexus-sidebar-toggle" title="Toggle Sidebar">
-            <span></span>
-            <span></span>
-            <span></span>
+        <button id="nexus-sidebar-toggle" class="nexus-sidebar-toggle" title="{% trans "Toggle Sidebar" %}">
+            <span></span><span></span><span></span>
         </button>
     </div>
 
+    <!-- User Info -->
     <div class="nexus-sidebar-user">
         {% if user.is_authenticated %}
         <div class="nexus-user-info">
@@ -46,13 +48,13 @@
             </div>
             <div class="nexus-user-details">
                 <span class="nexus-user-name">{{ user.get_full_name|default:user.email }}</span>
-                <span class="nexus-user-role">{% if user.is_superuser %}Super Admin{% else %}Staff User{% endif %}</span>
+                <span class="nexus-user-role">{% if user.is_superuser %}{% trans "Super Admin" %}{% else %}{% trans "Staff User" %}{% endif %}</span>
             </div>
         </div>
         {% endif %}
     </div>
 
-    <!-- Language Selector in Sidebar -->
+    <!-- Language Selector -->
     <div class="nexus-sidebar-language">
         <form action="{% url "set_language" %}" method="post" class="nexus-language-form">
             {% csrf_token %}
@@ -73,9 +75,10 @@
         </form>
     </div>
 
+    <!-- Main Navigation - Windows Start Style -->
     <div class="nexus-sidebar-nav">
+        <!-- Dashboard -->
         <div class="nexus-nav-section">
-            <div class="nexus-nav-title">{% trans "Main" %}</div>
             <ul class="nexus-nav-list">
                 <li class="nexus-nav-item">
                     <a href="{% url "admin:index" %}" class="nexus-nav-link {% if request.path == "/admin/" %}active{% endif %}">
@@ -86,37 +89,49 @@
             </ul>
         </div>
 
+        <!-- Apps - Windows Start Menu Style -->
         <div class="nexus-nav-section">
-            <div class="nexus-nav-title">{% trans "Control Panel" %}</div>
+            <div class="nexus-nav-title">{% trans "Applications" %}</div>
             <ul class="nexus-nav-list">
                 {% if app_list %}
-                    {% for app in app_list|slice:":8" %}
-                    <li class="nexus-nav-item">
-                        <a href="{{ app.app_url }}" class="nexus-nav-link {% if app.active %}active{% endif %}" 
-                           data-app="{{ app.app_label }}">
+                    {% for app in app_list %}
+                    <li class="nexus-nav-item nexus-start-item" data-app="{{ app.app_label }}">
+                        <a href="{{ app.app_url }}" class="nexus-nav-link nexus-start-link {% if app.active %}active{% endif %}">
                             <span class="nexus-nav-icon nexus-app-icon">{{ app.name|first|upper }}</span>
                             <span class="nexus-nav-text">{{ app.name }}</span>
                             {% if app.models %}
-                            <span class="nexus-nav-arrow">▶</span>
+                            <span class="nexus-start-arrow">›</span>
                             {% endif %}
                         </a>
+
+                        <!-- Windows Start Menu Flyout -->
                         {% if app.models %}
-                        <ul class="nexus-submenu">
-                            {% for model in app.models|slice:":6" %}
-                            <li class="nexus-submenu-item">
-                                <a href="{{ model.admin_url }}" class="nexus-submenu-link {% if model.active %}active{% endif %}">
-                                    {{ model.name }}
+                        <div class="nexus-start-flyout">
+                            <div class="nexus-flyout-header">
+                                <span class="nexus-flyout-icon">{{ app.name|first|upper }}</span>
+                                <span class="nexus-flyout-title">{{ app.name }}</span>
+                            </div>
+                            <div class="nexus-flyout-content">
+                                <ul class="nexus-flyout-list">
+                                    {% for model in app.models %}
+                                    <li class="nexus-flyout-item">
+                                        <a href="{{ model.admin_url }}" class="nexus-flyout-link {% if model.active %}active{% endif %}">
+                                            <span class="nexus-flyout-bullet">•</span>
+                                            <span class="nexus-flyout-text">{{ model.name }}</span>
+                                            {% if model.add_url %}
+                                            <a href="{{ model.add_url }}" class="nexus-flyout-add" title="{% trans "Add" %}">+</a>
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="nexus-flyout-footer">
+                                <a href="{{ app.app_url }}" class="nexus-flyout-view-all">
+                                    {% trans "View All" %} →
                                 </a>
-                            </li>
-                            {% endfor %}
-                            {% if app.models|length > 6 %}
-                            <li class="nexus-submenu-item">
-                                <a href="{{ app.app_url }}" class="nexus-submenu-link nexus-more-link">
-                                    + {% trans "More" %}
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
+                            </div>
+                        </div>
                         {% endif %}
                     </li>
                     {% endfor %}
@@ -124,6 +139,7 @@
             </ul>
         </div>
 
+        <!-- System -->
         <div class="nexus-nav-section">
             <div class="nexus-nav-title">{% trans "System" %}</div>
             <ul class="nexus-nav-list">
@@ -143,6 +159,7 @@
         </div>
     </div>
 
+    <!-- Footer -->
     <div class="nexus-sidebar-footer">
         <div class="nexus-footer-info">
             <span class="nexus-footer-brand">Nexus-Framework</span>
@@ -154,19 +171,19 @@
     </div>
 </div>
 
-<!-- Overlay for mobile -->
+<!-- Overlay -->
 <div id="nexus-overlay" class="nexus-overlay"></div>
 
-<!-- Main Content -->
+<!-- ============================================ -->
+<!-- MAIN CONTENT                                 -->
+<!-- ============================================ -->
 <div id="nexus-main" class="nexus-main">
     {% if not is_popup %}
     <!-- Header -->
     <div id="nexus-header" class="nexus-header">
         <div class="nexus-header-left">
-            <button id="nexus-menu-btn" class="nexus-menu-btn" title="Menu">
-                <span></span>
-                <span></span>
-                <span></span>
+            <button id="nexus-menu-btn" class="nexus-menu-btn" title="{% trans "Menu" %}">
+                <span></span><span></span><span></span>
             </button>
             <div class="nexus-breadcrumbs">
                 <a href="{% url "admin:index" %}" class="nexus-breadcrumb-home">🏠</a>
@@ -174,7 +191,7 @@
             </div>
         </div>
         <div class="nexus-header-right">
-            <!-- Language Selector in Header -->
+            <!-- Language Selector -->
             <div class="nexus-header-language">
                 <form action="{% url "set_language" %}" method="post" class="nexus-language-form-header">
                     {% csrf_token %}
