@@ -8,6 +8,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ('hr', '0001_initial'),
         ('core', '0001_initial'),
     ]
 
@@ -17,21 +18,26 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
+                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='asset_categories', to='core.company')),
+                ('parent_category', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='assets.assetcategory')),
             ],
         ),
         migrations.CreateModel(
             name='Asset',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('purchase_date', models.DateField()),
-                ('purchase_cost', models.DecimalField(decimal_places=2, max_digits=18)),
-                ('salvage_value', models.DecimalField(decimal_places=2, default=0, max_digits=18)),
-                ('useful_life_years', models.PositiveIntegerField()),
-                ('status', models.CharField(choices=[('Active', 'Active'), ('Disposed', 'Disposed'), ('Sold', 'Sold')], default='Active', max_length=50)),
+                ('asset_name', models.CharField(max_length=255)),
+                ('asset_code', models.CharField(max_length=100, unique=True)),
+                ('purchase_date', models.DateField(blank=True, null=True)),
+                ('purchase_value', models.DecimalField(decimal_places=2, default=0, max_digits=18)),
+                ('current_value', models.DecimalField(decimal_places=2, default=0, max_digits=18)),
+                ('status', models.CharField(choices=[('Draft', 'Draft'), ('Submitted', 'Submitted'), ('In Maintenance', 'In Maintenance'), ('Disposed', 'Disposed')], default='Draft', max_length=50)),
+                ('location', models.CharField(blank=True, max_length=255)),
+                ('notes', models.TextField(blank=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('category', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='assets.assetcategory')),
                 ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='assets', to='core.company')),
-                ('category', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='assets.assetcategory')),
+                ('custodian', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='hr.employee')),
             ],
         ),
     ]
