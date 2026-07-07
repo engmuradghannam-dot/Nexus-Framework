@@ -7,7 +7,7 @@ import os
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production-123456789')
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-now')
@@ -60,7 +60,7 @@ ROOT_URLCONF = 'nexus.urls'
 
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
-    'DIRS': [],
+    'DIRS': [BASE_DIR / 'templates'],
     'APP_DIRS': True,
     'OPTIONS': {
         'context_processors': [
@@ -68,6 +68,7 @@ TEMPLATES = [{
             'django.template.context_processors.request',
             'django.contrib.auth.context_processors.auth',
             'django.contrib.messages.context_processors.messages',
+            'django.template.context_processors.i18n',
         ],
     },
 }]
@@ -103,6 +104,21 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
+
+# Available languages
+from django.utils.translation import gettext_lazy as _
+LANGUAGES = [
+    ('en', _('English')),
+    ('ar', _('Arabic')),
+    ('fr', _('French')),
+    ('es', _('Spanish')),
+    ('de', _('German')),
+    ('tr', _('Turkish')),
+    ('ur', _('Urdu')),
+    ('hi', _('Hindi')),
+    ('zh-hans', _('Chinese (Simplified)')),
+    ('ja', _('Japanese')),
+]
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
@@ -110,6 +126,9 @@ USE_TZ = True
 # Static Files (WhiteNoise)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
