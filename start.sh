@@ -1,8 +1,7 @@
 #!/bin/sh
 set -e
 
-cd backend
-
+# We are already in /app where backend files were copied by Dockerfile
 # Auto-generate all missing migrations
 python manage.py makemigrations core accounts assets buying crm hr inventory manufacturing projects selling workflow --noinput
 
