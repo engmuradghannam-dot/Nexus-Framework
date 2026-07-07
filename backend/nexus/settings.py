@@ -1,20 +1,20 @@
 """
-Nexus Framework - Django ERP Settings
+Nexus Framework - Django ERP Settings (Production)
 """
 import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-nexus-dev-key-change-in-production')
-DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+# Security
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-now')
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['*']
+if os.getenv('RAILWAY_STATIC_URL'):
+    ALLOWED_HOSTS.append(os.getenv('RAILWAY_STATIC_URL'))
 
-# Production settings
-SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if SECURE_SSL_REDIRECT else None
-
+# Installed Apps
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -71,42 +71,27 @@ TEMPLATES = [{
 
 WSGI_APPLICATION = 'nexus.wsgi.application'
 
-# Database configuration - supports both local and production
+# Database - Railway PostgreSQL
 import dj_database_url
-
 DATABASES = {
+    'default': dj_database_url.config(
+        default='sqlite:///db.sqlite3',
+        conn_max_age=600
+    )
+}
+
+# Cache - Dummy (no Redis needed for basic functionality)
+CACHES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'nexus'),
-        'USER': os.getenv('DB_USER', 'nexus'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'nexus'),
-        'HOST': os.getenv('DB_HOST', 'db'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
 
-# Override with DATABASE_URL if provided (for Railway/Render)
-database_url = os.getenv('DATABASE_URL')
-if database_url:
-    DATABASES['default'] = dj_database_url.parse(database_url)
+# Celery - disabled in production for now
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', '')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', '')
 
-# Cache configuration - uses Redis if available, otherwise dummy cache
-redis_url = os.getenv('REDIS_URL')
-if redis_url:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': redis_url,
-            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
-        }
-    }
-else:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-        }
-    }
-
+# Auth
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -119,6 +104,7 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# Static Files (WhiteNoise)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -128,6 +114,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
@@ -148,44 +135,23 @@ REST_FRAMEWORK = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 AUTH_USER_MODEL = 'core.User'
-
 ANONYMOUS_USER_ID = -1
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
     'guardian.backends.ObjectPermissionBackend',
 )
 
-# Celery configuration
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', '')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', '')
-
-
+# Logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-    },
     'handlers': {
         'console': {
-            'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'nexus': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
     },
 }
