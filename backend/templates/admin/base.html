@@ -52,6 +52,27 @@
         {% endif %}
     </div>
 
+    <!-- Language Selector in Sidebar -->
+    <div class="nexus-sidebar-language">
+        <form action="{% url "set_language" %}" method="post" class="nexus-language-form">
+            {% csrf_token %}
+            <input name="next" type="hidden" value="{{ redirect_to }}">
+            <div class="nexus-language-select-wrapper">
+                <span class="nexus-language-icon">🌐</span>
+                <select name="language" class="nexus-language-select" onchange="this.form.submit()">
+                    {% get_current_language as LANGUAGE_CODE %}
+                    {% get_available_languages as LANGUAGES %}
+                    {% get_language_info_list for LANGUAGES as languages %}
+                    {% for language in languages %}
+                        <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
+                            {{ language.name_local }} ({{ language.code }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+
     <div class="nexus-sidebar-nav">
         <div class="nexus-nav-section">
             <div class="nexus-nav-title">{% trans "Main" %}</div>
@@ -153,6 +174,26 @@
             </div>
         </div>
         <div class="nexus-header-right">
+            <!-- Language Selector in Header -->
+            <div class="nexus-header-language">
+                <form action="{% url "set_language" %}" method="post" class="nexus-language-form-header">
+                    {% csrf_token %}
+                    <input name="next" type="hidden" value="{{ redirect_to }}">
+                    <div class="nexus-language-select-wrapper-header">
+                        <span class="nexus-language-icon-header">🌐</span>
+                        <select name="language" class="nexus-language-select-header" onchange="this.form.submit()">
+                            {% get_current_language as LANGUAGE_CODE %}
+                            {% get_available_languages as LANGUAGES %}
+                            {% get_language_info_list for LANGUAGES as languages %}
+                            {% for language in languages %}
+                                <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
+                                    {{ language.name_local }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
             <div class="nexus-header-actions">
                 {% block usertools %}
                 {% if user.is_authenticated %}
