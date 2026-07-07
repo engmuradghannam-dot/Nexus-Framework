@@ -21,11 +21,8 @@
 {% if LANGUAGE_BIDI %}rtl{% endif %}"
   data-admin-utc-offset="{% now "Z" %}">
 
-<!-- ============================================ -->
-<!-- NEXUS SIDEBAR - Windows Start Menu Style     -->
-<!-- ============================================ -->
+<!-- Nexus Sidebar Control Panel -->
 <div id="nexus-sidebar" class="nexus-sidebar">
-    <!-- Sidebar Header -->
     <div class="nexus-sidebar-header">
         <div class="nexus-logo-container">
             <img src="{% static "admin/nexus/img/nexus-logo.png" %}" alt="Nexus" class="nexus-logo">
@@ -34,12 +31,13 @@
                 <span class="nexus-brand-subtitle">ERP System</span>
             </div>
         </div>
-        <button id="nexus-sidebar-toggle" class="nexus-sidebar-toggle" title="{% trans "Toggle Sidebar" %}">
-            <span></span><span></span><span></span>
+        <button id="nexus-sidebar-toggle" class="nexus-sidebar-toggle" title="Toggle Sidebar">
+            <span></span>
+            <span></span>
+            <span></span>
         </button>
     </div>
 
-    <!-- User Info -->
     <div class="nexus-sidebar-user">
         {% if user.is_authenticated %}
         <div class="nexus-user-info">
@@ -48,50 +46,27 @@
             </div>
             <div class="nexus-user-details">
                 <span class="nexus-user-name">{{ user.get_full_name|default:user.email }}</span>
-                <span class="nexus-user-role">{% if user.is_superuser %}{% trans "Super Admin" %}{% else %}{% trans "Staff User" %}{% endif %}</span>
+                <span class="nexus-user-role">{% if user.is_superuser %}Super Admin{% else %}Staff User{% endif %}</span>
             </div>
         </div>
         {% endif %}
     </div>
 
-    <!-- Language Selector -->
-    <div class="nexus-sidebar-language">
-        <form action="{% url "set_language" %}" method="post" class="nexus-language-form">
-            {% csrf_token %}
-            <input name="next" type="hidden" value="{{ redirect_to }}">
-            <div class="nexus-language-select-wrapper">
-                <span class="nexus-language-icon">🌐</span>
-                <select name="language" class="nexus-language-select" onchange="this.form.submit()">
-                    {% get_current_language as LANGUAGE_CODE %}
-                    {% get_available_languages as LANGUAGES %}
-                    {% get_language_info_list for LANGUAGES as languages %}
-                    {% for language in languages %}
-                        <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
-                            {{ language.name_local }} ({{ language.code }})
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-        </form>
-    </div>
-
-    <!-- Main Navigation - Windows Start Style -->
     <div class="nexus-sidebar-nav">
-        <!-- Dashboard -->
         <div class="nexus-nav-section">
+            <div class="nexus-nav-title">Main</div>
             <ul class="nexus-nav-list">
                 <li class="nexus-nav-item">
                     <a href="{% url "admin:index" %}" class="nexus-nav-link {% if request.path == "/admin/" %}active{% endif %}">
                         <span class="nexus-nav-icon">🏠</span>
-                        <span class="nexus-nav-text">{% trans "Dashboard" %}</span>
+                        <span class="nexus-nav-text">Dashboard</span>
                     </a>
                 </li>
             </ul>
         </div>
 
-        <!-- Apps - Windows Start Menu Style -->
         <div class="nexus-nav-section">
-            <div class="nexus-nav-title">{% trans "Applications" %}</div>
+            <div class="nexus-nav-title">Applications</div>
             <ul class="nexus-nav-list">
                 {% if app_list %}
                     {% for app in app_list %}
@@ -104,7 +79,6 @@
                             {% endif %}
                         </a>
 
-                        <!-- Windows Start Menu Flyout -->
                         {% if app.models %}
                         <div class="nexus-start-flyout">
                             <div class="nexus-flyout-header">
@@ -118,18 +92,13 @@
                                         <a href="{{ model.admin_url }}" class="nexus-flyout-link {% if model.active %}active{% endif %}">
                                             <span class="nexus-flyout-bullet">•</span>
                                             <span class="nexus-flyout-text">{{ model.name }}</span>
-                                            {% if model.add_url %}
-                                            <a href="{{ model.add_url }}" class="nexus-flyout-add" title="{% trans "Add" %}">+</a>
-                                            {% endif %}
                                         </a>
                                     </li>
                                     {% endfor %}
                                 </ul>
                             </div>
                             <div class="nexus-flyout-footer">
-                                <a href="{{ app.app_url }}" class="nexus-flyout-view-all">
-                                    {% trans "View All" %} →
-                                </a>
+                                <a href="{{ app.app_url }}" class="nexus-flyout-view-all">View All →</a>
                             </div>
                         </div>
                         {% endif %}
@@ -139,27 +108,25 @@
             </ul>
         </div>
 
-        <!-- System -->
         <div class="nexus-nav-section">
-            <div class="nexus-nav-title">{% trans "System" %}</div>
+            <div class="nexus-nav-title">System</div>
             <ul class="nexus-nav-list">
                 <li class="nexus-nav-item">
                     <a href="{% url "admin:password_change" %}" class="nexus-nav-link">
                         <span class="nexus-nav-icon">🔐</span>
-                        <span class="nexus-nav-text">{% trans "Change Password" %}</span>
+                        <span class="nexus-nav-text">Change Password</span>
                     </a>
                 </li>
                 <li class="nexus-nav-item">
                     <a href="{% url "admin:logout" %}" class="nexus-nav-link nexus-logout">
                         <span class="nexus-nav-icon">🚪</span>
-                        <span class="nexus-nav-text">{% trans "Log out" %}</span>
+                        <span class="nexus-nav-text">Log out</span>
                     </a>
                 </li>
             </ul>
         </div>
     </div>
 
-    <!-- Footer -->
     <div class="nexus-sidebar-footer">
         <div class="nexus-footer-info">
             <span class="nexus-footer-brand">Nexus-Framework</span>
@@ -174,16 +141,16 @@
 <!-- Overlay -->
 <div id="nexus-overlay" class="nexus-overlay"></div>
 
-<!-- ============================================ -->
-<!-- MAIN CONTENT                                 -->
-<!-- ============================================ -->
+<!-- Main Content -->
 <div id="nexus-main" class="nexus-main">
     {% if not is_popup %}
     <!-- Header -->
     <div id="nexus-header" class="nexus-header">
         <div class="nexus-header-left">
-            <button id="nexus-menu-btn" class="nexus-menu-btn" title="{% trans "Menu" %}">
-                <span></span><span></span><span></span>
+            <button id="nexus-menu-btn" class="nexus-menu-btn" title="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
             </button>
             <div class="nexus-breadcrumbs">
                 <a href="{% url "admin:index" %}" class="nexus-breadcrumb-home">🏠</a>
@@ -191,31 +158,11 @@
             </div>
         </div>
         <div class="nexus-header-right">
-            <!-- Language Selector -->
-            <div class="nexus-header-language">
-                <form action="{% url "set_language" %}" method="post" class="nexus-language-form-header">
-                    {% csrf_token %}
-                    <input name="next" type="hidden" value="{{ redirect_to }}">
-                    <div class="nexus-language-select-wrapper-header">
-                        <span class="nexus-language-icon-header">🌐</span>
-                        <select name="language" class="nexus-language-select-header" onchange="this.form.submit()">
-                            {% get_current_language as LANGUAGE_CODE %}
-                            {% get_available_languages as LANGUAGES %}
-                            {% get_language_info_list for LANGUAGES as languages %}
-                            {% for language in languages %}
-                                <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
-                                    {{ language.name_local }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </form>
-            </div>
             <div class="nexus-header-actions">
                 {% block usertools %}
                 {% if user.is_authenticated %}
                 <div class="nexus-user-menu">
-                    <span class="nexus-welcome">{% trans "Welcome," %} <strong>{{ user.get_full_name|default:user.email }}</strong></span>
+                    <span class="nexus-welcome">Welcome, <strong>{{ user.get_full_name|default:user.email }}</strong></span>
                 </div>
                 {% endif %}
                 {% endblock %}
