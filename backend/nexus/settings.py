@@ -149,7 +149,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': str(BASE_DIR / 'logs' / 'nexus.log'),
+            'filename': str(BASE_DIR / 'backend' / 'logs' / 'nexus.log'),
             'formatter': 'verbose',
         },
         'console': {
