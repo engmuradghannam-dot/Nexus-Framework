@@ -2,6 +2,9 @@
 Nexus Framework - Django ERP Settings (Production)
 """
 import os
+
+# Security
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production-123456789')
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -10,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-now')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']  # Allow all hosts for Railway deployment
 if os.getenv('RAILWAY_STATIC_URL'):
     ALLOWED_HOSTS.append(os.getenv('RAILWAY_STATIC_URL'))
 
@@ -155,3 +158,10 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+
+# Railway-specific settings
+if os.environ.get('RAILWAY_ENVIRONMENT'):
+    # We're on Railway
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
