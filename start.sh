@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+cd backend
+
+# Create missing migrations for all apps
+python manage.py makemigrations --noinput
+
 # Run migrations
 python manage.py migrate --noinput
 
