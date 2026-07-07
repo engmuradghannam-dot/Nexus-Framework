@@ -8,7 +8,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
-RUN mkdir -p logs
+
+# Create log directories for both relative and absolute paths
+RUN mkdir -p logs && mkdir -p /backend/logs
 
 # Collect static files
 RUN python manage.py collectstatic --noinput 2>/dev/null || true
