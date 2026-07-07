@@ -8,8 +8,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
+COPY start.sh .
+RUN chmod +x start.sh
 
-# Create log directories for both relative and absolute paths
+# Create log directories
 RUN mkdir -p logs && mkdir -p /backend/logs
 
 # Collect static files
@@ -17,5 +19,4 @@ RUN python manage.py collectstatic --noinput 2>/dev/null || true
 
 EXPOSE 8000
 
-# Use PORT env var from Railway
-CMD python manage.py migrate && gunicorn nexus.wsgi:application -b 0.0.0.0:${PORT:-8000} --workers 2
+CMD ["./start.sh"]
