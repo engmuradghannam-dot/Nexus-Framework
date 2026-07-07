@@ -1,0 +1,199 @@
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:"rtl,ltr,auto" }}">
+<head>
+<title>{% block title %}{% endblock %} | Nexus-Framework</title>
+<link rel="stylesheet" type="text/css" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}">
+<link rel="stylesheet" type="text/css" href="{% static "admin/nexus/css/nexus-theme.css" %}">
+{% block extrastyle %}{% endblock %}
+{% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
+{% block extrahead %}{% endblock %}
+{% block responsive %}
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{% static "admin/css/responsive.css" %}">
+    {% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% static "admin/css/responsive_rtl.css" %}">{% endif %}
+{% endblock %}
+{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
+<link rel="icon" type="image/png" href="{% static "admin/nexus/img/nexus-logo.png" %}">
+</head>
+
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}
+{% if LANGUAGE_BIDI %}rtl{% endif %}"
+  data-admin-utc-offset="{% now "Z" %}">
+
+<!-- Nexus Sidebar Control Panel -->
+<div id="nexus-sidebar" class="nexus-sidebar">
+    <div class="nexus-sidebar-header">
+        <div class="nexus-logo-container">
+            <img src="{% static "admin/nexus/img/nexus-logo.png" %}" alt="Nexus" class="nexus-logo">
+            <div class="nexus-brand">
+                <span class="nexus-brand-title">Nexus-Framework</span>
+                <span class="nexus-brand-subtitle">ERP System</span>
+            </div>
+        </div>
+        <button id="nexus-sidebar-toggle" class="nexus-sidebar-toggle" title="Toggle Sidebar">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </div>
+
+    <div class="nexus-sidebar-user">
+        {% if user.is_authenticated %}
+        <div class="nexus-user-info">
+            <div class="nexus-user-avatar">
+                <span>{{ user.first_name|first|default:user.email|first|upper }}</span>
+            </div>
+            <div class="nexus-user-details">
+                <span class="nexus-user-name">{{ user.get_full_name|default:user.email }}</span>
+                <span class="nexus-user-role">{% if user.is_superuser %}Super Admin{% else %}Staff User{% endif %}</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="nexus-sidebar-nav">
+        <div class="nexus-nav-section">
+            <div class="nexus-nav-title">{% trans "Main" %}</div>
+            <ul class="nexus-nav-list">
+                <li class="nexus-nav-item">
+                    <a href="{% url "admin:index" %}" class="nexus-nav-link {% if request.path == "/admin/" %}active{% endif %}">
+                        <span class="nexus-nav-icon">🏠</span>
+                        <span class="nexus-nav-text">{% trans "Dashboard" %}</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="nexus-nav-section">
+            <div class="nexus-nav-title">{% trans "Control Panel" %}</div>
+            <ul class="nexus-nav-list">
+                {% if app_list %}
+                    {% for app in app_list|slice:":8" %}
+                    <li class="nexus-nav-item">
+                        <a href="{{ app.app_url }}" class="nexus-nav-link {% if app.active %}active{% endif %}" 
+                           data-app="{{ app.app_label }}">
+                            <span class="nexus-nav-icon nexus-app-icon">{{ app.name|first|upper }}</span>
+                            <span class="nexus-nav-text">{{ app.name }}</span>
+                            {% if app.models %}
+                            <span class="nexus-nav-arrow">▶</span>
+                            {% endif %}
+                        </a>
+                        {% if app.models %}
+                        <ul class="nexus-submenu">
+                            {% for model in app.models|slice:":6" %}
+                            <li class="nexus-submenu-item">
+                                <a href="{{ model.admin_url }}" class="nexus-submenu-link {% if model.active %}active{% endif %}">
+                                    {{ model.name }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                            {% if app.models|length > 6 %}
+                            <li class="nexus-submenu-item">
+                                <a href="{{ app.app_url }}" class="nexus-submenu-link nexus-more-link">
+                                    + {% trans "More" %}
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                {% endif %}
+            </ul>
+        </div>
+
+        <div class="nexus-nav-section">
+            <div class="nexus-nav-title">{% trans "System" %}</div>
+            <ul class="nexus-nav-list">
+                <li class="nexus-nav-item">
+                    <a href="{% url "admin:password_change" %}" class="nexus-nav-link">
+                        <span class="nexus-nav-icon">🔐</span>
+                        <span class="nexus-nav-text">{% trans "Change Password" %}</span>
+                    </a>
+                </li>
+                <li class="nexus-nav-item">
+                    <a href="{% url "admin:logout" %}" class="nexus-nav-link nexus-logout">
+                        <span class="nexus-nav-icon">🚪</span>
+                        <span class="nexus-nav-text">{% trans "Log out" %}</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="nexus-sidebar-footer">
+        <div class="nexus-footer-info">
+            <span class="nexus-footer-brand">Nexus-Framework</span>
+            <span class="nexus-footer-version">v1.0.0</span>
+        </div>
+        <div class="nexus-footer-credit">
+            <span>by @eng.Murad Alhassan</span>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay for mobile -->
+<div id="nexus-overlay" class="nexus-overlay"></div>
+
+<!-- Main Content -->
+<div id="nexus-main" class="nexus-main">
+    {% if not is_popup %}
+    <!-- Header -->
+    <div id="nexus-header" class="nexus-header">
+        <div class="nexus-header-left">
+            <button id="nexus-menu-btn" class="nexus-menu-btn" title="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="nexus-breadcrumbs">
+                <a href="{% url "admin:index" %}" class="nexus-breadcrumb-home">🏠</a>
+                {% block breadcrumbs %}{% endblock %}
+            </div>
+        </div>
+        <div class="nexus-header-right">
+            <div class="nexus-header-actions">
+                {% block usertools %}
+                {% if user.is_authenticated %}
+                <div class="nexus-user-menu">
+                    <span class="nexus-welcome">{% trans "Welcome," %} <strong>{{ user.get_full_name|default:user.email }}</strong></span>
+                </div>
+                {% endif %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Content -->
+    <div class="nexus-content-wrapper">
+        {% block messages %}
+            {% if messages %}
+            <ul class="nexus-messagelist">
+                {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        {% endblock messages %}
+
+        <div id="nexus-content" class="nexus-content">
+            {% block pretitle %}{% endblock %}
+            {% block content_title %}{% if title %}<h1 class="nexus-page-title">{{ title }}</h1>{% endif %}{% endblock %}
+            {% block content %}
+            {% block object-tools %}{% endblock %}
+            {{ content }}
+            {% endblock %}
+            {% block sidebar %}{% endblock %}
+            <br class="clear">
+        </div>
+    </div>
+
+    {% block footer %}<div id="nexus-footer" class="nexus-footer"></div>{% endblock %}
+</div>
+
+<script src="{% static "admin/nexus/js/nexus-sidebar.js" %}"></script>
+{% block extrajs %}{% endblock %}
+</body>
+</html>

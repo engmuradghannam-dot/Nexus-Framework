@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "Dashboard" %}{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main" class="nexus-dashboard">
+    <h1 class="nexus-dashboard-title">{% trans "Nexus-Framework Dashboard" %}</h1>
+    <p class="nexus-dashboard-subtitle">{% trans "Welcome to your ERP Control Center" %}</p>
+
+    {% if app_list %}
+    <div class="nexus-dashboard-grid">
+        {% for app in app_list %}
+        <div class="nexus-dashboard-card" data-app="{{ app.app_label }}">
+            <div class="nexus-card-header">
+                <div class="nexus-card-icon">{{ app.name|first|upper }}</div>
+                <h2 class="nexus-card-title">{{ app.name }}</h2>
+            </div>
+            <div class="nexus-card-body">
+                <ul class="nexus-card-models">
+                    {% for model in app.models|slice:":5" %}
+                    <li class="nexus-card-model">
+                        {% if model.admin_url %}
+                        <a href="{{ model.admin_url }}" class="nexus-card-link">
+                            <span class="nexus-card-link-icon">📋</span>
+                            <span class="nexus-card-link-text">{{ model.name }}</span>
+                            {% if model.add_url %}
+                            <a href="{{ model.add_url }}" class="nexus-card-add" title="{% trans "Add" %}">+</a>
+                            {% endif %}
+                        </a>
+                        {% else %}
+                        <span class="nexus-card-no-link">{{ model.name }}</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                    {% if app.models|length > 5 %}
+                    <li class="nexus-card-model nexus-card-more">
+                        <a href="{{ app.app_url }}" class="nexus-card-link nexus-card-more-link">
+                            + {{ app.models|length|add:"-5" }} {% trans "more" %}
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+            <div class="nexus-card-footer">
+                <a href="{{ app.app_url }}" class="nexus-card-view-all">
+                    {% trans "View All" %} →
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="nexus-empty-state">
+        <div class="nexus-empty-icon">📂</div>
+        <p>{% trans "You don't have permission to view or edit anything." %}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
