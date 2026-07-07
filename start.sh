@@ -8,5 +8,8 @@ python manage.py makemigrations core accounts assets buying crm hr inventory man
 # Run migrations with fake-initial fallback for first deploy
 python manage.py migrate --noinput --fake-initial || python manage.py migrate --noinput
 
+# Initialize default superuser
+python manage.py init_superuser
+
 # Start gunicorn
 exec gunicorn nexus.wsgi:application -b 0.0.0.0:${PORT:-8000} --workers 2 --timeout 60
