@@ -12,6 +12,10 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=nexus.settings.base
+
 WORKDIR /app
 
 # Install Python dependencies
@@ -24,11 +28,14 @@ COPY backend/ .
 # Copy built frontend static files
 COPY --from=frontend-build /app/frontend/dist ./staticfiles/
 
-# Collect Django static files
-RUN python manage.py collectstatic --noinput || true
-
-# Create start script
-RUN echo "#!/bin/bash" > start.sh &&     echo "python manage.py migrate --noinput" >> start.sh &&     echo "python manage.py runserver 0.0.0.0:8000" >> start.sh &&     chmod +x start.sh
+# Create start script (runs at deploy time when env vars are available)
+RUN echo '#!/bin/bash' > start.sh && \
+    echo 'set -e' >> start.sh && \
+    echo 'echo "Starting Nexus Framework..."' >> start.sh && \
+    echo 'python manage.py collectstatic --noinput' >> start.sh && \
+    echo 'python manage.py migrate --noinput' >> start.sh && \
+    echo 'python manage.py runserver 0.0.0.0:${PORT:-8000}' >> start.sh && \
+    chmod +x start.sh
 
 EXPOSE 8000
 CMD ["./start.sh"]
