@@ -36,7 +36,7 @@
     {% block object-tools %}
     <div class="nexus-object-tools">
         <div class="nexus-object-tools-left">
-            <a href="javascript:history.back()" class="nexus-btn nexus-btn-back" title="{% trans "Go back" %}">
+            <a href="{% url "admin:index" %}" class="nexus-btn nexus-btn-back" title="{% trans "Go to Dashboard" %}">
                 <span>←</span> {% trans "Back" %}
             </a>
             <button onclick="location.reload()" class="nexus-btn nexus-btn-refresh" title="{% trans "Refresh page" %}">
