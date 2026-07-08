@@ -1,6 +1,6 @@
 {% load i18n static %}
 <!DOCTYPE html>
-<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:"rtl,ltr,auto" }}">
+<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:"rtl,ltr,auto" }}" data-theme="light">
 <head>
 <title>{% block title %}{% endblock %} | Nexus-Framework</title>
 <link rel="stylesheet" type="text/css" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}">
@@ -21,7 +21,7 @@
 {% if LANGUAGE_BIDI %}rtl{% endif %}"
   data-admin-utc-offset="{% now "Z" %}">
 
-<!-- Nexus Sidebar Control Panel -->
+<!-- Nexus Sidebar - Windows Style -->
 <div id="nexus-sidebar" class="nexus-sidebar">
     <div class="nexus-sidebar-header">
         <div class="nexus-logo-container">
@@ -32,9 +32,7 @@
             </div>
         </div>
         <button id="nexus-sidebar-toggle" class="nexus-sidebar-toggle" title="Toggle Sidebar">
-            <span></span>
-            <span></span>
-            <span></span>
+            <span></span><span></span><span></span>
         </button>
     </div>
 
@@ -50,6 +48,14 @@
             </div>
         </div>
         {% endif %}
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="nexus-theme-toggle">
+        <button id="nexus-theme-btn" class="nexus-theme-btn" title="Toggle Dark/Light Mode">
+            <span id="theme-icon">🌙</span>
+            <span id="theme-text">Dark Mode</span>
+        </button>
     </div>
 
     <div class="nexus-sidebar-nav">
@@ -148,9 +154,7 @@
     <div id="nexus-header" class="nexus-header">
         <div class="nexus-header-left">
             <button id="nexus-menu-btn" class="nexus-menu-btn" title="Menu">
-                <span></span>
-                <span></span>
-                <span></span>
+                <span></span><span></span><span></span>
             </button>
             <div class="nexus-breadcrumbs">
                 <a href="{% url "admin:index" %}" class="nexus-breadcrumb-home">🏠</a>

@@ -1,36 +1,58 @@
 /* =====================================================
-   Nexus-Framework Admin Theme
-   Custom Django Admin with Windows-style Sidebar
+   Nexus-Framework - Windows Style Theme
    by @eng.Murad Alhassan
    ===================================================== */
 
-/* CSS Variables */
+/* CSS Variables - Light Mode (Default) */
 :root {
-    --nexus-primary: #1a5f7a;
-    --nexus-primary-dark: #134b61;
-    --nexus-primary-light: #2a8faf;
-    --nexus-accent: #c9a96e;
-    --nexus-accent-hover: #b8945a;
-    --nexus-bg-dark: #1a1d29;
-    --nexus-bg-sidebar: #1e2230;
-    --nexus-bg-card: #252a3a;
-    --nexus-bg-hover: #2d3347;
-    --nexus-text-primary: #e8e8e8;
-    --nexus-text-secondary: #a0a8b8;
-    --nexus-text-muted: #6b7280;
-    --nexus-border: #2d3347;
-    --nexus-success: #10b981;
-    --nexus-warning: #f59e0b;
-    --nexus-danger: #ef4444;
-    --nexus-sidebar-width: 280px;
-    --nexus-sidebar-collapsed: 70px;
-    --nexus-header-height: 60px;
-    --nexus-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --nexus-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
-    --nexus-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+    --win-bg: #f3f3f3;
+    --win-bg-sidebar: #e8e8e8;
+    --win-bg-card: #ffffff;
+    --win-bg-hover: #e5f3ff;
+    --win-bg-active: #cce8ff;
+    --win-text-primary: #000000;
+    --win-text-secondary: #5c5c5c;
+    --win-text-muted: #767676;
+    --win-border: #d9d9d9;
+    --win-border-light: #e5e5e5;
+    --win-accent: #0078d4;
+    --win-accent-hover: #106ebe;
+    --win-accent-light: #e5f3ff;
+    --win-danger: #d13438;
+    --win-success: #107c10;
+    --win-warning: #ffc107;
+    --win-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --win-shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
+    --win-sidebar-width: 260px;
+    --win-sidebar-collapsed: 60px;
+    --win-header-height: 48px;
+    --win-transition: all 0.2s ease;
+    --win-radius: 4px;
+    --win-radius-lg: 8px;
 }
 
-/* Reset & Base */
+/* Dark Mode */
+[data-theme="dark"] {
+    --win-bg: #1e1e1e;
+    --win-bg-sidebar: #252526;
+    --win-bg-card: #2d2d30;
+    --win-bg-hover: #094771;
+    --win-bg-active: #0078d4;
+    --win-text-primary: #cccccc;
+    --win-text-secondary: #a0a0a0;
+    --win-text-muted: #6e6e6e;
+    --win-border: #3e3e42;
+    --win-border-light: #2d2d30;
+    --win-accent: #0078d4;
+    --win-accent-hover: #2b88d8;
+    --win-accent-light: #094771;
+    --win-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    --win-shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* =====================================================
+   BASE RESET
+   ===================================================== */
 * {
     margin: 0;
     padding: 0;
@@ -38,58 +60,59 @@
 }
 
 body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: var(--nexus-bg-dark);
-    color: var(--nexus-text-primary);
-    overflow-x: hidden;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--win-bg);
+    color: var(--win-text-primary);
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 /* =====================================================
-   SIDEBAR - Windows Style Control Panel
+   SIDEBAR - Windows Explorer Style
    ===================================================== */
 .nexus-sidebar {
     position: fixed;
     top: 0;
     left: 0;
-    width: var(--nexus-sidebar-width);
+    width: var(--win-sidebar-width);
     height: 100vh;
-    background: var(--nexus-bg-sidebar);
-    border-right: 1px solid var(--nexus-border);
+    background: var(--win-bg-sidebar);
+    border-right: 1px solid var(--win-border);
     display: flex;
     flex-direction: column;
     z-index: 1000;
-    transition: var(--nexus-transition);
+    transition: var(--win-transition);
     overflow: hidden;
 }
 
 .nexus-sidebar.collapsed {
-    width: var(--nexus-sidebar-collapsed);
+    width: var(--win-sidebar-collapsed);
 }
 
 /* Sidebar Header */
 .nexus-sidebar-header {
-    padding: 20px;
-    border-bottom: 1px solid var(--nexus-border);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--win-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 80px;
+    min-height: 56px;
     flex-shrink: 0;
+    background: var(--win-bg-card);
 }
 
 .nexus-logo-container {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     overflow: hidden;
 }
 
 .nexus-logo {
-    width: 42px;
-    height: 42px;
+    width: 32px;
+    height: 32px;
     object-fit: contain;
     flex-shrink: 0;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 
 .nexus-brand {
@@ -97,7 +120,7 @@ body {
     flex-direction: column;
     white-space: nowrap;
     opacity: 1;
-    transition: var(--nexus-transition);
+    transition: var(--win-transition);
 }
 
 .nexus-sidebar.collapsed .nexus-brand {
@@ -106,17 +129,14 @@ body {
 }
 
 .nexus-brand-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--nexus-accent);
-    letter-spacing: 0.5px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--win-text-primary);
 }
 
 .nexus-brand-subtitle {
-    font-size: 11px;
-    color: var(--nexus-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size: 10px;
+    color: var(--win-text-muted);
 }
 
 /* Sidebar Toggle */
@@ -124,49 +144,50 @@ body {
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     flex-shrink: 0;
+    border-radius: var(--win-radius);
+}
+
+.nexus-sidebar-toggle:hover {
+    background: var(--win-bg-hover);
 }
 
 .nexus-sidebar-toggle span {
     display: block;
-    width: 20px;
+    width: 16px;
     height: 2px;
-    background: var(--nexus-text-secondary);
-    border-radius: 2px;
-    transition: var(--nexus-transition);
-}
-
-.nexus-sidebar-toggle:hover span {
-    background: var(--nexus-accent);
+    background: var(--win-text-secondary);
+    border-radius: 1px;
 }
 
 /* User Info */
 .nexus-sidebar-user {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--nexus-border);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--win-border);
     flex-shrink: 0;
+    background: var(--win-bg-card);
 }
 
 .nexus-user-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .nexus-user-avatar {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: var(--nexus-primary);
+    background: var(--win-accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: white;
     flex-shrink: 0;
 }
@@ -176,7 +197,7 @@ body {
     flex-direction: column;
     overflow: hidden;
     opacity: 1;
-    transition: var(--nexus-transition);
+    transition: var(--win-transition);
 }
 
 .nexus-sidebar.collapsed .nexus-user-details {
@@ -185,31 +206,59 @@ body {
 }
 
 .nexus-user-name {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--nexus-text-primary);
+    color: var(--win-text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .nexus-user-role {
-    font-size: 12px;
-    color: var(--nexus-text-muted);
+    font-size: 11px;
+    color: var(--win-text-muted);
 }
 
-/* Sidebar Navigation - Scrollable Area */
+/* Theme Toggle */
+.nexus-theme-toggle {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--win-border);
+    flex-shrink: 0;
+}
+
+.nexus-theme-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--win-bg-card);
+    border: 1px solid var(--win-border);
+    border-radius: var(--win-radius);
+    color: var(--win-text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: var(--win-transition);
+}
+
+.nexus-theme-btn:hover {
+    background: var(--win-bg-hover);
+    border-color: var(--win-accent);
+}
+
+/* Sidebar Navigation */
 .nexus-sidebar-nav {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 16px 0;
+    padding: 8px 0;
     scrollbar-width: thin;
-    scrollbar-color: var(--nexus-border) transparent;
+    scrollbar-color: var(--win-border) transparent;
 }
 
 .nexus-sidebar-nav::-webkit-scrollbar {
-    width: 5px;
+    width: 4px;
 }
 
 .nexus-sidebar-nav::-webkit-scrollbar-track {
@@ -217,29 +266,25 @@ body {
 }
 
 .nexus-sidebar-nav::-webkit-scrollbar-thumb {
-    background: var(--nexus-border);
-    border-radius: 3px;
-}
-
-.nexus-sidebar-nav::-webkit-scrollbar-thumb:hover {
-    background: var(--nexus-text-muted);
+    background: var(--win-border);
+    border-radius: 2px;
 }
 
 /* Nav Sections */
 .nexus-nav-section {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .nexus-nav-title {
-    padding: 8px 20px;
+    padding: 6px 16px;
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--nexus-text-muted);
+    letter-spacing: 0.5px;
+    color: var(--win-text-muted);
     white-space: nowrap;
     opacity: 1;
-    transition: var(--nexus-transition);
+    transition: var(--win-transition);
 }
 
 .nexus-sidebar.collapsed .nexus-nav-title {
@@ -249,7 +294,7 @@ body {
     overflow: hidden;
 }
 
-/* Nav List */
+/* Nav Items */
 .nexus-nav-list {
     list-style: none;
     padding: 0;
@@ -262,40 +307,31 @@ body {
 .nexus-nav-link {
     display: flex;
     align-items: center;
-    padding: 10px 20px;
-    color: var(--nexus-text-secondary);
+    padding: 8px 16px;
+    color: var(--win-text-secondary);
     text-decoration: none;
-    font-size: 14px;
-    transition: var(--nexus-transition);
+    font-size: 12px;
+    transition: var(--win-transition);
     position: relative;
-    gap: 12px;
+    gap: 10px;
     white-space: nowrap;
+    border-radius: 0;
 }
 
 .nexus-nav-link:hover {
-    background: var(--nexus-bg-hover);
-    color: var(--nexus-text-primary);
+    background: var(--win-bg-hover);
+    color: var(--win-text-primary);
 }
 
 .nexus-nav-link.active {
-    background: var(--nexus-primary);
-    color: white;
-    border-left: 3px solid var(--nexus-accent);
-}
-
-.nexus-nav-link.active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--nexus-accent);
+    background: var(--win-bg-active);
+    color: var(--win-accent);
+    border-left: 3px solid var(--win-accent);
 }
 
 .nexus-nav-icon {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -304,11 +340,11 @@ body {
 }
 
 .nexus-app-icon {
-    background: var(--nexus-bg-card);
-    border-radius: 6px;
-    font-size: 12px;
+    background: var(--win-accent);
+    border-radius: var(--win-radius);
+    font-size: 10px;
     font-weight: 700;
-    color: var(--nexus-accent);
+    color: white;
 }
 
 .nexus-nav-text {
@@ -316,7 +352,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: 1;
-    transition: var(--nexus-transition);
+    transition: var(--win-transition);
 }
 
 .nexus-sidebar.collapsed .nexus-nav-text {
@@ -324,609 +360,33 @@ body {
     width: 0;
 }
 
-.nexus-nav-arrow {
-    font-size: 10px;
-    transition: transform 0.3s;
-    opacity: 1;
-    flex-shrink: 0;
-}
-
-.nexus-sidebar.collapsed .nexus-nav-arrow {
-    opacity: 0;
-}
-
-.nexus-nav-item.open .nexus-nav-arrow {
-    transform: rotate(90deg);
-}
-
-/* Submenu */
-.nexus-submenu {
-    list-style: none;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    background: rgba(0, 0, 0, 0.15);
-}
-
-.nexus-nav-item.open .nexus-submenu {
-    max-height: 500px;
-}
-
-.nexus-submenu-item {
-    position: relative;
-}
-
-.nexus-submenu-link {
-    display: block;
-    padding: 8px 20px 8px 56px;
-    color: var(--nexus-text-muted);
-    text-decoration: none;
-    font-size: 13px;
-    transition: var(--nexus-transition);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.nexus-sidebar.collapsed .nexus-submenu-link {
-    padding: 8px 20px;
-    text-align: center;
-}
-
-.nexus-submenu-link:hover {
-    color: var(--nexus-text-primary);
-    background: rgba(255, 255, 255, 0.03);
-}
-
-.nexus-submenu-link.active {
-    color: var(--nexus-accent);
-    background: rgba(201, 169, 110, 0.1);
-}
-
-.nexus-more-link {
-    color: var(--nexus-accent) !important;
-    font-style: italic;
-}
-
-/* Logout Link */
-.nexus-logout:hover {
-    background: rgba(239, 68, 68, 0.15) !important;
-    color: var(--nexus-danger) !important;
-}
-
-/* Sidebar Footer */
-.nexus-sidebar-footer {
-    padding: 16px 20px;
-    border-top: 1px solid var(--nexus-border);
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.nexus-footer-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    opacity: 1;
-    transition: var(--nexus-transition);
-}
-
-.nexus-sidebar.collapsed .nexus-footer-info {
-    opacity: 0;
-}
-
-.nexus-footer-brand {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--nexus-accent);
-}
-
-.nexus-footer-version {
-    font-size: 10px;
-    color: var(--nexus-text-muted);
-}
-
-.nexus-footer-credit {
-    font-size: 10px;
-    color: var(--nexus-text-muted);
-    margin-top: 4px;
-    opacity: 1;
-    transition: var(--nexus-transition);
-}
-
-.nexus-sidebar.collapsed .nexus-footer-credit {
-    opacity: 0;
-}
-
-/* =====================================================
-   OVERLAY (Mobile)
-   ===================================================== */
-.nexus-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    opacity: 0;
-    visibility: hidden;
-    transition: var(--nexus-transition);
-}
-
-.nexus-overlay.active {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* =====================================================
-   MAIN CONTENT AREA
-   ===================================================== */
-.nexus-main {
-    margin-left: var(--nexus-sidebar-width);
-    min-height: 100vh;
-    transition: var(--nexus-transition);
-    display: flex;
-    flex-direction: column;
-}
-
-.nexus-sidebar.collapsed + .nexus-overlay + .nexus-main {
-    margin-left: var(--nexus-sidebar-collapsed);
-}
-
-/* Header */
-.nexus-header {
-    height: var(--nexus-header-height);
-    background: var(--nexus-bg-sidebar);
-    border-bottom: 1px solid var(--nexus-border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-}
-
-.nexus-header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.nexus-menu-btn {
-    display: none;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.nexus-menu-btn span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: var(--nexus-text-secondary);
-    border-radius: 2px;
-}
-
-.nexus-breadcrumbs {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.nexus-breadcrumb-home {
-    color: var(--nexus-text-muted);
-    text-decoration: none;
-    font-size: 18px;
-    transition: color 0.2s;
-}
-
-.nexus-breadcrumb-home:hover {
-    color: var(--nexus-accent);
-}
-
-.nexus-header-right {
-    display: flex;
-    align-items: center;
-}
-
-.nexus-welcome {
-    color: var(--nexus-text-secondary);
-    font-size: 14px;
-}
-
-.nexus-welcome strong {
-    color: var(--nexus-accent);
-}
-
-/* Content Wrapper */
-.nexus-content-wrapper {
-    flex: 1;
-    padding: 24px;
-    overflow-y: auto;
-}
-
-.nexus-content {
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-/* Messages */
-.nexus-messagelist {
-    list-style: none;
-    margin-bottom: 20px;
-}
-
-.nexus-messagelist li {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
-
-.nexus-messagelist li.success {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--nexus-success);
-    border-left: 3px solid var(--nexus-success);
-}
-
-.nexus-messagelist li.warning {
-    background: rgba(245, 158, 11, 0.15);
-    color: var(--nexus-warning);
-    border-left: 3px solid var(--nexus-warning);
-}
-
-.nexus-messagelist li.error {
-    background: rgba(239, 68, 68, 0.15);
-    color: var(--nexus-danger);
-    border-left: 3px solid var(--nexus-danger);
-}
-
-/* Page Title */
-.nexus-page-title {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--nexus-text-primary);
-    margin-bottom: 24px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--nexus-border);
-}
-
-/* =====================================================
-   DASHBOARD CARDS
-   ===================================================== */
-.nexus-dashboard {
-    padding: 0;
-}
-
-.nexus-dashboard-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--nexus-text-primary);
-    margin-bottom: 8px;
-}
-
-.nexus-dashboard-subtitle {
-    font-size: 14px;
-    color: var(--nexus-text-muted);
-    margin-bottom: 32px;
-}
-
-.nexus-dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.nexus-dashboard-card {
-    background: var(--nexus-bg-card);
-    border-radius: 12px;
-    border: 1px solid var(--nexus-border);
-    overflow: hidden;
-    transition: var(--nexus-transition);
-}
-
-.nexus-dashboard-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--nexus-shadow-lg);
-    border-color: var(--nexus-primary-light);
-}
-
-.nexus-card-header {
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid var(--nexus-border);
-}
-
-.nexus-card-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: var(--nexus-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 700;
-    color: white;
-}
-
-.nexus-card-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--nexus-text-primary);
-}
-
-.nexus-card-body {
-    padding: 12px 20px;
-}
-
-.nexus-card-models {
-    list-style: none;
-}
-
-.nexus-card-model {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.nexus-card-model:last-child {
-    border-bottom: none;
-}
-
-.nexus-card-link {
-    display: flex;
-    align-items: center;
-    padding: 10px 0;
-    color: var(--nexus-text-secondary);
-    text-decoration: none;
-    font-size: 14px;
-    transition: color 0.2s;
-    gap: 8px;
-}
-
-.nexus-card-link:hover {
-    color: var(--nexus-accent);
-}
-
-.nexus-card-link-icon {
-    font-size: 12px;
-}
-
-.nexus-card-link-text {
-    flex: 1;
-}
-
-.nexus-card-add {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--nexus-bg-hover);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    color: var(--nexus-accent);
-    text-decoration: none;
-    transition: background 0.2s;
-}
-
-.nexus-card-add:hover {
-    background: var(--nexus-primary);
-    color: white;
-}
-
-.nexus-card-no-link {
-    display: block;
-    padding: 10px 0;
-    color: var(--nexus-text-muted);
-    font-size: 14px;
-}
-
-.nexus-card-more-link {
-    color: var(--nexus-accent) !important;
-    font-style: italic;
-}
-
-.nexus-card-footer {
-    padding: 12px 20px;
-    border-top: 1px solid var(--nexus-border);
-}
-
-.nexus-card-view-all {
-    color: var(--nexus-primary-light);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 600;
-    transition: color 0.2s;
-}
-
-.nexus-card-view-all:hover {
-    color: var(--nexus-accent);
-}
-
-/* Empty State */
-.nexus-empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--nexus-text-muted);
-}
-
-.nexus-empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-}
-
-/* =====================================================
-   DJANGO ADMIN OVERRIDES
-   ===================================================== */
-
-/* Form elements */
-input, select, textarea {
-    background: var(--nexus-bg-card) !important;
-    border: 1px solid var(--nexus-border) !important;
-    color: var(--nexus-text-primary) !important;
-    border-radius: 6px !important;
-    padding: 8px 12px !important;
-}
-
-input:focus, select:focus, textarea:focus {
-    border-color: var(--nexus-primary-light) !important;
-    outline: none !important;
-    box-shadow: 0 0 0 3px rgba(42, 143, 175, 0.2) !important;
-}
-
-/* Buttons */
-.submit-row input, .button, input[type="submit"] {
-    background: var(--nexus-primary) !important;
-    border: none !important;
-    color: white !important;
-    padding: 10px 20px !important;
-    border-radius: 6px !important;
-    cursor: pointer !important;
-    font-weight: 600 !important;
-    transition: background 0.2s !important;
-}
-
-.submit-row input:hover, .button:hover, input[type="submit"]:hover {
-    background: var(--nexus-primary-light) !important;
-}
-
-/* Tables */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--nexus-bg-card);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-thead th {
-    background: var(--nexus-bg-sidebar) !important;
-    color: var(--nexus-text-primary) !important;
-    padding: 12px 16px !important;
-    text-align: left;
-    font-weight: 600;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-tbody td {
-    padding: 12px 16px !important;
-    border-bottom: 1px solid var(--nexus-border) !important;
-    color: var(--nexus-text-secondary) !important;
-}
-
-tbody tr:hover td {
-    background: var(--nexus-bg-hover) !important;
-}
-
-/* Links */
-a {
-    color: var(--nexus-primary-light);
-    text-decoration: none;
-}
-
-a:hover {
-    color: var(--nexus-accent);
-}
-
-/* Fieldsets */
-fieldset {
-    border: 1px solid var(--nexus-border) !important;
-    border-radius: 8px !important;
-    background: var(--nexus-bg-card) !important;
-    margin-bottom: 20px !important;
-}
-
-fieldset h2 {
-    background: var(--nexus-bg-sidebar) !important;
-    color: var(--nexus-accent) !important;
-    padding: 12px 16px !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-}
-
-/* Breadcrumbs in Django */
-div.breadcrumbs {
-    background: var(--nexus-bg-sidebar) !important;
-    border-bottom: 1px solid var(--nexus-border) !important;
-    color: var(--nexus-text-secondary) !important;
-    padding: 12px 24px !important;
-}
-
-div.breadcrumbs a {
-    color: var(--nexus-primary-light) !important;
-}
-
-/* Pagination */
-.paginator {
-    background: var(--nexus-bg-card) !important;
-    border-top: 1px solid var(--nexus-border) !important;
-    padding: 16px !important;
-}
-
-/* Filters */
-#changelist-filter {
-    background: var(--nexus-bg-card) !important;
-    border-left: 1px solid var(--nexus-border) !important;
-}
-
-#changelist-filter h2 {
-    background: var(--nexus-bg-sidebar) !important;
-    color: var(--nexus-accent) !important;
-}
-
-
-
-/* =====================================================
-   WINDOWS START MENU - FLYOUT SIDEBAR
-   ===================================================== */
-
-/* Start Item (App with flyout) */
-.nexus-start-item {
-    position: relative;
-}
-
-.nexus-start-link {
-    position: relative;
-}
-
 .nexus-start-arrow {
-    font-size: 18px;
-    color: var(--nexus-text-muted);
-    transition: var(--nexus-transition);
-    margin-left: auto;
+    font-size: 14px;
+    color: var(--win-text-muted);
+    transition: var(--win-transition);
     opacity: 0.6;
 }
 
 .nexus-start-item:hover .nexus-start-arrow {
-    color: var(--nexus-accent);
+    color: var(--win-accent);
     opacity: 1;
 }
 
 /* Windows Start Menu Flyout */
 .nexus-start-flyout {
     position: fixed;
-    left: var(--nexus-sidebar-width);
+    left: var(--win-sidebar-width);
     top: 0;
-    width: 320px;
+    width: 280px;
     height: 100vh;
-    background: var(--nexus-bg-card);
-    border-left: 1px solid var(--nexus-border);
-    box-shadow: var(--nexus-shadow-lg);
+    background: var(--win-bg-card);
+    border-left: 1px solid var(--win-border);
+    box-shadow: var(--win-shadow-lg);
     z-index: 1001;
     opacity: 0;
     visibility: hidden;
-    transform: translateX(-20px);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(-10px);
+    transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
 }
@@ -937,70 +397,48 @@ div.breadcrumbs a {
     transform: translateX(0);
 }
 
-/* When sidebar is collapsed */
 .nexus-sidebar.collapsed .nexus-start-flyout {
-    left: var(--nexus-sidebar-collapsed);
+    left: var(--win-sidebar-collapsed);
 }
 
-/* Flyout Header */
 .nexus-flyout-header {
-    padding: 20px;
-    background: var(--nexus-bg-sidebar);
-    border-bottom: 1px solid var(--nexus-border);
+    padding: 16px;
+    background: var(--win-bg-sidebar);
+    border-bottom: 1px solid var(--win-border);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-shrink: 0;
 }
 
 .nexus-flyout-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    background: var(--nexus-primary);
+    width: 36px;
+    height: 36px;
+    border-radius: var(--win-radius);
+    background: var(--win-accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 700;
     color: white;
     flex-shrink: 0;
 }
 
 .nexus-flyout-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--nexus-text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--win-text-primary);
 }
 
-/* Flyout Content - Scrollable */
 .nexus-flyout-content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 12px 0;
+    padding: 8px 0;
     scrollbar-width: thin;
-    scrollbar-color: var(--nexus-border) transparent;
 }
 
-.nexus-flyout-content::-webkit-scrollbar {
-    width: 5px;
-}
-
-.nexus-flyout-content::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.nexus-flyout-content::-webkit-scrollbar-thumb {
-    background: var(--nexus-border);
-    border-radius: 3px;
-}
-
-.nexus-flyout-content::-webkit-scrollbar-thumb:hover {
-    background: var(--nexus-text-muted);
-}
-
-/* Flyout List */
 .nexus-flyout-list {
     list-style: none;
     padding: 0;
@@ -1013,28 +451,27 @@ div.breadcrumbs a {
 .nexus-flyout-link {
     display: flex;
     align-items: center;
-    padding: 10px 20px;
-    color: var(--nexus-text-secondary);
+    padding: 8px 16px;
+    color: var(--win-text-secondary);
     text-decoration: none;
-    font-size: 14px;
-    transition: var(--nexus-transition);
-    gap: 10px;
+    font-size: 12px;
+    transition: var(--win-transition);
+    gap: 8px;
 }
 
 .nexus-flyout-link:hover {
-    background: var(--nexus-bg-hover);
-    color: var(--nexus-text-primary);
+    background: var(--win-bg-hover);
+    color: var(--win-text-primary);
 }
 
 .nexus-flyout-link.active {
-    background: rgba(201, 169, 110, 0.1);
-    color: var(--nexus-accent);
-    border-left: 3px solid var(--nexus-accent);
+    background: var(--win-bg-active);
+    color: var(--win-accent);
 }
 
 .nexus-flyout-bullet {
-    color: var(--nexus-primary-light);
-    font-size: 20px;
+    color: var(--win-accent);
+    font-size: 16px;
     line-height: 1;
     flex-shrink: 0;
 }
@@ -1046,110 +483,468 @@ div.breadcrumbs a {
     white-space: nowrap;
 }
 
-.nexus-flyout-add {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--nexus-bg-hover);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--nexus-accent);
-    text-decoration: none;
-    transition: all 0.2s;
-    flex-shrink: 0;
-}
-
-.nexus-flyout-add:hover {
-    background: var(--nexus-primary);
-    color: white;
-    transform: scale(1.1);
-}
-
-/* Flyout Footer */
 .nexus-flyout-footer {
-    padding: 12px 20px;
-    border-top: 1px solid var(--nexus-border);
+    padding: 12px 16px;
+    border-top: 1px solid var(--win-border);
     flex-shrink: 0;
 }
 
 .nexus-flyout-view-all {
     display: block;
     text-align: center;
-    padding: 10px;
-    background: var(--nexus-bg-hover);
-    color: var(--nexus-primary-light);
+    padding: 8px;
+    background: var(--win-bg-sidebar);
+    color: var(--win-accent);
     text-decoration: none;
-    border-radius: 8px;
-    font-size: 13px;
+    border-radius: var(--win-radius);
+    font-size: 12px;
     font-weight: 600;
-    transition: var(--nexus-transition);
+    transition: var(--win-transition);
 }
 
 .nexus-flyout-view-all:hover {
-    background: var(--nexus-primary);
-    color: white;
+    background: var(--win-bg-hover);
+}
+
+/* Sidebar Footer */
+.nexus-sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--win-border);
+    text-align: center;
+    flex-shrink: 0;
+    background: var(--win-bg-card);
+}
+
+.nexus-footer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    opacity: 1;
+    transition: var(--win-transition);
+}
+
+.nexus-sidebar.collapsed .nexus-footer-info {
+    opacity: 0;
+}
+
+.nexus-footer-brand {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--win-accent);
+}
+
+.nexus-footer-version {
+    font-size: 9px;
+    color: var(--win-text-muted);
+}
+
+.nexus-footer-credit {
+    font-size: 9px;
+    color: var(--win-text-muted);
+    margin-top: 2px;
+    opacity: 1;
+    transition: var(--win-transition);
+}
+
+.nexus-sidebar.collapsed .nexus-footer-credit {
+    opacity: 0;
 }
 
 /* =====================================================
-   OLD SUBMENU - HIDDEN (replaced by flyout)
+   OVERLAY
    ===================================================== */
-.nexus-submenu {
-    display: none !important;
+.nexus-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--win-transition);
 }
 
-.nexus-nav-arrow {
-    display: none !important;
+.nexus-overlay.active {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* =====================================================
-   RESPONSIVE - Mobile Flyout
+   MAIN CONTENT
    ===================================================== */
-@media (max-width: 1024px) {
-    .nexus-start-flyout {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: 100%;
-        max-width: 320px;
-        transform: translateX(-100%);
-    }
-
-    .nexus-start-item.open .nexus-start-flyout {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(0);
-    }
-
-    .nexus-start-item:hover .nexus-start-flyout {
-        opacity: 0;
-        visibility: hidden;
-        transform: translateX(-100%);
-    }
+.nexus-main {
+    margin-left: var(--win-sidebar-width);
+    min-height: 100vh;
+    transition: var(--win-transition);
+    display: flex;
+    flex-direction: column;
 }
 
-@media (max-width: 480px) {
-    .nexus-start-flyout {
-        max-width: 280px;
-    }
-
-    .nexus-flyout-header {
-        padding: 16px;
-    }
-
-    .nexus-flyout-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 16px;
-    }
-
-    .nexus-flyout-title {
-        font-size: 14px;
-    }
+.nexus-sidebar.collapsed + .nexus-overlay + .nexus-main {
+    margin-left: var(--win-sidebar-collapsed);
 }
 
+/* Header */
+.nexus-header {
+    height: var(--win-header-height);
+    background: var(--win-bg-card);
+    border-bottom: 1px solid var(--win-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nexus-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nexus-menu-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    flex-direction: column;
+    gap: 3px;
+    border-radius: var(--win-radius);
+}
+
+.nexus-menu-btn:hover {
+    background: var(--win-bg-hover);
+}
+
+.nexus-menu-btn span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: var(--win-text-secondary);
+    border-radius: 1px;
+}
+
+.nexus-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--win-text-secondary);
+}
+
+.nexus-breadcrumbs a {
+    color: var(--win-accent);
+    text-decoration: none;
+    transition: color 0.2s;
+    padding: 2px 6px;
+    border-radius: var(--win-radius);
+}
+
+.nexus-breadcrumbs a:hover {
+    background: var(--win-bg-hover);
+}
+
+.nexus-breadcrumb-sep {
+    color: var(--win-text-muted);
+    font-size: 12px;
+}
+
+.nexus-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nexus-welcome {
+    color: var(--win-text-secondary);
+    font-size: 12px;
+}
+
+.nexus-welcome strong {
+    color: var(--win-text-primary);
+}
+
+/* =====================================================
+   CONTENT AREA - EMPTY (No Dashboard Cards)
+   ===================================================== */
+.nexus-content-wrapper {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.nexus-content {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* Messages */
+.nexus-messagelist {
+    list-style: none;
+    margin-bottom: 16px;
+}
+
+.nexus-messagelist li {
+    padding: 10px 14px;
+    border-radius: var(--win-radius);
+    margin-bottom: 6px;
+    font-size: 12px;
+    border-left: 3px solid transparent;
+}
+
+.nexus-messagelist li.success {
+    background: rgba(16, 124, 16, 0.1);
+    color: var(--win-success);
+    border-left-color: var(--win-success);
+}
+
+.nexus-messagelist li.warning {
+    background: rgba(255, 193, 7, 0.1);
+    color: #8a6d3b;
+    border-left-color: var(--win-warning);
+}
+
+.nexus-messagelist li.error {
+    background: rgba(209, 52, 56, 0.1);
+    color: var(--win-danger);
+    border-left-color: var(--win-danger);
+}
+
+/* Page Title */
+.nexus-page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--win-text-primary);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--win-border);
+}
+
+/* =====================================================
+   OBJECT TOOLS - Back & Refresh
+   ===================================================== */
+.nexus-object-tools {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    background: var(--win-bg-card);
+    border-radius: var(--win-radius-lg);
+    border: 1px solid var(--win-border);
+}
+
+.nexus-object-tools-left,
+.nexus-object-tools-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nexus-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: var(--win-radius);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--win-transition);
+    border: 1px solid var(--win-border);
+    background: var(--win-bg-card);
+    color: var(--win-text-primary);
+    white-space: nowrap;
+}
+
+.nexus-btn:hover {
+    background: var(--win-bg-hover);
+    border-color: var(--win-accent);
+}
+
+.nexus-btn-back {
+    background: var(--win-bg-card);
+}
+
+.nexus-btn-back:hover {
+    background: var(--win-bg-hover);
+}
+
+.nexus-btn-refresh {
+    background: var(--win-bg-card);
+}
+
+.nexus-btn-refresh:hover span {
+    transform: rotate(180deg);
+}
+
+.nexus-btn-refresh span {
+    display: inline-block;
+    transition: transform 0.5s ease;
+}
+
+/* Add button */
+.addlink {
+    background: var(--win-success) !important;
+    color: white !important;
+    padding: 6px 12px !important;
+    border-radius: var(--win-radius) !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    text-decoration: none !important;
+    border: none !important;
+    font-size: 12px !important;
+}
+
+.addlink:hover {
+    background: #0e6e0e !important;
+}
+
+.addlink::before {
+    content: "+";
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* =====================================================
+   DJANGO ADMIN OVERRIDES
+   ===================================================== */
+
+/* Form elements */
+input, select, textarea {
+    background: var(--win-bg-card) !important;
+    border: 1px solid var(--win-border) !important;
+    color: var(--win-text-primary) !important;
+    border-radius: var(--win-radius) !important;
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--win-accent) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2) !important;
+}
+
+/* Buttons */
+.submit-row input, .button, input[type="submit"] {
+    background: var(--win-accent) !important;
+    border: none !important;
+    color: white !important;
+    padding: 8px 16px !important;
+    border-radius: var(--win-radius) !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    transition: var(--win-transition) !important;
+}
+
+.submit-row input:hover, .button:hover, input[type="submit"]:hover {
+    background: var(--win-accent-hover) !important;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--win-bg-card);
+    border-radius: var(--win-radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--win-border);
+}
+
+thead th {
+    background: var(--win-bg-sidebar) !important;
+    color: var(--win-text-primary) !important;
+    padding: 10px 12px !important;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--win-border) !important;
+}
+
+tbody td {
+    padding: 10px 12px !important;
+    border-bottom: 1px solid var(--win-border-light) !important;
+    color: var(--win-text-secondary) !important;
+    font-size: 13px;
+}
+
+tbody tr:hover td {
+    background: var(--win-bg-hover) !important;
+}
+
+/* Links */
+a {
+    color: var(--win-accent);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--win-accent-hover);
+    text-decoration: underline;
+}
+
+/* Fieldsets */
+fieldset {
+    border: 1px solid var(--win-border) !important;
+    border-radius: var(--win-radius-lg) !important;
+    background: var(--win-bg-card) !important;
+    margin-bottom: 16px !important;
+}
+
+fieldset h2 {
+    background: var(--win-bg-sidebar) !important;
+    color: var(--win-text-primary) !important;
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid var(--win-border) !important;
+}
+
+/* Breadcrumbs */
+div.breadcrumbs {
+    background: var(--win-bg-sidebar) !important;
+    border-bottom: 1px solid var(--win-border) !important;
+    color: var(--win-text-secondary) !important;
+    padding: 10px 16px !important;
+    font-size: 12px;
+}
+
+div.breadcrumbs a {
+    color: var(--win-accent) !important;
+}
+
+/* Pagination */
+.paginator {
+    background: var(--win-bg-card) !important;
+    border-top: 1px solid var(--win-border) !important;
+    padding: 12px !important;
+    font-size: 12px;
+}
+
+/* Filters */
+#changelist-filter {
+    background: var(--win-bg-card) !important;
+    border-left: 1px solid var(--win-border) !important;
+}
+
+#changelist-filter h2 {
+    background: var(--win-bg-sidebar) !important;
+    color: var(--win-text-primary) !important;
+    font-size: 12px !important;
+    padding: 10px 14px !important;
+}
 
 /* =====================================================
    RESPONSIVE
@@ -1170,286 +965,16 @@ div.breadcrumbs a {
     .nexus-menu-btn {
         display: flex;
     }
-
-    .nexus-dashboard-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 @media (max-width: 768px) {
     .nexus-content-wrapper {
-        padding: 16px;
+        padding: 12px;
     }
 
-    .nexus-header {
-        padding: 0 16px;
-    }
-
-    .nexus-page-title {
-        font-size: 20px;
-    }
-}
-
-/* =====================================================
-   ANIMATIONS
-   ===================================================== */
-@keyframes nexusFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.nexus-dashboard-card {
-    animation: nexusFadeIn 0.4s ease forwards;
-}
-
-.nexus-dashboard-card:nth-child(1) { animation-delay: 0.05s; }
-.nexus-dashboard-card:nth-child(2) { animation-delay: 0.1s; }
-.nexus-dashboard-card:nth-child(3) { animation-delay: 0.15s; }
-.nexus-dashboard-card:nth-child(4) { animation-delay: 0.2s; }
-.nexus-dashboard-card:nth-child(5) { animation-delay: 0.25s; }
-.nexus-dashboard-card:nth-child(6) { animation-delay: 0.3s; }
-.nexus-dashboard-card:nth-child(7) { animation-delay: 0.35s; }
-.nexus-dashboard-card:nth-child(8) { animation-delay: 0.4s; }
-
-
-/* =====================================================
-   OBJECT TOOLS - Back & Logout Buttons
-   ===================================================== */
-.nexus-object-tools {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding: 12px 16px;
-    background: var(--nexus-bg-card);
-    border-radius: 10px;
-    border: 1px solid var(--nexus-border);
-}
-
-.nexus-object-tools-left,
-.nexus-object-tools-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.nexus-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    transition: var(--nexus-transition);
-    border: none;
-    white-space: nowrap;
-}
-
-.nexus-btn span {
-    font-size: 14px;
-}
-
-.nexus-btn-back {
-    background: var(--nexus-bg-hover);
-    color: var(--nexus-text-secondary);
-    border: 1px solid var(--nexus-border);
-}
-
-.nexus-btn-back:hover {
-    background: var(--nexus-primary);
-    color: white;
-    border-color: var(--nexus-primary);
-    transform: translateX(-2px);
-}
-
-.nexus-btn-logout {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--nexus-danger);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.nexus-btn-logout:hover {
-    background: rgba(239, 68, 68, 0.2);
-    color: var(--nexus-danger);
-    transform: translateY(-1px);
-}
-
-/* Add button (Django default) */
-.addlink {
-    background: var(--nexus-success) !important;
-    color: white !important;
-    padding: 8px 16px !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    text-decoration: none !important;
-    transition: var(--nexus-transition) !important;
-}
-
-.addlink:hover {
-    background: #059669 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.addlink::before {
-    content: "+";
-    font-size: 16px;
-    font-weight: 700;
-}
-
-/* =====================================================
-   LANGUAGE SELECTOR
-   ===================================================== */
-.nexus-sidebar-language {
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--nexus-border);
-    flex-shrink: 0;
-}
-
-.nexus-language-form {
-    margin: 0;
-}
-
-.nexus-language-select-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--nexus-bg-dark);
-    border: 1px solid var(--nexus-border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    transition: var(--nexus-transition);
-}
-
-.nexus-language-select-wrapper:hover {
-    border-color: var(--nexus-primary-light);
-}
-
-.nexus-language-icon {
-    font-size: 16px;
-    flex-shrink: 0;
-}
-
-.nexus-language-select {
-    background: transparent;
-    border: none;
-    color: var(--nexus-text-primary);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    outline: none;
-    width: 100%;
-    appearance: none;
-    -webkit-appearance: none;
-    padding-right: 20px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0a8b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right center;
-}
-
-.nexus-language-select option {
-    background: var(--nexus-bg-dark);
-    color: var(--nexus-text-primary);
-    padding: 8px;
-}
-
-/* Header Language Selector */
-.nexus-header-language {
-    margin-right: 16px;
-}
-
-.nexus-language-form-header {
-    margin: 0;
-}
-
-.nexus-language-select-wrapper-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--nexus-bg-dark);
-    border: 1px solid var(--nexus-border);
-    border-radius: 8px;
-    padding: 6px 10px;
-    transition: var(--nexus-transition);
-}
-
-.nexus-language-select-wrapper-header:hover {
-    border-color: var(--nexus-primary-light);
-}
-
-.nexus-language-icon-header {
-    font-size: 14px;
-}
-
-.nexus-language-select-header {
-    background: transparent;
-    border: none;
-    color: var(--nexus-text-primary);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    padding-right: 16px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23a0a8b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right center;
-}
-
-.nexus-language-select-header option {
-    background: var(--nexus-bg-dark);
-    color: var(--nexus-text-primary);
-}
-
-/* Hide sidebar language when collapsed, show header */
-.nexus-sidebar.collapsed .nexus-sidebar-language {
-    display: none;
-}
-
-/* =====================================================
-   BREADCRUMBS
-   ===================================================== */
-.nexus-breadcrumbs {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    font-size: 13px;
-    color: var(--nexus-text-secondary);
-}
-
-.nexus-breadcrumbs a {
-    color: var(--nexus-primary-light);
-    text-decoration: none;
-    transition: color 0.2s;
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-
-.nexus-breadcrumbs a:hover {
-    color: var(--nexus-accent);
-    background: rgba(201, 169, 110, 0.1);
-}
-
-.nexus-breadcrumb-sep {
-    color: var(--nexus-text-muted);
-    font-size: 14px;
-}
-
-/* =====================================================
-   RESPONSIVE ADJUSTMENTS
-   ===================================================== */
-@media (max-width: 768px) {
     .nexus-object-tools {
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
         align-items: stretch;
     }
 
@@ -1457,60 +982,4 @@ div.breadcrumbs a {
     .nexus-object-tools-right {
         justify-content: center;
     }
-
-    .nexus-header-language {
-        display: none;
-    }
-
-    .nexus-sidebar-language {
-        display: block !important;
-    }
-}
-
-@media (max-width: 480px) {
-    .nexus-btn {
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-
-    .nexus-language-select-wrapper-header {
-        padding: 4px 8px;
-    }
-
-    .nexus-language-select-header {
-        font-size: 11px;
-    }
-}
-
-
-/* =====================================================
-   REFRESH BUTTON
-   ===================================================== */
-.nexus-btn-refresh {
-    background: var(--nexus-bg-hover);
-    color: var(--nexus-text-secondary);
-    border: 1px solid var(--nexus-border);
-}
-
-.nexus-btn-refresh:hover {
-    background: var(--nexus-primary);
-    color: white;
-    border-color: var(--nexus-primary);
-    transform: translateY(-1px);
-}
-
-.nexus-btn-refresh span {
-    display: inline-block;
-    transition: transform 0.5s ease;
-}
-
-.nexus-btn-refresh:hover span {
-    transform: rotate(180deg);
-}
-
-/* Adjust object tools layout */
-.nexus-object-tools-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }

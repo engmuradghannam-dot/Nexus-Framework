@@ -1,6 +1,6 @@
 /* =====================================================
    Nexus-Framework Sidebar JavaScript
-   Windows Start Menu Style with Flyout Panels
+   Windows Style with Theme Toggle
    by @eng.Murad Alhassan
    ===================================================== */
 
@@ -13,13 +13,22 @@
     const menuBtn = document.getElementById('nexus-menu-btn');
     const overlay = document.getElementById('nexus-overlay');
     const startItems = document.querySelectorAll('.nexus-start-item');
+    const themeBtn = document.getElementById('nexus-theme-btn');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeText = document.getElementById('theme-text');
+    const html = document.documentElement;
 
     // State
     let isCollapsed = localStorage.getItem('nexus-sidebar-collapsed') === 'true';
     let isMobile = window.innerWidth <= 1024;
+    let currentTheme = localStorage.getItem('nexus-theme') || 'light';
 
     // Initialize
     function init() {
+        // Apply theme
+        applyTheme(currentTheme);
+
+        // Apply sidebar state
         if (isCollapsed && !isMobile) {
             sidebar.classList.add('collapsed');
         }
@@ -30,18 +39,27 @@
     }
 
     function bindEvents() {
+        // Sidebar toggle
         if (sidebarToggle) {
             sidebarToggle.addEventListener('click', toggleSidebar);
         }
 
+        // Menu button (mobile)
         if (menuBtn) {
             menuBtn.addEventListener('click', openSidebar);
         }
 
+        // Overlay
         if (overlay) {
             overlay.addEventListener('click', closeAll);
         }
 
+        // Theme toggle
+        if (themeBtn) {
+            themeBtn.addEventListener('click', toggleTheme);
+        }
+
+        // Window resize
         window.addEventListener('resize', debounce(handleResponsive, 150));
 
         // Keyboard shortcuts
@@ -63,6 +81,29 @@
         });
     }
 
+    // Theme functions
+    function applyTheme(theme) {
+        currentTheme = theme;
+        html.setAttribute('data-theme', theme);
+        localStorage.setItem('nexus-theme', theme);
+
+        if (themeIcon && themeText) {
+            if (theme === 'dark') {
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Light Mode';
+            } else {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Dark Mode';
+            }
+        }
+    }
+
+    function toggleTheme() {
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        applyTheme(newTheme);
+    }
+
+    // Sidebar functions
     function toggleSidebar() {
         if (isMobile) return;
 
@@ -110,7 +151,7 @@
         }
     }
 
-    // Mobile: Click to open flyout (not hover)
+    // Mobile flyouts
     function initMobileFlyouts() {
         startItems.forEach(item => {
             const link = item.querySelector('.nexus-start-link');
@@ -119,7 +160,6 @@
                 link.addEventListener('click', function(e) {
                     if (isMobile) {
                         e.preventDefault();
-                        // Close other open flyouts
                         startItems.forEach(other => {
                             if (other !== item) other.classList.remove('open');
                         });
@@ -155,8 +195,11 @@
         toggle: toggleSidebar,
         open: openSidebar,
         close: closeAll,
+        toggleTheme: toggleTheme,
+        setTheme: applyTheme,
         isCollapsed: () => isCollapsed,
-        isMobile: () => isMobile
+        isMobile: () => isMobile,
+        getTheme: () => currentTheme
     };
 
 })();
