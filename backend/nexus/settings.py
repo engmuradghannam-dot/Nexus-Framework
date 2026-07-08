@@ -89,15 +89,10 @@ DATABASES = {
     )
 }
 
-# Cache - Redis (Restored)
-REDIS_URL = os.getenv('REDIS_URL', os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'))
+# Cache - Dummy (no external dependency required)
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
 
@@ -248,3 +243,4 @@ FEATURE_FLAGS = {
     'BATCH_SERIAL_TRACKING_ENABLED': True,
     'BARCODE_SCANNING_ENABLED': True,
 }
+
