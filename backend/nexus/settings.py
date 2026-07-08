@@ -1,12 +1,10 @@
 """
 Nexus Framework - Django ERP Settings (Production)
+Complete with Redis, Celery, Logging, i18n, Feature Flags
 """
 import os
-from django.utils.translation import gettext_lazy as _
-
-# Security
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production-123456789')
 from pathlib import Path
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -14,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-now')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']  # Allow all hosts for Railway deployment
+ALLOWED_HOSTS = ['*']
 if os.getenv('RAILWAY_STATIC_URL'):
     ALLOWED_HOSTS.append(os.getenv('RAILWAY_STATIC_URL'))
 
@@ -31,7 +29,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'guardian',
-    # Nexus Apps
+    # Nexus Core Apps
     'apps.core',
     'apps.accounts',
     'apps.inventory',
@@ -43,6 +41,11 @@ INSTALLED_APPS = [
     'apps.projects',
     'apps.assets',
     'apps.workflow',
+    # Nexus Advanced Apps (Restored)
+    'apps.pmo',
+    'apps.industry',
+    'apps.ai_engine',
+    'apps.regulatory',
 ]
 
 MIDDLEWARE = [
@@ -77,7 +80,7 @@ TEMPLATES = [{
 
 WSGI_APPLICATION = 'nexus.wsgi.application'
 
-# Database - Railway PostgreSQL
+# Database
 import dj_database_url
 DATABASES = {
     'default': dj_database_url.config(
@@ -86,16 +89,81 @@ DATABASES = {
     )
 }
 
-# Cache - Dummy (no Redis needed for basic functionality)
+# Cache - Redis (Restored)
+REDIS_URL = os.getenv('REDIS_URL', os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'))
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
     }
 }
 
-# Celery - disabled in production for now
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', '')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', '')
+# Celery - Restored
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Logging - Restored with File Handler
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(LOGS_DIR / 'nexus.log'),
+            'maxBytes': 10485760,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(LOGS_DIR / 'nexus_errors.log'),
+            'maxBytes': 10485760,
+            'backupCount': 5,
+            'formatter': 'verbose',
+            'level': 'ERROR',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file', 'error_file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'nexus': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
 
 # Auth
 AUTH_PASSWORD_VALIDATORS = [
@@ -105,39 +173,48 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-LANGUAGE_CODE = 'en-us'
+AUTH_USER_MODEL = 'core.User'
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'guardian.backends.ObjectPermissionBackend',
+]
 
-# Available languages
+# i18n & Localization
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True
+
 LANGUAGES = [
     ('en', _('English')),
     ('ar', _('Arabic')),
     ('fr', _('French')),
     ('es', _('Spanish')),
     ('de', _('German')),
-    ('tr', _('Turkish')),
-    ('ur', _('Urdu')),
-    ('hi', _('Hindi')),
-    ('zh-hans', _('Chinese (Simplified)')),
+    ('zh-hans', _('Chinese Simplified')),
     ('ja', _('Japanese')),
+    ('ko', _('Korean')),
+    ('ru', _('Russian')),
+    ('pt', _('Portuguese')),
 ]
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
 
-# Static Files (WhiteNoise)
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# Static & Media
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
+STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# WhiteNoise
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# REST Framework
+# CORS
+CORS_ALLOW_ALL_ORIGINS = True
+
+# DRF
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
@@ -155,33 +232,19 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# Default primary key
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'core.User'
-ANONYMOUS_USER_ID = -1
-AUTHENTICATION_BACKENDS = (
-    'django.contrib.auth.backends.ModelBackend',
-    'guardian.backends.ObjectPermissionBackend',
-)
-
-# Logging
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
+# Feature Flags (Restored)
+FEATURE_FLAGS = {
+    'PMO_ENABLED': True,
+    'AI_ENABLED': True,
+    'INDUSTRY_VERTICALS_ENABLED': True,
+    'LICENSE_MANAGER_ENABLED': True,
+    'REGULATORY_COMPLIANCE_ENABLED': True,
+    'ADVANCED_WORKFLOW_ENABLED': True,
+    'MULTI_CURRENCY_ENABLED': True,
+    'BANK_RECONCILIATION_ENABLED': True,
+    'BATCH_SERIAL_TRACKING_ENABLED': True,
+    'BARCODE_SCANNING_ENABLED': True,
 }
-
-
-# Railway-specific settings
-if os.environ.get('RAILWAY_ENVIRONMENT'):
-    # We're on Railway
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    USE_X_FORWARDED_HOST = True
