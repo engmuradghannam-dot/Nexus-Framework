@@ -1,8 +1,8 @@
-from django.contrib import admin
+from apps.core.admin_site import admin_site
 from .models import AIModel, Prediction, Insight
 
 
-@admin.register(AIModel)
+@admin.register(AIModel, site=admin_site)
 class AIModelAdmin(admin.ModelAdmin):
     list_display = ['name', 'version', 'model_type', 'status', 'accuracy',
                     'owner', 'last_trained', 'is_active']
@@ -10,13 +10,13 @@ class AIModelAdmin(admin.ModelAdmin):
     search_fields = ['name', 'description']
 
 
-@admin.register(Prediction)
+@admin.register(Prediction, site=admin_site)
 class PredictionAdmin(admin.ModelAdmin):
     list_display = ['model', 'confidence', 'latency_ms', 'created_at']
     list_filter = ['model']
 
 
-@admin.register(Insight)
+@admin.register(Insight, site=admin_site)
 class InsightAdmin(admin.ModelAdmin):
     list_display = ['title', 'severity', 'source_model', 'is_read', 'created_at']
     list_filter = ['severity', 'is_read']
