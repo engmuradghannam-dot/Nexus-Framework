@@ -34,7 +34,9 @@ RUN echo '#!/bin/bash' > start.sh && \
     echo 'echo "Starting Nexus Framework..."' >> start.sh && \
     echo 'python manage.py collectstatic --noinput' >> start.sh && \
     echo 'python manage.py migrate --noinput' >> start.sh && \
-    echo 'python manage.py runserver 0.0.0.0:${PORT:-8000}' >> start.sh && \
+    echo 'PORT=${PORT:-8000}' >> start.sh && \
+    echo 'echo "Running on port $PORT"' >> start.sh && \
+    echo 'python manage.py runserver 0.0.0.0:$PORT' >> start.sh && \
     chmod +x start.sh
 
 EXPOSE 8000
