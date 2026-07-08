@@ -35,9 +35,93 @@ class User(AbstractUser):
         return f"{self.email} ({self.get_permissions_level_display()})"
 
 
+class CompanyProfile(models.Model):
+    """
+    Company Profile - links to Industry Vertical.
+    This is the ROOT entity that determines what modules/features are available.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200, unique=True)
+    code = models.CharField(max_length=20, unique=True)
+
+    # Industry Vertical is the PARENT - it CONTROLS everything
+    industry_vertical = models.ForeignKey(
+        'industry.IndustryVertical', on_delete=models.PROTECT,
+        related_name='company_profiles',
+        help_text="The Industry Vertical that controls this company's modules and features"
+    )
+
+    # Super Admin who configured this company
+    super_admin = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='managed_companies'
+    )
+
+    # Company settings derived from vertical (can override)
+    currency = models.CharField(max_length=3, default='USD')
+    timezone = models.CharField(max_length=50, default='UTC')
+
+    # Feature toggles derived from Industry Vertical
+    modules_enabled = models.JSONField(
+        default=list, blank=True,
+        help_text="Override vertical modules"
+    )
+    features_enabled = models.JSONField(
+        default=dict, blank=True,
+        help_text="Override vertical features"
+    )
+
+    # Multi-branch/warehouse
+    multi_branch_enabled = models.BooleanField(default=False)
+    multi_warehouse_enabled = models.BooleanField(default=False)
+
+    # Company info
+    logo = models.ImageField(upload_to='company_logos/', blank=True, null=True)
+    address = models.TextField(blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    website = models.URLField(blank=True)
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'core_company_profiles'
+        ordering = ['name']
+        verbose_name = 'Company Profile'
+        verbose_name_plural = 'Company Profiles'
+
+    def __str__(self):
+        return f"{self.name} [{self.industry_vertical.name}]"
+
+    @property
+    def effective_modules(self):
+        """Return all enabled modules (vertical + company override)"""
+        base = set(self.industry_vertical.modules_enabled)
+        custom = set(self.modules_enabled)
+        return sorted(list(base | custom))
+
+    @property
+    def effective_features(self):
+        """Return all enabled features (vertical + company override)"""
+        base = self.industry_vertical.features_config.copy()
+        custom = self.features_enabled
+        for module, features in custom.items():
+            if module in base:
+                base[module] = list(set(base[module] + features))
+            else:
+                base[module] = features
+        return base
+
+
 class Branch(models.Model):
     """Company branches with Google Maps location."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(
+        CompanyProfile, on_delete=models.CASCADE,
+        related_name='branches', null=True, blank=True
+    )
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=20, unique=True)
     address = models.TextField()
@@ -62,9 +146,9 @@ class Branch(models.Model):
 class Warehouse(models.Model):
     """Branch warehouses / sub-warehouses."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='warehouses')
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=20, unique=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='warehouses')
     parent_warehouse = models.ForeignKey(
         'self', on_delete=models.CASCADE, null=True, blank=True,
         related_name='sub_warehouses'
