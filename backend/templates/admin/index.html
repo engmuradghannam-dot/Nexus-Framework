@@ -1,4 +1,4 @@
-{% extends "admin/base_site.html" %}
+{% extends "admin/base.html" %}
 {% load i18n static %}
 
 {% block content %}
@@ -17,7 +17,7 @@
     <div class="nexus-module-card" 
          onclick="toggleModule('{{ app.app_label }}')"
          style="--module-color: {{ app.color }}; --module-glow: {{ app.color }}22">
-      <div class="nexus-glow" style="background:radial-gradient(circle,{{ app.color }},transparent 70%)"></div>
+      <div class="glow" style="background:radial-gradient(circle,{{ app.color }},transparent 70%)"></div>
       <span class="nexus-module-icon">{{ app.icon }}</span>
       <div class="nexus-module-name">{{ app.name }}</div>
       <div class="nexus-module-desc">{{ app.description }}</div>
@@ -50,8 +50,8 @@
       {% for model in app.models %}
       <a href="{{ model.admin_url }}" class="nexus-model-item" 
          style="--item-color:{{ app.color }}55;--item-bg:{{ app.color }}08">
-        <span class="nexus-model-item-icon">{{ model.icon }}</span>
-        <span class="nexus-model-item-name">{{ model.name }}</span>
+        <span class="icon">{{ model.icon }}</span>
+        <span class="name">{{ model.name }}</span>
       </a>
       {% endfor %}
     </div>

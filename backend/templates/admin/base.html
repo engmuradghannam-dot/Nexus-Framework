@@ -1,0 +1,431 @@
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:"rtl,ltr" }}">
+<head>
+<title>{% block title %}{% endblock %}</title>
+<link rel="stylesheet" type="text/css" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}">
+{% block dark-mode-vars %}
+  <link rel="stylesheet" type="text/css" href="{% static "admin/css/dark_mode.css" %}">
+{% endblock %}
+{% if not is_popup and is_nav_sidebar_enabled %}
+  <link rel="stylesheet" type="text/css" href="{% static "admin/css/nav_sidebar.css" %}">
+  <script src="{% static 'admin/js/nav_sidebar.js' %}" defer></script>
+{% endif %}
+{% block extrastyle %}{% endblock %}
+{% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
+{% block extrahead %}{% endblock %}
+{% block responsive %}
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{% static "admin/css/responsive.css" %}">
+    {% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% static "admin/css/responsive_rtl.css" %}">{% endif %}
+{% endblock %}
+{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
+
+<style>
+/* === NEXUS ADMIN OVERRIDE - INJECTED DIRECTLY === */
+:root {
+  --nx-bg: #0a0f1c !important;
+  --nx-surface: #0f172a !important;
+  --nx-card: #1e293b !important;
+  --nx-border: #334155 !important;
+  --nx-text: #e2e8f0 !important;
+  --nx-muted: #64748b !important;
+  --nx-primary: #6366f1 !important;
+}
+
+body {
+  background: #0a0f1c !important;
+  color: #e2e8f0 !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+
+#container { background: #0a0f1c !important; }
+
+#header {
+  background: linear-gradient(135deg, #0f172a, #0a0f1c) !important;
+  border-bottom: 1px solid #334155 !important;
+  color: #e2e8f0 !important;
+  padding: 16px 32px !important;
+}
+#header a:link, #header a:visited { color: #e2e8f0 !important; }
+
+#branding h1 {
+  color: #e2e8f0 !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+}
+
+#user-tools {
+  color: #64748b !important;
+}
+#user-tools a {
+  color: #6366f1 !important;
+  border-bottom: none !important;
+}
+
+/* Breadcrumbs */
+div.breadcrumbs {
+  background: rgba(15,23,42,0.8) !important;
+  border-bottom: 1px solid #334155 !important;
+  color: #64748b !important;
+  padding: 12px 32px !important;
+}
+div.breadcrumbs a { color: #6366f1 !important; }
+
+/* Content */
+#content {
+  background: #0a0f1c !important;
+  padding: 32px !important;
+}
+#content-main { width: 100% !important; }
+
+/* Module cards */
+.nexus-module-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 20px !important;
+  margin-top: 24px !important;
+}
+.nexus-module-card {
+  background: linear-gradient(135deg, #1e293b, #0f172a) !important;
+  border: 1px solid #334155 !important;
+  border-radius: 20px !important;
+  padding: 28px !important;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.nexus-module-card:hover {
+  border-color: var(--module-color, #6366f1) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3) !important;
+}
+.nexus-module-card .glow {
+  position: absolute;
+  top: 0; right: 0;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  transform: translate(30%, -30%);
+  opacity: 0.12;
+  pointer-events: none;
+}
+.nexus-module-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+}
+.nexus-module-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 6px;
+}
+.nexus-module-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+.nexus-module-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.nexus-tag {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Model panel */
+.nexus-model-panel {
+  background: linear-gradient(135deg, #1e293b, #0f172a) !important;
+  border: 1px solid var(--panel-color, #334155) !important;
+  border-radius: 20px !important;
+  padding: 28px !important;
+  margin-top: 24px !important;
+}
+.nexus-model-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+  gap: 12px !important;
+}
+.nexus-model-item {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  border-radius: 14px !important;
+  padding: 24px 16px !important;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none !important;
+  display: block !important;
+}
+.nexus-model-item:hover {
+  border-color: var(--item-color, #6366f1) !important;
+  background: rgba(99,102,241,0.05) !important;
+}
+.nexus-model-item .icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+  display: block;
+}
+.nexus-model-item .name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* Tables */
+#changelist table {
+  background: #1e293b !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  border: 1px solid #334155 !important;
+}
+#changelist table thead th {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid #334155 !important;
+  padding: 14px 16px !important;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+#changelist table tbody td {
+  border-bottom: 1px solid rgba(51,65,85,0.3) !important;
+  padding: 12px 16px !important;
+  color: #e2e8f0 !important;
+}
+#changelist table tbody tr:hover {
+  background: rgba(51,65,85,0.2) !important;
+}
+
+/* Buttons */
+.button, input[type="submit"], input[type="button"], .submit-row input {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 10px 20px !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+.button:hover, input[type="submit"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(99,102,241,0.3) !important;
+}
+
+/* Forms */
+fieldset {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 16px !important;
+  padding: 24px !important;
+  margin-bottom: 20px !important;
+}
+fieldset h2 {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid #334155 !important;
+  padding: 0 0 12px 0 !important;
+  font-size: 16px !important;
+}
+input, select, textarea {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  border-radius: 10px !important;
+  color: #e2e8f0 !important;
+  padding: 10px 14px !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #6366f1 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important;
+}
+
+/* Sidebar */
+#nav-sidebar {
+  background: #0f172a !important;
+  border-right: 1px solid #334155 !important;
+}
+#nav-sidebar .module { background: transparent !important; }
+#nav-sidebar .module caption {
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+#nav-sidebar a {
+  color: #e2e8f0 !important;
+  padding: 10px 16px !important;
+  border-radius: 10px;
+  margin: 2px 8px;
+}
+#nav-sidebar a:hover, #nav-sidebar a:focus {
+  background: rgba(99,102,241,0.1) !important;
+  color: #6366f1 !important;
+}
+
+/* Messages */
+.messagelist li {
+  border-radius: 12px !important;
+  margin-bottom: 8px !important;
+  padding: 14px 20px !important;
+  font-weight: 500;
+}
+.messagelist .success {
+  background: rgba(16,185,129,0.1) !important;
+  border: 1px solid rgba(16,185,129,0.2) !important;
+  color: #10b981 !important;
+}
+.messagelist .warning {
+  background: rgba(245,158,11,0.1) !important;
+  border: 1px solid rgba(245,158,11,0.2) !important;
+  color: #f59e0b !important;
+}
+.messagelist .error {
+  background: rgba(239,68,68,0.1) !important;
+  border: 1px solid rgba(239,68,68,0.2) !important;
+  color: #ef4444 !important;
+}
+
+/* HIDE DEFAULT MODULE TABLES - FORCE HIDE */
+.module table,
+.app-accounts table,
+.app-ai_module table,
+.app-assets table,
+.app-auth table,
+.app-authtoken table,
+.app-core table,
+.app-industry table,
+.app-pmo table,
+.app-regulatory table {
+  display: none !important;
+}
+
+/* Hide default module captions but keep our custom ones */
+.module caption,
+.app-accounts caption,
+.app-ai_module caption,
+.app-assets caption,
+.app-auth caption,
+.app-authtoken caption,
+.app-core caption,
+.app-industry caption,
+.app-pmo caption,
+.app-regulatory caption {
+  display: none !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0a0f1c; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Dashboard title */
+#content h1 {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}"
+  data-admin-utc-offset="{% now "Z" %}">
+
+<!-- Container -->
+<div id="container">
+
+    {% if not is_popup %}
+    <!-- Header -->
+    <div id="header">
+        <div id="branding">
+        {% block branding %}
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">⚡</span>
+          <span style="font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:-0.5px">Nexus<span style="background:linear-gradient(90deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Framework</span></span>
+        </div>
+        {% endblock %}
+        </div>
+        {% block usertools %}
+        {% if has_permission %}
+        <div id="user-tools">
+            {% block welcome-msg %}
+                {% translate 'Welcome,' %}
+                <strong>{% firstof user.get_short_name user.get_username %}</strong>.
+            {% endblock %}
+            {% block userlinks %}
+                {% if site_url %}
+                    <a href="{{ site_url }}">{% translate 'View site' %}</a> /
+                {% endif %}
+                {% if user.is_active and user.is_staff %}
+                    {% url 'django-admindocs-docroot' as docsroot %}
+                    {% if docsroot %}
+                        <a href="{{ docsroot }}">{% translate 'Documentation' %}</a> /
+                    {% endif %}
+                {% endif %}
+                {% if user.has_usable_password %}
+                <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a> /
+                {% endif %}
+                <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit">{% translate 'Log out' %}</button>
+                </form>
+            {% endblock %}
+        </div>
+        {% endif %}
+        {% endblock %}
+        {% block nav-global %}{% endblock %}
+    </div>
+    <!-- END Header -->
+    {% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+    </div>
+    {% endblock %}
+    {% endif %}
+
+    <div class="main" id="main">
+      {% if not is_popup and is_nav_sidebar_enabled %}
+        {% block nav-sidebar %}
+          {% include "admin/nav_sidebar.html" %}
+        {% endblock %}
+      {% endif %}
+      <div id="content-start" class="content" tabindex="-1">
+        {% block messages %}
+          {% if messages %}
+            <ul class="messagelist">{% for message in messages %}
+              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+            {% endfor %}</ul>
+          {% endif %}
+        {% endblock messages %}
+        <!-- Content -->
+        <div id="content" class="{% block coltype %}colM{% endblock %}">
+          {% block pretitle %}{% endblock %}
+          {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
+          {% block content %}
+            {% block object-tools %}{% endblock %}
+            {{ content }}
+          {% endblock %}
+          {% block sidebar %}{% endblock %}
+          <br class="clear">
+        </div>
+        <!-- END Content -->
+        {% block footer %}<div id="footer"></div>{% endblock %}
+      </div>
+    </div>
+</div>
+<!-- END Container -->
+</body>
+</html>

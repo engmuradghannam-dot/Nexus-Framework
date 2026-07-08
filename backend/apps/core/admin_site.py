@@ -1,6 +1,5 @@
 """
 Nexus Framework - Custom Admin Site
-Card-based module explorer with icon grids
 """
 from django.contrib.admin import AdminSite
 from django.template.response import TemplateResponse
@@ -13,7 +12,6 @@ class NexusAdminSite(AdminSite):
     site_url = '/'
 
     def get_app_list(self, request, app_label=None):
-        """Override to provide custom app ordering and metadata."""
         app_list = super().get_app_list(request, app_label)
 
         module_meta = {
