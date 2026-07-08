@@ -1,3 +1,4 @@
+from django.contrib import admin
 from apps.core.admin_site import admin_site
 from .models import Regulation, ComplianceCheck, Risk
 

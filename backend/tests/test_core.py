@@ -11,11 +11,14 @@ def api_client():
 
 @pytest.fixture
 def superuser():
-    return User.objects.create_superuser(
+    user = User.objects.create_superuser(
         email='eng.murad.ghannam@gmail.com',
         username='murad',
         password='ghannam2020'
     )
+    user.permissions_level = 5
+    user.save()
+    return user
 
 
 @pytest.mark.django_db

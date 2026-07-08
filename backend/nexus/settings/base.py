@@ -166,7 +166,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-AUTH_USER_MODEL = 'core.User'
 
 # ── SUPERUSER DEFAULT ──────────────────────────────
 NEXUS_SUPERUSER_EMAIL = os.getenv('NEXUS_SUPERUSER_EMAIL', 'eng.murad.ghannam@gmail.com')
