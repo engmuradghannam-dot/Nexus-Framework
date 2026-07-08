@@ -1481,3 +1481,36 @@ div.breadcrumbs a {
         font-size: 11px;
     }
 }
+
+
+/* =====================================================
+   REFRESH BUTTON
+   ===================================================== */
+.nexus-btn-refresh {
+    background: var(--nexus-bg-hover);
+    color: var(--nexus-text-secondary);
+    border: 1px solid var(--nexus-border);
+}
+
+.nexus-btn-refresh:hover {
+    background: var(--nexus-primary);
+    color: white;
+    border-color: var(--nexus-primary);
+    transform: translateY(-1px);
+}
+
+.nexus-btn-refresh span {
+    display: inline-block;
+    transition: transform 0.5s ease;
+}
+
+.nexus-btn-refresh:hover span {
+    transform: rotate(180deg);
+}
+
+/* Adjust object tools layout */
+.nexus-object-tools-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
