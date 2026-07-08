@@ -3,34 +3,30 @@
 
 {% block content %}
 <div id="content-main">
-  <div class="nexus-dashboard-header" style="margin-bottom:8px">
+  <div style="margin-bottom:8px">
     <h1 style="font-size:28px;font-weight:800;margin-bottom:8px;background:linear-gradient(90deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
       {{ title }}
     </h1>
     <p style="color:#64748b;font-size:15px">
-      {{ module_count }} modules • {{ total_models }} models ready to manage
+      {{ app_list|length }} modules • {{ total_models }} models ready to manage
     </p>
   </div>
 
-  <div class="nexus-module-grid" id="moduleGrid">
+  <div class="nexus-module-grid">
     {% for app in app_list %}
     <div class="nexus-module-card" 
          onclick="toggleModule('{{ app.app_label }}')"
          style="--module-color: {{ app.color }}; --module-glow: {{ app.color }}22">
-      <div class="glow" style="background: radial-gradient(circle, {{ app.color }}, transparent 70%)"></div>
+      <div class="nexus-glow" style="background:radial-gradient(circle,{{ app.color }},transparent 70%)"></div>
       <span class="nexus-module-icon">{{ app.icon }}</span>
       <div class="nexus-module-name">{{ app.name }}</div>
       <div class="nexus-module-desc">{{ app.description }}</div>
       <div class="nexus-module-tags">
         {% for model in app.models|slice:":3" %}
-        <span class="nexus-module-tag" style="background: {{ app.color }}15; color: {{ app.color }}">
-          {{ model.name }}
-        </span>
+        <span class="nexus-tag" style="background:{{ app.color }}15;color:{{ app.color }}">{{ model.name }}</span>
         {% endfor %}
         {% if app.models|length > 3 %}
-        <span class="nexus-module-tag" style="background: #33415540; color: #94a3b8">
-          +{{ app.models|length|add:"-3" }} more
-        </span>
+        <span class="nexus-tag" style="background:#33415540;color:#94a3b8">+{{ app.models|length|add:"-3" }} more</span>
         {% endif %}
       </div>
     </div>
@@ -38,7 +34,7 @@
   </div>
 
   {% for app in app_list %}
-  <div id="panel-{{ app.app_label }}" class="nexus-model-panel" style="display:none; --panel-color: {{ app.color }}33">
+  <div id="panel-{{ app.app_label }}" class="nexus-model-panel" style="display:none;--panel-color:{{ app.color }}33">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <span style="font-size:36px">{{ app.icon }}</span>
       <div>
@@ -53,10 +49,9 @@
     <div class="nexus-model-grid">
       {% for model in app.models %}
       <a href="{{ model.admin_url }}" class="nexus-model-item" 
-         style="--item-color: {{ app.color }}55; --item-bg: {{ app.color }}08">
-        <span class="icon">{{ model.icon }}</span>
-        <span class="name">{{ model.name }}</span>
-        <span class="count">{{ model.name }}</span>
+         style="--item-color:{{ app.color }}55;--item-bg:{{ app.color }}08">
+        <span class="nexus-model-item-icon">{{ model.icon }}</span>
+        <span class="nexus-model-item-name">{{ model.name }}</span>
       </a>
       {% endfor %}
     </div>
@@ -66,9 +61,7 @@
 
 <script>
 function toggleModule(label) {
-  // Close all other panels
   document.querySelectorAll('.nexus-model-panel').forEach(p => p.style.display = 'none');
-  // Open selected
   const panel = document.getElementById('panel-' + label);
   if (panel) {
     panel.style.display = 'block';
