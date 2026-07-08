@@ -3,83 +3,83 @@
 <html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:"rtl,ltr" }}">
 <head>
 <title>{% block title %}{% endblock %}</title>
-<link rel="stylesheet" type="text/css" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}">
-{% block dark-mode-vars %}
-  <link rel="stylesheet" type="text/css" href="{% static "admin/css/dark_mode.css" %}">
-{% endblock %}
-{% if not is_popup and is_nav_sidebar_enabled %}
-  <link rel="stylesheet" type="text/css" href="{% static "admin/css/nav_sidebar.css" %}">
-  <script src="{% static 'admin/js/nav_sidebar.js' %}" defer></script>
-{% endif %}
+
 {% block extrastyle %}{% endblock %}
-{% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
 {% block extrahead %}{% endblock %}
 {% block responsive %}
-    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="{% static "admin/css/responsive.css" %}">
-    {% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% static "admin/css/responsive_rtl.css" %}">{% endif %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 {% endblock %}
 {% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
 
 <style>
-/* === NEXUS ADMIN OVERRIDE - INJECTED DIRECTLY === */
-:root {
-  --nx-bg: #0a0f1c !important;
-  --nx-surface: #0f172a !important;
-  --nx-card: #1e293b !important;
-  --nx-border: #334155 !important;
-  --nx-text: #e2e8f0 !important;
-  --nx-muted: #64748b !important;
-  --nx-primary: #6366f1 !important;
-}
+/* === NEXUS ADMIN - COMPLETE OVERRIDE === */
+* { box-sizing: border-box; }
 
 body {
+  margin: 0;
+  padding: 0;
   background: #0a0f1c !important;
   color: #e2e8f0 !important;
-  font-family: 'Inter', system-ui, sans-serif !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-#container { background: #0a0f1c !important; }
-
+/* Header */
 #header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: linear-gradient(135deg, #0f172a, #0a0f1c) !important;
   border-bottom: 1px solid #334155 !important;
   color: #e2e8f0 !important;
   padding: 16px 32px !important;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
-#header a:link, #header a:visited { color: #e2e8f0 !important; }
-
-#branding h1 {
-  color: #e2e8f0 !important;
-  font-size: 20px !important;
-  font-weight: 800 !important;
-}
-
-#user-tools {
+#header a { color: #e2e8f0 !important; text-decoration: none !important; }
+#branding { float: none !important; }
+#branding h1 { color: #e2e8f0 !important; font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; }
+#user-tools { color: #64748b !important; font-size: 13px; }
+#user-tools a { color: #6366f1 !important; border-bottom: none !important; margin-left: 8px; }
+#user-tools form { display: inline; }
+#user-tools button {
+  background: transparent !important;
+  border: none !important;
   color: #64748b !important;
-}
-#user-tools a {
-  color: #6366f1 !important;
-  border-bottom: none !important;
+  cursor: pointer;
+  font-size: 13px;
 }
 
 /* Breadcrumbs */
-div.breadcrumbs {
+.breadcrumbs {
   background: rgba(15,23,42,0.8) !important;
   border-bottom: 1px solid #334155 !important;
   color: #64748b !important;
   padding: 12px 32px !important;
+  font-size: 13px;
 }
-div.breadcrumbs a { color: #6366f1 !important; }
+.breadcrumbs a { color: #6366f1 !important; text-decoration: none !important; }
 
-/* Content */
+/* Main layout */
+#main { display: flex; }
+#content-start { flex: 1; padding: 0; }
 #content {
   background: #0a0f1c !important;
   padding: 32px !important;
+  min-height: calc(100vh - 120px);
 }
-#content-main { width: 100% !important; }
+#content h1 {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  margin: 0 0 8px 0 !important;
+}
 
-/* Module cards */
+/* Module Cards */
 .nexus-module-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
@@ -110,27 +110,10 @@ div.breadcrumbs a { color: #6366f1 !important; }
   opacity: 0.12;
   pointer-events: none;
 }
-.nexus-module-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  display: block;
-}
-.nexus-module-name {
-  font-size: 20px;
-  font-weight: 700;
-  color: #f1f5f9;
-  margin-bottom: 6px;
-}
-.nexus-module-desc {
-  font-size: 13px;
-  color: #64748b;
-  margin-bottom: 16px;
-}
-.nexus-module-tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+.nexus-module-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+.nexus-module-name { font-size: 20px; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+.nexus-module-desc { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+.nexus-module-tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .nexus-tag {
   padding: 4px 12px;
   border-radius: 20px;
@@ -138,7 +121,7 @@ div.breadcrumbs a { color: #6366f1 !important; }
   font-weight: 500;
 }
 
-/* Model panel */
+/* Model Panel */
 .nexus-model-panel {
   background: linear-gradient(135deg, #1e293b, #0f172a) !important;
   border: 1px solid var(--panel-color, #334155) !important;
@@ -166,25 +149,19 @@ div.breadcrumbs a { color: #6366f1 !important; }
   border-color: var(--item-color, #6366f1) !important;
   background: rgba(99,102,241,0.05) !important;
 }
-.nexus-model-item .icon {
-  font-size: 32px;
-  margin-bottom: 10px;
-  display: block;
-}
-.nexus-model-item .name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e2e8f0;
-}
+.nexus-model-item .icon { font-size: 32px; margin-bottom: 10px; display: block; }
+.nexus-model-item .name { font-size: 14px; font-weight: 600; color: #e2e8f0; }
 
 /* Tables */
-#changelist table {
+table {
+  width: 100% !important;
   background: #1e293b !important;
   border-radius: 16px !important;
   overflow: hidden !important;
   border: 1px solid #334155 !important;
+  border-collapse: collapse;
 }
-#changelist table thead th {
+thead th {
   background: #0f172a !important;
   color: #e2e8f0 !important;
   border-bottom: 1px solid #334155 !important;
@@ -193,24 +170,25 @@ div.breadcrumbs a { color: #6366f1 !important; }
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-align: left;
 }
-#changelist table tbody td {
+tbody td {
   border-bottom: 1px solid rgba(51,65,85,0.3) !important;
   padding: 12px 16px !important;
   color: #e2e8f0 !important;
 }
-#changelist table tbody tr:hover {
-  background: rgba(51,65,85,0.2) !important;
-}
+tbody tr:hover { background: rgba(51,65,85,0.2) !important; }
 
 /* Buttons */
-.button, input[type="submit"], input[type="button"], .submit-row input {
+.button, input[type="submit"], input[type="button"], .submit-row input, button {
   background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
   border: none !important;
   border-radius: 10px !important;
   padding: 10px 20px !important;
   color: white !important;
   font-weight: 600 !important;
+  cursor: pointer;
+  font-size: 14px;
 }
 .button:hover, input[type="submit"]:hover {
   transform: translateY(-1px);
@@ -231,6 +209,7 @@ fieldset h2 {
   border-bottom: 1px solid #334155 !important;
   padding: 0 0 12px 0 !important;
   font-size: 16px !important;
+  margin-top: 0 !important;
 }
 input, select, textarea {
   background: #0f172a !important;
@@ -238,6 +217,7 @@ input, select, textarea {
   border-radius: 10px !important;
   color: #e2e8f0 !important;
   padding: 10px 14px !important;
+  font-size: 14px;
 }
 input:focus, select:focus, textarea:focus {
   border-color: #6366f1 !important;
@@ -249,6 +229,8 @@ input:focus, select:focus, textarea:focus {
 #nav-sidebar {
   background: #0f172a !important;
   border-right: 1px solid #334155 !important;
+  width: 260px;
+  min-height: calc(100vh - 60px);
 }
 #nav-sidebar .module { background: transparent !important; }
 #nav-sidebar .module caption {
@@ -257,12 +239,16 @@ input:focus, select:focus, textarea:focus {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
+  padding: 16px 16px 8px;
 }
 #nav-sidebar a {
   color: #e2e8f0 !important;
   padding: 10px 16px !important;
   border-radius: 10px;
   margin: 2px 8px;
+  display: block;
+  text-decoration: none !important;
+  font-size: 13px;
 }
 #nav-sidebar a:hover, #nav-sidebar a:focus {
   background: rgba(99,102,241,0.1) !important;
@@ -270,11 +256,13 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Messages */
+.messagelist { list-style: none; padding: 0; margin: 0 0 20px; }
 .messagelist li {
   border-radius: 12px !important;
   margin-bottom: 8px !important;
   padding: 14px 20px !important;
   font-weight: 500;
+  list-style: none;
 }
 .messagelist .success {
   background: rgba(16,185,129,0.1) !important;
@@ -292,48 +280,14 @@ input:focus, select:focus, textarea:focus {
   color: #ef4444 !important;
 }
 
-/* HIDE DEFAULT MODULE TABLES - FORCE HIDE */
-.module table,
-.app-accounts table,
-.app-ai_module table,
-.app-assets table,
-.app-auth table,
-.app-authtoken table,
-.app-core table,
-.app-industry table,
-.app-pmo table,
-.app-regulatory table {
-  display: none !important;
-}
-
-/* Hide default module captions but keep our custom ones */
-.module caption,
-.app-accounts caption,
-.app-ai_module caption,
-.app-assets caption,
-.app-auth caption,
-.app-authtoken caption,
-.app-core caption,
-.app-industry caption,
-.app-pmo caption,
-.app-regulatory caption {
-  display: none !important;
-}
-
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #0a0f1c; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-/* Dashboard title */
-#content h1 {
-  font-size: 28px !important;
-  font-weight: 800 !important;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-}
+/* Utility */
+.clear { clear: both; }
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -377,7 +331,7 @@ input:focus, select:focus, textarea:focus {
                 {% if user.has_usable_password %}
                 <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a> /
                 {% endif %}
-                <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+                <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display:inline">
                     {% csrf_token %}
                     <button type="submit">{% translate 'Log out' %}</button>
                 </form>
