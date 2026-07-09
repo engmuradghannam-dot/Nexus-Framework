@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=2
+ARG CACHE_BUST=3
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
@@ -12,10 +12,11 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
-ARG CACHE_BUST=2
+ARG CACHE_BUST=3
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
+ENV PORT=8000
 
 WORKDIR /app
 
@@ -64,7 +65,7 @@ echo "👤 Ensuring superuser exists..."
 python -c "
 import os
 import django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.base')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.production')
 django.setup()
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -82,17 +83,17 @@ echo "📊 Database configuration:"
 python -c "
 import os
 import django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.base')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.production')
 django.setup()
 from django.conf import settings
 print(f'   Engine: {settings.DATABASES["default"]["ENGINE"]}')
-print(f'   Name: {settings.DATABASES["default"].get("NAME", "N/A")}')
+print(f'   Name: {settings.DATABASES["default"].get("NAME", "N/A")')
 " || true
 
-# Start server
+# Start server with gunicorn
 PORT=${PORT:-8000}
-echo "🚀 Starting Nexus Framework on port $PORT"
-exec python manage.py runserver 0.0.0.0:$PORT
+echo "🚀 Starting Nexus Framework on port $PORT with gunicorn"
+exec gunicorn nexus.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --threads 2 --timeout 120
 EOF
 
 RUN chmod +x /app/start.sh
