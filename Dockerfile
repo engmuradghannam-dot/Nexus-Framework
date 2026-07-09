@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=1
+ARG CACHE_BUST=2
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
