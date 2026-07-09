@@ -1,37 +1,39 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
-import Sidebar from './components/Sidebar'
-import Header from './components/Header'
-import Dashboard from './pages/Dashboard'
-import PMO from './pages/PMO'
-import Industry from './pages/Industry'
-import AI from './pages/AI'
-import Regulatory from './pages/Regulatory'
-import Branches from './pages/Branches'
-import Warehouses from './pages/Warehouses'
-import Users from './pages/Users'
-import Settings from './pages/Settings'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import Layout from '@/components/Layout';
+import Dashboard from '@/pages/Dashboard';
+import PMODashboard from '@/pages/PMODashboard';
+import IndustryDashboard from '@/pages/IndustryDashboard';
+import AIDashboard from '@/pages/AIDashboard';
+import RegulatoryDashboard from '@/pages/RegulatoryDashboard';
+import Login from '@/pages/Login';
+import { AuthProvider } from '@/contexts/AuthContext';
 
-export default function App() {
+const queryClient = new QueryClient();
+
+function App() {
   return (
-    <div className="min-h-screen bg-nexus-950">
-      <Sidebar />
-      <div className="ml-[260px] min-h-screen">
-        <Header />
-        <main className="pt-20 px-6 pb-8">
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/pmo" element={<PMO />} />
-            <Route path="/industry" element={<Industry />} />
-            <Route path="/ai" element={<AI />} />
-            <Route path="/regulatory" element={<Regulatory />} />
-            <Route path="/branches" element={<Branches />} />
-            <Route path="/warehouses" element={<Warehouses />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="pmo" element={<PMODashboard />} />
+              <Route path="industry" element={<IndustryDashboard />} />
+              <Route path="ai" element={<AIDashboard />} />
+              <Route path="regulatory" element={<RegulatoryDashboard />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
-      </div>
-    </div>
-  )
+        </Router>
+        <Toaster />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
 }
+
+export default App;

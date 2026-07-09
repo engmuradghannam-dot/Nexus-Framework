@@ -1,5 +1,6 @@
-"""Test settings for Nexus Framework - uses SQLite"""
 from .base import *
+
+DEBUG = True
 
 DATABASES = {
     'default': {
@@ -8,24 +9,21 @@ DATABASES = {
     }
 }
 
-# Disable Redis cache in tests
+# Disable Redis for tests
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
 
-# Disable Celery in tests
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_BROKER_URL = 'memory://'
-CELERY_RESULT_BACKEND = 'memory://'
-
-# Disable Channels in tests
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    }
+    },
 }
 
-SECRET_KEY = 'test-secret-key-nexus-2026'
-DEBUG = True
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Use console email backend for tests
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

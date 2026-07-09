@@ -7,4 +7,4 @@ class PmoConfig(AppConfig):
     verbose_name = 'Project Management Office'
 
     def ready(self):
-        import apps.pmo.admin  # noqa: F401
+        import apps.pmo.signals  # noqa: F401

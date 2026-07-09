@@ -1,14 +1,50 @@
 import pytest
-from apps.pmo.models import Project, Task
+from django.urls import reverse
+from rest_framework.test import APIClient
 from apps.core.models import User
+from apps.pmo.models import Portfolio, Program, Project
+
+
+@pytest.fixture
+def auth_client():
+    client = APIClient()
+    user = User.objects.create_superuser(
+        email='pmo@test.com',
+        password='testpass123'
+    )
+    client.force_authenticate(user=user)
+    return client
 
 
 @pytest.mark.django_db
-def test_project_budget_utilization():
-    user = User.objects.create_user(email='test@test.com', username='test', password='test')
-    project = Project.objects.create(
-        name='Test Project', code='PRJ-001', owner=user,
-        start_date='2026-01-01', end_date='2026-12-31',
-        budget=100000, spent=75000
-    )
-    assert project.budget_utilization == 75.00
+class TestPMOAPI:
+    def test_list_portfolios(self, auth_client):
+        url = reverse('pmo:portfolio-list')
+        response = auth_client.get(url)
+        assert response.status_code == 200
+
+    def test_create_portfolio(self, auth_client):
+        url = reverse('pmo:portfolio-list')
+        data = {
+            'name': 'Test Portfolio',
+            'description': 'Test description',
+            'status': 'active'
+        }
+        response = auth_client.post(url, data)
+        assert response.status_code == 201
+        assert Portfolio.objects.count() == 1
+
+    def test_create_project(self, auth_client):
+        portfolio = Portfolio.objects.create(name='Test Portfolio', status='active')
+        url = reverse('pmo:project-list')
+        data = {
+            'name': 'Test Project',
+            'description': 'Test project',
+            'status': 'active',
+            'portfolio': portfolio.id,
+            'start_date': '2024-01-01',
+            'end_date': '2024-12-31'
+        }
+        response = auth_client.post(url, data)
+        assert response.status_code == 201
+        assert Project.objects.count() == 1
