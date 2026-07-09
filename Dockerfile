@@ -12,11 +12,15 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
+ARG CACHE_BUST=2
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
 
 WORKDIR /app
+
+# Cache bust to force fresh build
+RUN echo "Cache bust: $CACHE_BUST"
 
 # Install Python dependencies
 COPY backend/requirements.txt .
