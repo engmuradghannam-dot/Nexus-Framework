@@ -47,7 +47,7 @@ class CompanyProfile(models.Model):
     # Industry Vertical is the PARENT - it CONTROLS everything
     industry_vertical = models.ForeignKey(
         'industry.IndustryVertical', on_delete=models.PROTECT,
-        related_name='company_profiles',
+        related_name='company_profiles', null=True, blank=True,
         help_text="The Industry Vertical that controls this company's modules and features"
     )
 

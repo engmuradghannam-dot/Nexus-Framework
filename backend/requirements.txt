@@ -16,3 +16,5 @@ factory-boy>=3.3
 django-redis>=5.4
 
 Pillow>=10.0
+
+dj-database-url>=2.1
