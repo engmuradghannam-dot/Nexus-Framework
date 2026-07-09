@@ -15,6 +15,14 @@ urlpatterns = [
     path('api/industry/', include('apps.industry.urls')),
     path('api/ai/', include('apps.ai_module.urls')),
     path('api/regulatory/', include('apps.regulatory.urls')),
+    path('api/hr/', include('apps.hr.urls')),
+    path('api/inventory/', include('apps.inventory.urls')),
+    path('api/manufacturing/', include('apps.manufacturing.urls')),
+    path('api/accounts/', include('apps.accounts.urls')),
+    path('api/assets/', include('apps.assets.urls')),
+    path('api/buying/', include('apps.buying.urls')),
+    path('api/selling/', include('apps.selling.urls')),
+    path('api/crm/', include('apps.crm.urls')),
 ]
 
 if settings.DEBUG:
