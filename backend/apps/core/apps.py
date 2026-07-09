@@ -8,3 +8,4 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         import apps.core.admin  # noqa: F401
+        import apps.core.signals  # noqa: F401

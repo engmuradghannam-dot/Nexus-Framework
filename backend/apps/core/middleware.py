@@ -1,15 +1,17 @@
 """
-ULTIMATE CSRF DISABLE - For Railway Deployment Only
-This completely disables CSRF protection. Use with caution.
+Railway-safe CSRF Middleware
+Handles CSRF for Railway deployment and local development gracefully.
 """
 from django.utils.deprecation import MiddlewareMixin
 
 
-class DisableCSRFMiddleware(MiddlewareMixin):
+class RailwayCsrfMiddleware(MiddlewareMixin):
     """
-    Completely disables CSRF checks for ALL requests.
-    This is a temporary fix for Railway deployment issues.
+    Custom CSRF middleware that handles Railway deployment
+    and local development gracefully.
     """
     def process_request(self, request):
-        # Mark CSRF as already processed - Django will skip all CSRF checks
-        request.csrf_processing_done = True
+        # Skip CSRF for API endpoints
+        if request.path.startswith('/api/'):
+            setattr(request, '_dont_enforce_csrf_checks', True)
+        return None
