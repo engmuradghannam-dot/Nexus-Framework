@@ -14,6 +14,32 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 
+# ── SECURITY / CSRF / CORS ───────────────────────
+CSRF_TRUSTED_ORIGINS = [
+    'https://web-production-38215.up.railway.app',
+    'https://*.up.railway.app',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+
+CORS_ALLOWED_ORIGINS = [
+    'https://web-production-38215.up.railway.app',
+    'https://*.up.railway.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+
+# Cookie settings for HTTPS (Railway)
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'None'
+
+# Proxy settings for Railway
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # ── APPS ───────────────────────────────────────
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -46,6 +72,7 @@ AUTH_USER_MODEL = 'core.User'
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -218,3 +245,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ── SUPERUSER DEFAULT ──────────────────────────────
 NEXUS_SUPERUSER_EMAIL = os.getenv('NEXUS_SUPERUSER_EMAIL', 'eng.murad.ghannam@gmail.com')
 NEXUS_SUPERUSER_PASSWORD = os.getenv('NEXUS_SUPERUSER_PASSWORD', 'ghannam2020')
+
+# Whitenoise static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

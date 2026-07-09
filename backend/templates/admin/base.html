@@ -288,6 +288,12 @@ input:focus, select:focus, textarea:focus {
 
 /* Utility */
 .clear { clear: both; }
+
+/* Hide theme toggle to prevent duplicate rendering */
+.theme-toggle, [data-theme-toggle], .toggle-theme, #theme-toggle,
+svg[viewBox="0 0 24 24"] ~ .theme, .dark-mode-toggle, .light-mode-toggle {
+  display: none !important;
+}
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
