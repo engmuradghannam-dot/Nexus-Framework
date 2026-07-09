@@ -15,62 +15,57 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['*']
 
 # ── SECURITY / CSRF / CORS ───────────────────────
-# Get from env or use defaults
-_csrf_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
-if _csrf_env:
-    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',')]
-else:
-    CSRF_TRUSTED_ORIGINS = [
-        'https://web-production-38215.up.railway.app',
-        'https://*.up.railway.app',
-        'http://localhost:8000',
-        'http://127.0.0.1:8000',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-    ]
+# CRITICAL: Accept ALL origins for Railway deployment
+CSRF_TRUSTED_ORIGINS = [
+    'https://web-production-38215.up.railway.app',
+    'https://*.up.railway.app',
+    'https://*.railway.app',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
 
-# Also add from env variable for dynamic Railway URLs
-_railway_url = os.getenv('RAILWAY_STATIC_URL', '')
-if _railway_url and _railway_url not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append(_railway_url)
-
-# Get Railway public domain
+# Add dynamic Railway domains
 _railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '')
 if _railway_domain:
     _full_url = f'https://{_railway_domain}'
     if _full_url not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_full_url)
 
+_railway_static = os.getenv('RAILWAY_STATIC_URL', '')
+if _railway_static and _railway_static not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(_railway_static)
+
+# Also read from env
+_csrf_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if _csrf_env:
+    for o in [o.strip() for o in _csrf_env.split(',')]:
+        if o and o not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(o)
+
 CORS_ALLOWED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
     'https://*.up.railway.app',
+    'https://*.railway.app',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
 ]
 
-# Add Railway domain to CORS if available
 if _railway_domain:
     _full_url = f'https://{_railway_domain}'
     if _full_url not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(_full_url)
 
-# Cookie settings - conditional on HTTPS
-_is_https = os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_STATIC_URL')
-if _is_https:
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
-    # 'None' is required for cross-origin requests with credentials
-    # Must be used with CSRF_COOKIE_SECURE = True
-    CSRF_COOKIE_SAMESITE = 'None'
-    SESSION_COOKIE_SAMESITE = 'None'
-else:
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SAMESITE = 'Lax'
-
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF cookie for AJAX requests
-CSRF_USE_SESSIONS = False  # Use cookie-based CSRF token
+# Cookie settings - ALWAYS use None for cross-origin on Railway
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_DOMAIN = None  # Allow all domains
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_DOMAIN = None
+CSRF_USE_SESSIONS = False
 
 # Proxy settings for Railway
 USE_X_FORWARDED_HOST = True
@@ -105,12 +100,15 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 AUTH_USER_MODEL = 'core.User'
 
 # ── MIDDLEWARE ───────────────────────────────────
+# CRITICAL: Custom middleware BEFORE CsrfViewMiddleware to bypass API CSRF
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'apps.core.middleware.CSRFAPIMiddleware',  # Bypass CSRF for API
+    'apps.core.middleware.RailwayOriginMiddleware',  # Auto-add Railway origins
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -139,7 +137,6 @@ TEMPLATES = [
 ]
 
 # ── DATABASE ─────────────────────────────────────
-# Use DATABASE_URL if provided (Railway/Production), otherwise SQLite
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 
 if DATABASE_URL:
@@ -148,7 +145,6 @@ if DATABASE_URL:
         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
 else:
-    # SQLite fallback - works everywhere without PostgreSQL setup
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -175,7 +171,6 @@ if REDIS_URL:
         SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
         SESSION_CACHE_ALIAS = 'default'
     except ImportError:
-        # django_redis not installed, use file cache
         CACHES = {
             'default': {
                 'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
@@ -184,7 +179,6 @@ if REDIS_URL:
         }
         SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 else:
-    # No Redis - use file-based cache
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
