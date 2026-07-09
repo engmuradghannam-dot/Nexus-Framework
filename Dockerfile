@@ -52,6 +52,10 @@ mkdir -p /app/cache /app/media /app/staticfiles
 echo "📦 Collecting static files..."
 python manage.py collectstatic --noinput || echo "⚠️ Static collection had issues, continuing..."
 
+# Create migrations for new apps
+echo "📝 Creating migrations for new apps..."
+python manage.py makemigrations hr inventory manufacturing accounts assets buying selling crm --noinput || echo "⚠️ makemigrations had issues, continuing..."
+
 # Run migrations
 echo "🗄️  Running database migrations..."
 python manage.py migrate --noinput || {
