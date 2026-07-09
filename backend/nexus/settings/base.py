@@ -15,18 +15,16 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['*']
 
 # ── SECURITY / CSRF / CORS ───────────────────────
-# CRITICAL: Accept ALL origins for Railway deployment
+# EXACT domains only - NO wildcards in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
-    'https://*.up.railway.app',
-    'https://*.railway.app',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
 ]
 
-# Add dynamic Railway domains
+# Add dynamic Railway domains from env
 _railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '')
 if _railway_domain:
     _full_url = f'https://{_railway_domain}'
@@ -46,8 +44,6 @@ if _csrf_env:
 
 CORS_ALLOWED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
-    'https://*.up.railway.app',
-    'https://*.railway.app',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
 ]
@@ -57,11 +53,11 @@ if _railway_domain:
     if _full_url not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(_full_url)
 
-# Cookie settings - ALWAYS use None for cross-origin on Railway
+# Cookie settings for Railway HTTPS
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'None'
-CSRF_COOKIE_DOMAIN = None  # Allow all domains
+CSRF_COOKIE_DOMAIN = None
 SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_DOMAIN = None
@@ -100,16 +96,15 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 AUTH_USER_MODEL = 'core.User'
 
 # ── MIDDLEWARE ───────────────────────────────────
-# CRITICAL: Custom middleware BEFORE CsrfViewMiddleware to bypass API CSRF
+# Use RailwayCsrfMiddleware instead of Django's default CsrfViewMiddleware
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'apps.core.middleware.CSRFAPIMiddleware',  # Bypass CSRF for API
-    'apps.core.middleware.RailwayOriginMiddleware',  # Auto-add Railway origins
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'apps.core.middleware.RailwayCsrfMiddleware',  # Custom CSRF for Railway
+    'apps.core.middleware.CSRFAPIMiddleware',  # Bypass API CSRF
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
