@@ -1,21 +1,25 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from .models import IndustryProject, IndustryMetric
+from .models import Company, Metric
 
 
-@receiver(post_save, sender=IndustryProject)
-def handle_project_save(sender, instance, created, **kwargs):
+@receiver(post_save, sender=Company)
+def handle_company_save(sender, instance, created, **kwargs):
+    """Auto-create default metrics when a new company is created."""
     if created:
-        IndustryMetric.objects.get_or_create(
-            project=instance,
+        Metric.objects.get_or_create(
+            company=instance,
+            name='Default Efficiency',
             defaults={
-                'efficiency_score': 0.0,
-                'compliance_rate': 100.0,
-                'risk_level': 'low'
+                'metric_type': 'operational',
+                'value': 0.0,
+                'unit': 'score',
+                'period': 'initial'
             }
         )
 
 
-@receiver(post_delete, sender=IndustryProject)
-def handle_project_delete(sender, instance, **kwargs):
-    IndustryMetric.objects.filter(project=instance).delete()
+@receiver(post_delete, sender=Company)
+def handle_company_delete(sender, instance, **kwargs):
+    """Clean up metrics when a company is deleted."""
+    Metric.objects.filter(company=instance).delete()
