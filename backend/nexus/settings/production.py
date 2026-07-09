@@ -7,28 +7,26 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 
-# COMPREHENSIVE CSRF trusted origins
+# CRITICAL: Django 4.0 REQUIRES scheme (https://) in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
-    'http://web-production-38215.up.railway.app',
-    'https://*.up.railway.app',
-    'https://*.railway.app',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
 ]
 
-# Add dynamic Railway domains
+# Fix RAILWAY_STATIC_URL - it returns domain WITHOUT scheme!
+_railway_static = os.getenv('RAILWAY_STATIC_URL', '')
+if _railway_static:
+    # Ensure it has scheme
+    if not _railway_static.startswith(('http://', 'https://')):
+        _railway_static = 'https://' + _railway_static
+    if _railway_static not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_railway_static)
+
+# Fix RAILWAY_PUBLIC_DOMAIN
 _railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '')
 if _railway_domain:
     _full_url = f'https://{_railway_domain}'
     if _full_url not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_full_url)
-
-_railway_static = os.getenv('RAILWAY_STATIC_URL', '')
-if _railway_static and _railway_static not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append(_railway_static)
 
 # Also read from env variable
 _csrf_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
@@ -39,8 +37,6 @@ if _csrf_env:
 
 CORS_ALLOWED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
 ]
 
 if _railway_domain:

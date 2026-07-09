@@ -32,8 +32,12 @@ if _railway_domain:
         CSRF_TRUSTED_ORIGINS.append(_full_url)
 
 _railway_static = os.getenv('RAILWAY_STATIC_URL', '')
-if _railway_static and _railway_static not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append(_railway_static)
+if _railway_static:
+    # Django 4.0 requires scheme - RAILWAY_STATIC_URL returns bare domain
+    if not _railway_static.startswith(('http://', 'https://')):
+        _railway_static = 'https://' + _railway_static
+    if _railway_static not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_railway_static)
 
 # Also read from env
 _csrf_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
