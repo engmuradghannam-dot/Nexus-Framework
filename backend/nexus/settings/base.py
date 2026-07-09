@@ -15,12 +15,17 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['*']
 
 # ── SECURITY / CSRF / CORS ───────────────────────
-CSRF_TRUSTED_ORIGINS = [
-    'https://web-production-38215.up.railway.app',
-    'https://*.up.railway.app',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-]
+# Get from env or use defaults
+_csrf_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if _csrf_env:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',')]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        'https://web-production-38215.up.railway.app',
+        'https://*.up.railway.app',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+    ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
@@ -29,12 +34,21 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
 ]
 
-# Cookie settings for HTTPS (Railway)
-CSRF_COOKIE_SECURE = True
+# Cookie settings - conditional on HTTPS
+_is_https = os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_STATIC_URL')
+if _is_https:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    # 'None' requires Secure attribute, use 'Lax' for broader compatibility
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SAMESITE = 'Lax'
+else:
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = 'None'
 
 # Proxy settings for Railway
 USE_X_FORWARDED_HOST = True
