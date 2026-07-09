@@ -5,3 +5,6 @@ class PmoConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.pmo'
     verbose_name = 'Project Management Office'
+
+    def ready(self):
+        import apps.pmo.admin  # noqa: F401

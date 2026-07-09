@@ -5,3 +5,6 @@ class RegulatoryConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.regulatory'
     verbose_name = 'Regulatory & Compliance'
+
+    def ready(self):
+        import apps.regulatory.admin  # noqa: F401
