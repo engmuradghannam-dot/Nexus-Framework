@@ -1,31 +1,37 @@
 """
 Ultimate CSRF Middleware for Railway Deployment
-Handles all CSRF issues by dynamically accepting Railway origins
+Completely bypasses CSRF for Railway domains
 """
-from django.utils.deprecation import MiddlewareMixin
 from django.middleware.csrf import CsrfViewMiddleware
-import logging
-
-logger = logging.getLogger(__name__)
+from django.utils.deprecation import MiddlewareMixin
 
 
 class RailwayCsrfMiddleware(CsrfViewMiddleware):
     """
-    Custom CSRF middleware that auto-accepts Railway domains
+    Custom CSRF middleware that completely bypasses CSRF for Railway domains.
     """
-    def _origin_verified(self, request):
-        """Override to accept all Railway origins"""
-        origin = request.META.get('HTTP_ORIGIN')
-        if origin and 'railway.app' in origin:
-            return True
-        return super()._origin_verified(request)
+    def process_request(self, request):
+        # Completely skip CSRF processing for Railway domains
+        origin = request.META.get('HTTP_ORIGIN', '')
+        host = request.META.get('HTTP_HOST', '')
 
-    def _compare_salted_tokens(self, request_csrf_token, csrf_token):
-        """Always accept tokens for Railway domains"""
-        origin = request.META.get('HTTP_ORIGIN')
-        if origin and 'railway.app' in origin:
-            return True
-        return super()._compare_salted_tokens(request_csrf_token, csrf_token)
+        if 'railway.app' in origin or 'railway.app' in host:
+            # Mark as CSRF exempt - Django will skip CSRF checks
+            request.csrf_processing_done = True
+            return None
+
+        # For non-Railway domains, use normal CSRF processing
+        return super().process_request(request)
+
+    def process_view(self, request, callback, callback_args, callback_kwargs):
+        # Also skip in process_view for Railway
+        origin = request.META.get('HTTP_ORIGIN', '')
+        host = request.META.get('HTTP_HOST', '')
+
+        if 'railway.app' in origin or 'railway.app' in host:
+            return None
+
+        return super().process_view(request, callback, callback_args, callback_kwargs)
 
 
 class CSRFAPIMiddleware(MiddlewareMixin):
