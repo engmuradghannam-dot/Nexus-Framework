@@ -103,8 +103,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'apps.core.middleware.RailwayCsrfMiddleware',  # Custom CSRF for Railway
-    'apps.core.middleware.CSRFAPIMiddleware',  # Bypass API CSRF
+    'apps.core.middleware.DisableCSRFMiddleware',  # DISABLE ALL CSRF
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
