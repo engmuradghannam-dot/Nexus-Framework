@@ -112,6 +112,14 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.hr',
+    'apps.inventory',
+    'apps.manufacturing',
+    'apps.accounts',
+    'apps.assets',
+    'apps.buying',
+    'apps.selling',
+    'apps.crm',
 ]
 
 ROOT_URLCONF = 'nexus.urls'
