@@ -170,3 +170,7 @@ class Warehouse(models.Model):
         if self.capacity == 0:
             return 0
         return round((self.current_occupancy / self.capacity) * 100, 2)
+
+
+# Alias for backward compatibility
+Company = CompanyProfile

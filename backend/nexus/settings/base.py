@@ -94,6 +94,14 @@ LOCAL_APPS = [
     'apps.industry',
     'apps.ai_module',
     'apps.regulatory',
+    'apps.hr',
+    'apps.inventory',
+    'apps.manufacturing',
+    'apps.accounts',
+    'apps.assets',
+    'apps.buying',
+    'apps.selling',
+    'apps.crm',
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
