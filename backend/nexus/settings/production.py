@@ -7,11 +7,19 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 
-# EXACT domains only
+# COMPREHENSIVE CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
+    'http://web-production-38215.up.railway.app',
+    'https://*.up.railway.app',
+    'https://*.railway.app',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
 ]
 
+# Add dynamic Railway domains
 _railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '')
 if _railway_domain:
     _full_url = f'https://{_railway_domain}'
@@ -22,8 +30,17 @@ _railway_static = os.getenv('RAILWAY_STATIC_URL', '')
 if _railway_static and _railway_static not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append(_railway_static)
 
+# Also read from env variable
+_csrf_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if _csrf_env:
+    for o in [o.strip() for o in _csrf_env.split(',')]:
+        if o and o not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(o)
+
 CORS_ALLOWED_ORIGINS = [
     'https://web-production-38215.up.railway.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
 ]
 
 if _railway_domain:
