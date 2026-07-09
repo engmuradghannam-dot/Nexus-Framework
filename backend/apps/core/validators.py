@@ -10,3 +10,11 @@ def validate_image_size(image):
     limit_mb = 5
     if file_size > limit_mb * 1024 * 1024:
         raise ValidationError(f"Max file size is {limit_mb}MB")
+
+
+def validate_attachment_size(attachment):
+    """Validate attachment file size (max 10MB)."""
+    file_size = attachment.size
+    limit_mb = 10
+    if file_size > limit_mb * 1024 * 1024:
+        raise ValidationError(f"Max file size is {limit_mb}MB")
