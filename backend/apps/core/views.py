@@ -27,7 +27,10 @@ def login_view(request):
             {"detail": "Email and password are required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    user = authenticate(request, username=email, password=password)
+    # Resolve the stored email case-insensitively so any casing works.
+    existing = User.objects.filter(email__iexact=email).first()
+    lookup_email = existing.email if existing else email
+    user = authenticate(request, username=lookup_email, password=password)
     if user is None:
         return Response(
             {"detail": "Invalid credentials."},
