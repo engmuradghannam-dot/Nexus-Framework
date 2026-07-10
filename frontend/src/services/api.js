@@ -124,6 +124,8 @@ export const authApi = {
 export const controlsApi = {
   summary: () => data(API.get('/controls/form-controls/summary/')),
   byForm: () => data(API.get('/controls/form-controls/by_form/')),
+  formControls: (formName) =>
+    data(API.get('/controls/form-controls/', { params: { form_name: formName, page_size: 500 } })),
   industryControls: () => data(API.get('/controls/industry-controls/')),
   categories: () => data(API.get('/controls/industries/categories/')),
   industries: () => data(API.get('/controls/industries/')),

@@ -4,9 +4,17 @@ from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from .models import AIAgent, FormControl, Industry, IndustryControl, MasterEntity
+
+
+class LargePageNumberPagination(PageNumberPagination):
+    """Allows the client to request larger pages (e.g. all inputs of a form)."""
+
+    page_size_query_param = "page_size"
+    max_page_size = 1000
 from .serializers import (
     AIAgentSerializer,
     FormControlSerializer,
@@ -60,6 +68,7 @@ class MasterEntityViewSet(viewsets.ReadOnlyModelViewSet):
 class FormControlViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = FormControl.objects.all()
     serializer_class = FormControlSerializer
+    pagination_class = LargePageNumberPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["form_name", "status", "priority", "input_type"]
     search_fields = ["form_name", "input_name", "input_type"]
