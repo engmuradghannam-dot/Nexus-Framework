@@ -1,12 +1,26 @@
 """Nexus Framework URL Configuration"""
 
+import os
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.http import Http404, HttpResponse
+from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.core.admin_site import admin_site
+
+
+def spa_index(request):
+    """Serve the built React SPA entry point for non-API routes."""
+    index_path = os.path.join(settings.STATIC_ROOT, "index.html")
+    try:
+        with open(index_path, "rb") as f:
+            return HttpResponse(f.read(), content_type="text/html")
+    except FileNotFoundError:
+        raise Http404("Frontend build not found.")
+
 
 urlpatterns = [
     path("admin/", admin_site.urls),
@@ -34,3 +48,9 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# SPA fallback: any non-API, non-admin, non-static path serves the React app
+# so client-side (react-router) routes work on hard refresh.
+urlpatterns += [
+    re_path(r"^(?!api/|admin/|static/|media/).*$", spa_index),
+]

@@ -291,4 +291,4 @@ NEXUS_SUPERUSER_EMAIL = os.getenv(
 NEXUS_SUPERUSER_PASSWORD = os.getenv("NEXUS_SUPERUSER_PASSWORD", "ghannam2020")
 
 # Whitenoise static files
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
