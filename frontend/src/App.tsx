@@ -26,6 +26,9 @@ import ManufacturingPage from './pages/Manufacturing/ManufacturingPage';
 import AssetsPage from './pages/Assets/AssetsPage';
 import HRPage from './pages/HR/HRPage';
 import InventoryPage from './pages/Inventory/InventoryPage';
+import ControlsPage from './pages/Controls/ControlsPage';
+import TaxesPage from './pages/Taxes/TaxesPage';
+import I18nPage from './pages/I18n/I18nPage';
 
 // Auth Guard
 import { AuthGuard } from './components/Auth/AuthGuard';
@@ -70,6 +73,7 @@ function App() {
                 <Route path="/industry" element={<IndustryPage />} />
                 <Route path="/pmo" element={<PMOPage />} />
                 <Route path="/regulatory" element={<RegulatoryPage />} />
+                <Route path="/controls" element={<ControlsPage />} />
                 <Route path="/branches" element={<BranchesPage />} />
                 <Route path="/warehouses" element={<WarehousesPage />} />
                 <Route path="/users" element={<UsersPage />} />
@@ -81,6 +85,8 @@ function App() {
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/hr" element={<HRPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/taxes" element={<TaxesPage />} />
+                <Route path="/i18n" element={<I18nPage />} />
               </Route>
             </Route>
 

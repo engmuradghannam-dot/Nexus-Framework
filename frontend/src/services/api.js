@@ -106,3 +106,49 @@ export const deleteTranslation = (id) => API.delete(`/i18n/translations/${id}/`)
 export const searchTranslations = (q) => API.get(`/i18n/translations/search/?q=${q}`)
 export const bulkUploadTranslations = (data) => API.post('/i18n/translations/bulk/', data)
 export const getTranslationImportJobs = (params) => API.get('/i18n/import-jobs/', { params })
+
+// ════════════════════════════════════════════════
+// Object-style APIs (return response data directly)
+// Consolidated from the former api.ts.
+// ════════════════════════════════════════════════
+const data = (p) => p.then((r) => r.data)
+
+export const authApi = {
+  login: (email, password) => data(API.post('/core/auth/login/', { email, password })),
+  register: (payload) => data(API.post('/core/auth/register/', payload)),
+  googleLogin: (token) => data(API.post('/core/auth/google/', { token })),
+  getProfile: () => data(API.get('/core/users/me/')),
+  updateProfile: (payload) => data(API.put('/core/users/me/', payload)),
+}
+
+export const controlsApi = {
+  summary: () => data(API.get('/controls/form-controls/summary/')),
+  byForm: () => data(API.get('/controls/form-controls/by_form/')),
+  industryControls: () => data(API.get('/controls/industry-controls/')),
+  categories: () => data(API.get('/controls/industries/categories/')),
+  industries: () => data(API.get('/controls/industries/')),
+}
+
+export const industryApi = {
+  getAll: (filters) => data(API.get('/industry/companies/', { params: filters })),
+  getById: (id) => data(API.get(`/industry/companies/${id}/`)),
+  create: (payload) => data(API.post('/industry/companies/', payload)),
+  update: (id, payload) => data(API.put(`/industry/companies/${id}/`, payload)),
+  delete: (id) => data(API.delete(`/industry/companies/${id}/`)),
+}
+
+export const projectApi = {
+  getAll: (filters) => data(API.get('/pmo/projects/', { params: filters })),
+  getById: (id) => data(API.get(`/pmo/projects/${id}/`)),
+  create: (payload) => data(API.post('/pmo/projects/', payload)),
+  update: (id, payload) => data(API.put(`/pmo/projects/${id}/`, payload)),
+  delete: (id) => data(API.delete(`/pmo/projects/${id}/`)),
+}
+
+export const chatApi = {
+  sendMessage: (message, model, settings) =>
+    data(API.post('/chat/send/', { message, model, settings })),
+  getHistory: (sessionId) => data(API.get(`/chat/history/${sessionId || ''}`)),
+  getModels: () => data(API.get('/chat/models/')),
+  clearHistory: (sessionId) => data(API.delete(`/chat/clear/${sessionId || ''}`)),
+}

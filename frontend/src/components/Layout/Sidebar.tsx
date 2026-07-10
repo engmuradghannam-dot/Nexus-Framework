@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, FolderKanban, Building2, BrainCircuit, ShieldCheck,
+  LayoutDashboard, FolderKanban, Building2, BrainCircuit, ShieldCheck, ClipboardCheck, Receipt, Languages,
   MapPin, Warehouse, Users, Settings, ChevronLeft, ChevronRight, Zap,
   ShoppingCart, Store, Factory, Boxes, Briefcase, HeartHandshake, Contact,
   ChevronDown, BarChart3
@@ -35,6 +35,7 @@ const navGroups: NavGroup[] = [
       { path: '/industry', icon: Building2, label: 'القطاعات الصناعية' },
       { path: '/ai', icon: BrainCircuit, label: 'محرك الذكاء الاصطناعي' },
       { path: '/regulatory', icon: ShieldCheck, label: 'الامتثال التنظيمي' },
+      { path: '/controls', icon: ClipboardCheck, label: 'مكتبة الضوابط' },
     ],
   },
   {

@@ -146,7 +146,7 @@ class TestTaxRuleAPI:
             "conditions": {"export": True},
             "priority": 5,
         }
-        response = auth_client.post("/api/taxes/rules/", data)
+        response = auth_client.post("/api/taxes/rules/", data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
 
 

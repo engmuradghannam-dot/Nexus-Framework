@@ -135,7 +135,7 @@ class TestTranslationAPI:
                 {"key": "new_key_2", "value": "Value 2", "context": "test"},
             ],
         }
-        response = auth_client.post("/api/i18n/translations/bulk/", data)
+        response = auth_client.post("/api/i18n/translations/bulk/", data, format="json")
         assert response.status_code == status.HTTP_200_OK
         assert response.data["created"] == 2
 
@@ -147,7 +147,7 @@ class TestTranslationAPI:
                 {"key": "existing", "value": "New", "context": "test"},
             ],
         }
-        response = auth_client.post("/api/i18n/translations/bulk/", data)
+        response = auth_client.post("/api/i18n/translations/bulk/", data, format="json")
         assert response.status_code == status.HTTP_200_OK
         assert response.data["updated"] == 1
 

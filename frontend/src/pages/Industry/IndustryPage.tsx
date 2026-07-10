@@ -118,7 +118,7 @@ export default function IndustryPage() {
       ...displayData.map(i => [i.name, sectorLabels[i.sector] || i.sector, statusConfig[i.status]?.label || i.status, i.revenue.toString(), i.employees.toString(), i.growthRate.toString(), i.location])
     ].map(row => row.join(',')).join('\n');
 
-    const blob = new Blob([\ufeff + csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'industries.csv';

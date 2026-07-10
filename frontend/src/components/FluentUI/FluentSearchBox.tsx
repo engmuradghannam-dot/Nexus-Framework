@@ -1,5 +1,5 @@
 // components/FluentUI/FluentSearchBox.tsx
-import { Search, Dismiss } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface FluentSearchBoxProps {
@@ -54,7 +54,7 @@ export function FluentSearchBox({ placeholder = 'البحث...', value, onChange
           onClick={clearSearch}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-[#605e5c] hover:text-[#323130]"
         >
-          <Dismiss size={14} />
+          <X size={14} />
         </button>
       )}
     </div>

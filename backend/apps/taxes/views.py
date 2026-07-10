@@ -90,6 +90,17 @@ class TaxCalculationViewSet(viewsets.ModelViewSet):
             return TaxCalculationCreateSerializer
         return TaxCalculationSerializer
 
+    def create(self, request, *args, **kwargs):
+        create_serializer = self.get_serializer(data=request.data)
+        create_serializer.is_valid(raise_exception=True)
+        calc = create_serializer.save()
+        # Return the full representation including computed tax_amount/total_amount
+        read_serializer = TaxCalculationSerializer(calc, context=self.get_serializer_context())
+        headers = self.get_success_headers(read_serializer.data)
+        return Response(
+            read_serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
     @extend_schema(
         tags=["Taxes"],
         summary="Calculate tax for a transaction",

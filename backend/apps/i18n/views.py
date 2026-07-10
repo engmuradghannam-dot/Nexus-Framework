@@ -103,20 +103,26 @@ class TranslationViewSet(viewsets.ModelViewSet):
         summary="Search translations",
         request=TranslationSearchSerializer,
     )
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["get", "post"])
     def search(self, request):
-        serializer = TranslationSearchSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        # Accept params from the query string (GET) or the body (POST).
+        source = request.query_params if request.method == "GET" else request.data
+        q = source.get("q")
+        language = source.get("language")
+        context = source.get("context")
 
         qs = Translation.objects.all().select_related("language")
-        if data.get("q"):
-            qs = qs.filter(key__icontains=data["q"]) | qs.filter(value__icontains=data["q"])
-        if data.get("language"):
-            qs = qs.filter(language__code=data["language"])
-        if data.get("context"):
-            qs = qs.filter(context__icontains=data["context"])
+        if q:
+            qs = qs.filter(key__icontains=q) | qs.filter(value__icontains=q)
+        if language:
+            qs = qs.filter(language__code=language)
+        if context:
+            qs = qs.filter(context__icontains=context)
 
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            result_serializer = TranslationSerializer(page, many=True)
+            return self.get_paginated_response(result_serializer.data)
         result_serializer = TranslationSerializer(qs[:100], many=True)
         return Response(result_serializer.data)
 

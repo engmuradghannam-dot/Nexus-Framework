@@ -6,11 +6,11 @@ import {
 } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
-import { FluentBadge } from '../../components/FluentBadge';
-import { FluentTable } from '../../components/FluentTable';
-import { FluentSearchBox } from '../../components/FluentSearchBox';
+import { FluentBadge } from '../../components/FluentUI/FluentBadge';
+import { FluentTable } from '../../components/FluentUI/FluentTable';
+import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
-import { FluentStatsCard } from '../../components/FluentStatsCard';
+import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
 
 interface Branch {
   id: string;

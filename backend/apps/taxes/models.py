@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from decimal import Decimal
 
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -76,7 +77,7 @@ class TaxRate(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
     description = models.TextField(blank=True)
-    effective_date = models.DateField()
+    effective_date = models.DateField(default=date.today)
     expiry_date = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -110,7 +111,7 @@ class TaxRule(models.Model):
     )
     name = models.CharField(max_length=200)
     rule_type = models.CharField(max_length=20, choices=RULE_TYPE_CHOICES)
-    description = models.TextField()
+    description = models.TextField(blank=True)
     conditions = models.JSONField(default=dict, help_text="JSON logic for rule conditions")
     tax_rate_override = models.DecimalField(
         max_digits=5, decimal_places=2, blank=True, null=True,
@@ -184,6 +185,20 @@ class TaxCalculation(models.Model):
                 "amount": str(tax.quantize(Decimal("0.01"))),
                 "name": rate.name,
             })
+
+        # Fallback: if no explicit rate rows applied, use the country's
+        # standard VAT rate from its profile (skipped for B2B reverse charge).
+        if not self.applied_tax_rates and self.country.vat_enabled and not self.is_b2b:
+            standard = self.country.vat_standard_rate or Decimal("0.00")
+            if standard > 0:
+                tax = (self.base_amount * standard) / Decimal("100")
+                self.tax_amount += tax
+                self.applied_tax_rates.append({
+                    "tax_type": "vat_standard",
+                    "rate": str(standard),
+                    "amount": str(tax.quantize(Decimal("0.01"))),
+                    "name": "VAT (standard)",
+                })
 
         self.total_amount = self.base_amount + self.tax_amount
         self.status = "calculated"
