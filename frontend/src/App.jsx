@@ -13,6 +13,8 @@ import Industry from '@/pages/Industry';
 import AI from '@/pages/AI';
 import Regulatory from '@/pages/Regulatory';
 import Controls from '@/pages/Controls';
+import TaxesPage from '@/pages/Taxes/TaxesPage';
+import I18nPage from '@/pages/I18n/I18nPage';
 import Login from '@/pages/Login';
 import Users from '@/pages/Users';
 import Settings from '@/pages/Settings';
@@ -44,6 +46,8 @@ function App() {
               <Route path="settings" element={<Settings />} />
               <Route path="branches" element={<Branches />} />
               <Route path="warehouses" element={<Warehouses />} />
+              <Route path="taxes" element={<TaxesPage />} />
+              <Route path="i18n" element={<I18nPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

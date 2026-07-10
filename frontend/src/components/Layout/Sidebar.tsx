@@ -57,6 +57,13 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'المالية والتوطين',
+    items: [
+      { path: '/taxes', icon: BarChart3, label: 'الضرائب' },
+      { path: '/i18n', icon: Zap, label: 'التوطين (i18n)' },
+    ],
+  },
+  {
     label: 'النظام',
     items: [
       { path: '/users', icon: Users, label: 'المستخدمين' },
