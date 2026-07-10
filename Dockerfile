@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=7
+ARG CACHE_BUST=8
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
@@ -12,7 +12,7 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
-ARG CACHE_BUST=7
+ARG CACHE_BUST=8
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
@@ -86,7 +86,7 @@ else:
 # Start server with gunicorn
 PORT=${PORT:-8000}
 echo "🚀 Starting Nexus Framework on port $PORT with gunicorn"
-exec gunicorn nexus.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --threads 2 --timeout 120
+exec gunicorn nexus.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 --worker-tmp-dir /dev/shm --access-logfile - --error-logfile -
 EOF
 
 RUN chmod +x /app/start.sh
