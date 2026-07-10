@@ -1,6 +1,9 @@
+from django.contrib.auth import authenticate
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
-from rest_framework.decorators import action
+from rest_framework import filters, status, viewsets
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import Branch, CompanyProfile, User, Warehouse
@@ -13,12 +16,39 @@ from .serializers import (
 )
 
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login_view(request):
+    """Authenticate by email + password and return a token and the user."""
+    email = request.data.get("email")
+    password = request.data.get("password")
+    if not email or not password:
+        return Response(
+            {"detail": "Email and password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    user = authenticate(request, username=email, password=password)
+    if user is None:
+        return Response(
+            {"detail": "Invalid credentials."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    token, _ = Token.objects.get_or_create(user=user)
+    return Response({"token": token.key, "user": UserSerializer(user).data})
+
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["is_active", "permissions_level", "department"]
     search_fields = ["email", "username", "first_name", "last_name"]
+
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        """Return the currently authenticated user."""
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 
 class CompanyProfileViewSet(viewsets.ModelViewSet):
