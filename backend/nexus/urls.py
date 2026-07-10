@@ -43,6 +43,8 @@ urlpatterns = [
     path("api/buying/", include("apps.buying.urls")),
     path("api/selling/", include("apps.selling.urls")),
     path("api/crm/", include("apps.crm.urls")),
+    path("api/taxes/", include("apps.taxes.urls")),
+    path("api/i18n/", include("apps.i18n.urls")),
 ]
 
 if settings.DEBUG:
