@@ -1,12 +1,14 @@
 // services/api.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Generic fetch wrapper
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Token ${token}` } : {}),
       ...options?.headers,
     },
   });
@@ -135,7 +137,7 @@ export const projectApi = {
 // ========== AUTH API ==========
 export const authApi = {
   login: (email: string, password: string) =>
-    fetchApi<{ token: string; user: any }>('/auth/login/', {
+    fetchApi<{ token: string; user: any }>('/core/auth/login/', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
@@ -153,10 +155,10 @@ export const authApi = {
     }),
 
   getProfile: () =>
-    fetchApi<any>('/auth/profile/'),
+    fetchApi<any>('/core/users/me/'),
 
   updateProfile: (data: any) =>
-    fetchApi<any>('/auth/profile/', {
+    fetchApi<any>('/core/users/me/', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
