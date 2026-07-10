@@ -112,6 +112,8 @@ export const getTranslationImportJobs = (params) => API.get('/i18n/import-jobs/'
 // Consolidated from the former api.ts.
 // ════════════════════════════════════════════════
 const data = (p) => p.then((r) => r.data)
+// Unwrap DRF paginated responses ({results:[...]}) to a plain array.
+const list = (p) => p.then((r) => (r.data && r.data.results) || r.data || [])
 
 export const authApi = {
   login: (email, password) => data(API.post('/core/auth/login/', { email, password })),
@@ -132,7 +134,7 @@ export const controlsApi = {
 }
 
 export const industryApi = {
-  getAll: (filters) => data(API.get('/industry/companies/', { params: filters })),
+  getAll: (filters) => list(API.get('/industry/companies/', { params: filters })),
   getById: (id) => data(API.get(`/industry/companies/${id}/`)),
   create: (payload) => data(API.post('/industry/companies/', payload)),
   update: (id, payload) => data(API.put(`/industry/companies/${id}/`, payload)),
@@ -140,7 +142,7 @@ export const industryApi = {
 }
 
 export const projectApi = {
-  getAll: (filters) => data(API.get('/pmo/projects/', { params: filters })),
+  getAll: (filters) => list(API.get('/pmo/projects/', { params: filters })),
   getById: (id) => data(API.get(`/pmo/projects/${id}/`)),
   create: (payload) => data(API.post('/pmo/projects/', payload)),
   update: (id, payload) => data(API.put(`/pmo/projects/${id}/`, payload)),

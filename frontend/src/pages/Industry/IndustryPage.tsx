@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { IndustryControls, IndustryFilters } from '../../components/Industry/IndustryControls';
 import { IndustryFormModal, IndustryFormData } from '../../components/Industry/IndustryFormModal';
 import { useIndustry } from '../../hooks/useIndustry';
-import { Building2, TrendingUp, Users, MapPin, Tag, MoreVertical, Edit2, Trash2, Eye } from 'lucide-react';
+import { Building2, TrendingUp, Users, MapPin, Tag, MoreVertical, Edit2, Trash2, Eye, DollarSign } from 'lucide-react';
 
 // Demo data
 const demoIndustries: IndustryFormData[] = [

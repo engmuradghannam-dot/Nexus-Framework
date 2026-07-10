@@ -21,7 +21,7 @@ export function FluentStatsCard({ title, value, subtitle, trend, trendValue, ico
     purple: { bg: 'bg-[#f5f0fa]', icon: 'text-[#5c2d91]', accent: 'border-l-[#5c2d91]' },
   };
 
-  const c = colorMap[color];
+  const c = colorMap[color] || colorMap.blue;
 
   return (
     <div className={`
