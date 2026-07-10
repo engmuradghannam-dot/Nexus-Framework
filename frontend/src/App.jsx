@@ -12,6 +12,7 @@ import PMO from '@/pages/PMO';
 import Industry from '@/pages/Industry';
 import AI from '@/pages/AI';
 import Regulatory from '@/pages/Regulatory';
+import Controls from '@/pages/Controls';
 import Login from '@/pages/Login';
 import Users from '@/pages/Users';
 import Settings from '@/pages/Settings';
@@ -38,6 +39,7 @@ function App() {
               <Route path="ai/detail" element={<AI />} />
               <Route path="regulatory" element={<RegulatoryDashboard />} />
               <Route path="regulatory/detail" element={<Regulatory />} />
+              <Route path="controls" element={<Controls />} />
               <Route path="users" element={<Users />} />
               <Route path="settings" element={<Settings />} />
               <Route path="branches" element={<Branches />} />

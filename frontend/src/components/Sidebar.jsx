@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, FolderKanban, Building2, BrainCircuit,
   ShieldCheck, Users, MapPin, Warehouse, Settings, ChevronLeft,
-  ChevronRight, Zap, LogOut
+  ChevronRight, Zap, LogOut, ClipboardCheck
 } from 'lucide-react'
 
 const navGroups = [
@@ -16,6 +16,7 @@ const navGroups = [
       { path: '/industry', icon: Building2, label: 'Industry' },
       { path: '/ai', icon: BrainCircuit, label: 'AI Engine' },
       { path: '/regulatory', icon: ShieldCheck, label: 'Regulatory' },
+      { path: '/controls', icon: ClipboardCheck, label: 'Controls' },
     ],
   },
   {

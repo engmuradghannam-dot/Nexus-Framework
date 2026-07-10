@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=9
+ARG CACHE_BUST=10
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
@@ -12,7 +12,7 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
-ARG CACHE_BUST=9
+ARG CACHE_BUST=10
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
@@ -63,6 +63,10 @@ python manage.py migrate --noinput || {
     rm -f /app/db.sqlite3
     python manage.py migrate --noinput
 }
+
+# Import the controls library (idempotent)
+echo "📚 Importing controls library..."
+python manage.py import_controls || echo "⚠️ Controls import skipped"
 
 # Create superuser if it doesn't exist
 echo "👤 Ensuring superuser exists..."
