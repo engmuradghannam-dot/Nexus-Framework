@@ -1,9 +1,16 @@
 // pages/Branches/BranchesPage.tsx
 import { useState } from 'react';
 import { 
-  MapPin, Plus, Search, Filter, Grid, List, Phone, Mail, 
-  Users, Building2, MoreVertical, Edit2, Trash2, Navigation 
+  MapPin, Plus, Grid, List, Phone, Mail, Users, Building2, 
+  Navigation, Edit3, Trash2, RefreshCw, Download, Filter
 } from 'lucide-react';
+import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
+import { FluentCard } from '../../components/FluentUI/FluentCard';
+import { FluentBadge } from '../../components/FluentBadge';
+import { FluentTable } from '../../components/FluentTable';
+import { FluentSearchBox } from '../../components/FluentSearchBox';
+import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
+import { FluentStatsCard } from '../../components/FluentStatsCard';
 
 interface Branch {
   id: string;
@@ -21,165 +28,240 @@ interface Branch {
 }
 
 const demoBranches: Branch[] = [
-  {
-    id: '1', name: 'الفرع الرئيسي — الرياض', address: 'شارع الملك فهد، برج المملكة',
-    city: 'الرياض', country: 'السعودية', phone: '+966 11 123 4567', email: 'riyadh@company.com',
-    manager: 'أحمد العلي', employees: 150, status: 'active',
-    coordinates: { lat: 24.7136, lng: 46.6753 }, type: 'main'
-  },
-  {
-    id: '2', name: 'فرع جدة', address: 'شارع التحلية، حي الروضة',
-    city: 'جدة', country: 'السعودية', phone: '+966 12 987 6543', email: 'jeddah@company.com',
-    manager: 'سارة أحمد', employees: 80, status: 'active',
-    coordinates: { lat: 21.4858, lng: 39.1925 }, type: 'branch'
-  },
-  {
-    id: '3', name: 'مستودع الدمام', address: 'المنطقة الصناعية الثانية',
-    city: 'الدمام', country: 'السعودية', phone: '+966 13 456 7890', email: 'dammam@company.com',
-    manager: 'خالد السالم', employees: 45, status: 'active',
-    coordinates: { lat: 26.3927, lng: 50.0916 }, type: 'warehouse'
-  }
+  { id: '1', name: 'الفرع الرئيسي — الرياض', address: 'شارع الملك فهد، برج المملكة', city: 'الرياض', country: 'السعودية', phone: '+966 11 123 4567', email: 'riyadh@company.com', manager: 'أحمد العلي', employees: 150, status: 'active', coordinates: { lat: 24.7136, lng: 46.6753 }, type: 'main' },
+  { id: '2', name: 'فرع جدة', address: 'شارع التحلية، حي الروضة', city: 'جدة', country: 'السعودية', phone: '+966 12 987 6543', email: 'jeddah@company.com', manager: 'سارة أحمد', employees: 80, status: 'active', coordinates: { lat: 21.4858, lng: 39.1925 }, type: 'branch' },
+  { id: '3', name: 'مستودع الدمام', address: 'المنطقة الصناعية الثانية', city: 'الدمام', country: 'السعودية', phone: '+966 13 456 7890', email: 'dammam@company.com', manager: 'خالد السالم', employees: 45, status: 'active', coordinates: { lat: 26.3927, lng: 50.0916 }, type: 'warehouse' },
+  { id: '4', name: 'فرع مكة', address: 'شارع إبراهيم الخليل', city: 'مكة', country: 'السعودية', phone: '+966 12 111 2222', email: 'makkah@company.com', manager: 'فاطمة حسن', employees: 60, status: 'active', coordinates: { lat: 21.3891, lng: 39.8579 }, type: 'branch' },
+  { id: '5', name: 'فرع المدينة', address: 'طريق الملك عبدالله', city: 'المدينة', country: 'السعودية', phone: '+966 14 333 4444', email: 'madinah@company.com', manager: 'عمر خالد', employees: 35, status: 'inactive', coordinates: { lat: 24.5247, lng: 39.5692 }, type: 'branch' },
 ];
 
 export default function BranchesPage() {
-  const [branches, setBranches] = useState<Branch[]>(demoBranches);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [branches] = useState<Branch[]>(demoBranches);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [filterCity, setFilterCity] = useState('');
+  const [showPanel, setShowPanel] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
 
   const filtered = branches.filter(b => {
     const matchSearch = !searchQuery || b.name.includes(searchQuery) || b.city.includes(searchQuery);
     const matchType = !filterType || b.type === filterType;
-    const matchCity = !filterCity || b.city === filterCity;
-    return matchSearch && matchType && matchCity;
+    return matchSearch && matchType;
   });
 
-  const cities = [...new Set(branches.map(b => b.city))];
+  const stats = [
+    { title: 'إجمالي الفروع', value: branches.length, icon: <Building2 size={20} />, color: 'blue' as const },
+    { title: 'نشطة', value: branches.filter(b => b.status === 'active').length, icon: <Users size={20} />, color: 'green' as const },
+    { title: 'إجمالي الموظفين', value: branches.reduce((sum, b) => sum + b.employees, 0), icon: <Users size={20} />, color: 'purple' as const },
+    { title: 'مستودعات', value: branches.filter(b => b.type === 'warehouse').length, icon: <MapPin size={20} />, color: 'orange' as const },
+  ];
+
+  const columns = [
+    { key: 'name', label: 'الفرع', sortable: true, render: (v: string, row: Branch) => (
+      <div>
+        <p className="font-medium text-[#323130]">{v}</p>
+        <p className="text-xs text-[#605e5c]">{row.address}</p>
+      </div>
+    )},
+    { key: 'city', label: 'المدينة', sortable: true },
+    { key: 'type', label: 'النوع', sortable: true, render: (v: string) => (
+      <FluentBadge 
+        label={v === 'main' ? 'رئيسي' : v === 'branch' ? 'فرع' : 'مستودع'} 
+        variant={v === 'main' ? 'primary' : v === 'branch' ? 'info' : 'warning'} 
+        size="small"
+      />
+    )},
+    { key: 'manager', label: 'المدير', sortable: true },
+    { key: 'employees', label: 'الموظفين', sortable: true },
+    { key: 'status', label: 'الحالة', sortable: true, render: (v: string) => (
+      <FluentBadge label={v === 'active' ? 'نشط' : 'غير نشط'} variant={v === 'active' ? 'success' : 'neutral'} size="small" />
+    )},
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-xl"><MapPin className="text-orange-600" size={24} /></div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">الفروع والمواقع</h1>
-              <p className="text-sm text-gray-500">Branches & Locations — إدارة الفروع والمستودعات</p>
+    <div className="min-h-screen bg-[#faf9f8]">
+      <FluentCommandBar
+        title="الفروع والمواقع"
+        subtitle="Branches & Locations — إدارة الفروع والمستودعات"
+        commands={[
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'new', label: 'إضافة فرع', icon: <Plus size={16} />, variant: 'primary' },
+        ]}
+      />
+
+      <div className="p-6 space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          {stats.map((stat) => (
+            <FluentStatsCard key={stat.title} {...stat} />
+          ))}
+        </div>
+
+        {/* Filters */}
+        <FluentCard padding="small">
+          <div className="flex flex-wrap items-center gap-3">
+            <FluentSearchBox
+              placeholder="البحث في الفروع..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              className="w-80"
+            />
+            <FluentSelect
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-40"
+            >
+              <option value="">كل الأنواع</option>
+              <option value="main">رئيسي</option>
+              <option value="branch">فرع</option>
+              <option value="warehouse">مستودع</option>
+            </FluentSelect>
+            <div className="flex items-center gap-1 mr-auto border border-[#e1dfdd] rounded-sm">
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-2 ${viewMode === 'list' ? 'bg-[#eff6fc] text-[#0078d4]' : 'text-[#605e5c] hover:bg-[#f3f2f1]'}`}
+              >
+                <List size={16} />
+              </button>
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-2 ${viewMode === 'grid' ? 'bg-[#eff6fc] text-[#0078d4]' : 'text-[#605e5c] hover:bg-[#f3f2f1]'}`}
+              >
+                <Grid size={16} />
+              </button>
             </div>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors">
-            <Plus size={18} /> إضافة فرع
-          </button>
-        </div>
-      </div>
+        </FluentCard>
 
-      {/* Controls */}
-      <div className="bg-white border-b p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[300px]">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="البحث في الفروع..."
-              className="w-full pr-10 pl-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500" />
-          </div>
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-            className="border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-orange-500">
-            <option value="">كل الأنواع</option>
-            <option value="main">رئيسي</option>
-            <option value="branch">فرع</option>
-            <option value="warehouse">مستودع</option>
-          </select>
-          <select value={filterCity} onChange={(e) => setFilterCity(e.target.value)}
-            className="border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-orange-500">
-            <option value="">كل المدن</option>
-            {cities.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <div className="flex border border-gray-200 rounded-xl overflow-hidden">
-            <button onClick={() => setViewMode('grid')} className={`p-2.5 ${viewMode === 'grid' ? 'bg-orange-600 text-white' : 'hover:bg-gray-50'}`}><Grid size={18} /></button>
-            <button onClick={() => setViewMode('list')} className={`p-2.5 ${viewMode === 'list' ? 'bg-orange-600 text-white' : 'hover:bg-gray-50'}`}><List size={18} /></button>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((branch) => (
-              <div key={branch.id} className="bg-white rounded-2xl border shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                <div className="h-32 bg-gradient-to-br from-orange-100 to-amber-50 flex items-center justify-center">
-                  <MapPin size={48} className="text-orange-300" />
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${branch.type === 'main' ? 'bg-purple-100 text-purple-700' : branch.type === 'branch' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {branch.type === 'main' ? 'رئيسي' : branch.type === 'branch' ? 'فرع' : 'مستودع'}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${branch.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {branch.status === 'active' ? 'نشط' : 'غير نشط'}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-lg text-gray-800 mb-2">{branch.name}</h3>
-                  <p className="text-sm text-gray-500 mb-4">{branch.address}، {branch.city}</p>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex items-center gap-2"><Phone size={14} className="text-orange-500" /> {branch.phone}</div>
-                    <div className="flex items-center gap-2"><Mail size={14} className="text-orange-500" /> {branch.email}</div>
-                    <div className="flex items-center gap-2"><Users size={14} className="text-orange-500" /> {branch.employees} موظف</div>
-                    <div className="flex items-center gap-2"><Navigation size={14} className="text-orange-500" /> {branch.coordinates.lat.toFixed(4)}, {branch.coordinates.lng.toFixed(4)}</div>
-                  </div>
-                  <div className="flex gap-2 mt-4 pt-4 border-t">
-                    <button className="flex-1 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">تعديل</button>
-                    <button className="flex-1 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">حذف</button>
-                  </div>
-                </div>
+        {/* Content */}
+        {viewMode === 'list' ? (
+          <FluentTable
+            title="قائمة الفروع"
+            subtitle={`${filtered.length} فرع`}
+            columns={columns}
+            data={filtered}
+            selectable
+            onRowClick={(row) => { setSelectedBranch(row); setShowPanel(true); }}
+            actions={(row) => (
+              <div className="py-1">
+                <button className="w-full px-4 py-2 text-right text-sm text-[#323130] hover:bg-[#f3f2f1] flex items-center gap-2">
+                  <Edit3 size={14} /> تعديل
+                </button>
+                <button className="w-full px-4 py-2 text-right text-sm text-[#d83b01] hover:bg-[#fdf2f2] flex items-center gap-2">
+                  <Trash2 size={14} /> حذف
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+            emptyMessage="لا توجد فروع مطابقة"
+          />
         ) : (
-          <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">الفرع</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">المدينة</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">النوع</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">الموظفين</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">الحالة</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filtered.map((branch) => (
-                  <tr key={branch.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-50 rounded-lg"><Building2 className="text-orange-600" size={18} /></div>
-                        <div>
-                          <p className="font-semibold text-gray-800">{branch.name}</p>
-                          <p className="text-sm text-gray-500">{branch.manager}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{branch.city}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${branch.type === 'main' ? 'bg-purple-100 text-purple-700' : branch.type === 'branch' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {branch.type === 'main' ? 'رئيسي' : branch.type === 'branch' ? 'فرع' : 'مستودع'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{branch.employees}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${branch.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {branch.status === 'active' ? 'نشط' : 'غير نشط'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((branch) => (
+              <FluentCard key={branch.id} padding="medium" className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setSelectedBranch(branch); setShowPanel(true); }}>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`
+                      w-10 h-10 rounded-sm flex items-center justify-center
+                      ${branch.type === 'main' ? 'bg-[#eff6fc] text-[#0078d4]' : 
+                        branch.type === 'warehouse' ? 'bg-[#fff8f0] text-[#d83b01]' : 'bg-[#f3faf3] text-[#107c10]'}
+                    `}>
+                      <Building2 size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#323130]">{branch.name}</p>
+                      <p className="text-xs text-[#605e5c] flex items-center gap-1 mt-0.5">
+                        <MapPin size={12} /> {branch.city}
+                      </p>
+                    </div>
+                  </div>
+                  <FluentBadge 
+                    label={branch.status === 'active' ? 'نشط' : 'غير نشط'} 
+                    variant={branch.status === 'active' ? 'success' : 'neutral'} 
+                    size="small" 
+                  />
+                </div>
+                <div className="mt-4 space-y-2 text-sm text-[#605e5c]">
+                  <p className="flex items-center gap-2"><Phone size={14} /> {branch.phone}</p>
+                  <p className="flex items-center gap-2"><Mail size={14} /> {branch.email}</p>
+                  <p className="flex items-center gap-2"><Users size={14} /> {branch.employees} موظف</p>
+                  <p className="flex items-center gap-2"><Navigation size={14} /> {branch.coordinates.lat}, {branch.coordinates.lng}</p>
+                </div>
+              </FluentCard>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Detail Panel */}
+      <FluentPanel
+        isOpen={showPanel}
+        onClose={() => setShowPanel(false)}
+        title={selectedBranch?.name || 'تفاصيل الفرع'}
+        subtitle={selectedBranch?.type === 'main' ? 'الفرع الرئيسي' : selectedBranch?.type === 'warehouse' ? 'مستودع' : 'فرع'}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button onClick={() => setShowPanel(false)} className="px-4 py-2 text-sm text-[#323130] border border-[#8a8886] rounded-sm hover:bg-[#f3f2f1]">
+              إغلاق
+            </button>
+            <button className="px-4 py-2 text-sm text-white bg-[#0078d4] rounded-sm hover:bg-[#106ebe]">
+              حفظ التغييرات
+            </button>
+          </div>
+        }
+      >
+        {selectedBranch && (
+          <div className="space-y-4">
+            <FluentFormField label="اسم الفرع" required>
+              <FluentInput defaultValue={selectedBranch.name} />
+            </FluentFormField>
+            <FluentFormField label="العنوان">
+              <FluentInput defaultValue={selectedBranch.address} />
+            </FluentFormField>
+            <div className="grid grid-cols-2 gap-4">
+              <FluentFormField label="المدينة">
+                <FluentInput defaultValue={selectedBranch.city} />
+              </FluentFormField>
+              <FluentFormField label="الدولة">
+                <FluentInput defaultValue={selectedBranch.country} />
+              </FluentFormField>
+            </div>
+            <FluentFormField label="المدير">
+              <FluentInput defaultValue={selectedBranch.manager} />
+            </FluentFormField>
+            <div className="grid grid-cols-2 gap-4">
+              <FluentFormField label="الهاتف">
+                <FluentInput defaultValue={selectedBranch.phone} />
+              </FluentFormField>
+              <FluentFormField label="البريد الإلكتروني">
+                <FluentInput defaultValue={selectedBranch.email} />
+              </FluentFormField>
+            </div>
+            <FluentFormField label="عدد الموظفين">
+              <FluentInput type="number" defaultValue={selectedBranch.employees} />
+            </FluentFormField>
+            <FluentFormField label="النوع">
+              <FluentSelect defaultValue={selectedBranch.type}>
+                <option value="main">رئيسي</option>
+                <option value="branch">فرع</option>
+                <option value="warehouse">مستودع</option>
+              </FluentSelect>
+            </FluentFormField>
+            <FluentFormField label="الحالة">
+              <FluentSelect defaultValue={selectedBranch.status}>
+                <option value="active">نشط</option>
+                <option value="inactive">غير نشط</option>
+              </FluentSelect>
+            </FluentFormField>
+            <FluentFormField label="إحداثيات الموقع">
+              <div className="grid grid-cols-2 gap-2">
+                <FluentInput placeholder="خط العرض" defaultValue={selectedBranch.coordinates.lat} />
+                <FluentInput placeholder="خط الطول" defaultValue={selectedBranch.coordinates.lng} />
+              </div>
+            </FluentFormField>
+          </div>
+        )}
+      </FluentPanel>
     </div>
   );
 }

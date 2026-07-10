@@ -3,84 +3,97 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
+  :root {
+    /* Microsoft Fluent 2 Colors */
+    --fluent-blue: #0078d4;
+    --fluent-blue-hover: #106ebe;
+    --fluent-blue-dark: #005a9e;
+    --fluent-green: #107c10;
+    --fluent-green-light: #f3faf3;
+    --fluent-red: #d83b01;
+    --fluent-red-light: #fdf2f2;
+    --fluent-red-dark: #a4262c;
+    --fluent-orange: #ffc107;
+    --fluent-orange-light: #fff8f0;
+    --fluent-purple: #5c2d91;
+    --fluent-purple-light: #f5f0fa;
+
+    /* Neutral Colors */
+    --fluent-neutral-0: #ffffff;
+    --fluent-neutral-10: #faf9f8;
+    --fluent-neutral-20: #f3f2f1;
+    --fluent-neutral-30: #edebe9;
+    --fluent-neutral-40: #e1dfdd;
+    --fluent-neutral-50: #d2d0ce;
+    --fluent-neutral-60: #c8c6c4;
+    --fluent-neutral-70: #bebbb8;
+    --fluent-neutral-80: #b3b0ad;
+    --fluent-neutral-90: #a19f9d;
+    --fluent-neutral-100: #8a8886;
+    --fluent-neutral-110: #605e5c;
+    --fluent-neutral-120: #323130;
+    --fluent-neutral-130: #201f1e;
+    --fluent-neutral-140: #000000;
+
+    /* Semantic Colors */
+    --fluent-info: #0f6cbd;
+    --fluent-info-light: #eff6fc;
+    --fluent-success: #107c10;
+    --fluent-success-light: #f3faf3;
+    --fluent-warning: #d83b01;
+    --fluent-warning-light: #fff8f0;
+    --fluent-error: #a4262c;
+    --fluent-error-light: #fdf2f2;
+
+    background-color: var(--fluent-neutral-10);
   }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--fluent-neutral-60) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--fluent-neutral-60);
+    border-radius: 4px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--fluent-neutral-90);
+  }
+
   body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background-color: #0a0f1c;
-    color: #e2e8f0;
-  }
-  ::selection {
-    background-color: rgba(99, 102, 241, 0.3);
-    color: #fff;
-  }
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #0f172a;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--fluent-neutral-120);
+    background-color: var(--fluent-neutral-10);
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-nexus-800/50 backdrop-blur-xl border border-nexus-700/50 rounded-2xl;
+  .fluent-btn-primary {
+    @apply px-4 py-2 bg-[#0078d4] text-white text-sm font-medium rounded-sm hover:bg-[#106ebe] transition-colors disabled:bg-[#c8c6c4];
   }
-  .glass-card-hover {
-    @apply glass-card transition-all duration-300 hover:border-accent-primary/30 hover:shadow-lg hover:shadow-accent-primary/5;
+
+  .fluent-btn-secondary {
+    @apply px-4 py-2 bg-white text-[#323130] text-sm font-medium rounded-sm border border-[#8a8886] hover:bg-[#f3f2f1] transition-colors;
   }
-  .gradient-text {
-    @apply bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent;
+
+  .fluent-card {
+    @apply bg-white border border-[#e1dfdd] rounded-sm shadow-sm;
   }
-  .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-nexus-400 transition-all duration-200 hover:bg-nexus-800 hover:text-nexus-100;
-  }
-  .nav-item-active {
-    @apply nav-item bg-accent-primary/10 text-accent-primary border border-accent-primary/20;
-  }
-  .kpi-card {
-    @apply glass-card-hover p-6 relative overflow-hidden;
-  }
-  .kpi-value {
-    @apply text-3xl font-bold tracking-tight text-nexus-50;
-  }
-  .kpi-label {
-    @apply text-sm font-medium text-nexus-400 mt-1;
-  }
-  .kpi-trend {
-    @apply text-xs font-medium mt-2 flex items-center gap-1;
-  }
-  .btn-primary {
-    @apply px-5 py-2.5 bg-accent-primary text-white rounded-xl font-medium transition-all duration-200 hover:bg-accent-primary/90 hover:shadow-lg hover:shadow-accent-primary/20 active:scale-95;
-  }
-  .btn-secondary {
-    @apply px-5 py-2.5 bg-nexus-800 text-nexus-200 border border-nexus-700 rounded-xl font-medium transition-all duration-200 hover:bg-nexus-700 hover:text-white active:scale-95;
-  }
-  .input-field {
-    @apply w-full px-4 py-3 bg-nexus-900 border border-nexus-700 rounded-xl text-nexus-100 placeholder-nexus-500 focus:outline-none focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10 transition-all;
-  }
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-  }
-  .badge-success {
-    @apply badge bg-accent-success/10 text-accent-success border border-accent-success/20;
-  }
-  .badge-warning {
-    @apply badge bg-accent-warning/10 text-accent-warning border border-accent-warning/20;
-  }
-  .badge-danger {
-    @apply badge bg-accent-danger/10 text-accent-danger border border-accent-danger/20;
-  }
-  .badge-info {
-    @apply badge bg-accent-info/10 text-accent-info border border-accent-info/20;
+
+  .fluent-input {
+    @apply w-full px-3 py-2 bg-[#f3f2f1] border border-transparent hover:bg-white hover:border-[#e1dfdd] focus:bg-white focus:border-[#0078d4] focus:outline-none focus:ring-1 focus:ring-[#0078d4] rounded-sm text-sm text-[#323130] transition-all duration-150;
   }
 }

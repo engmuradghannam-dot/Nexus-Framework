@@ -1,226 +1,190 @@
 // pages/Dashboard/DashboardPage.tsx
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { 
-  LayoutDashboard, MessageSquare, Building2, Briefcase, 
-  TrendingUp, Users, DollarSign, Activity, ArrowUpRight, ArrowDownRight 
+  LayoutDashboard, TrendingUp, TrendingDown, Users, DollarSign, 
+  Package, Briefcase, Activity, ArrowUpRight, BarChart3, PieChart,
+  Calendar, Clock, AlertTriangle, CheckCircle
 } from 'lucide-react';
-import { projectApi, industryApi, chatApi } from '../../services/api';
+import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
+import { FluentCard } from '../../components/FluentUI/FluentCard';
+import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { FluentBadge } from '../../components/FluentUI/FluentBadge';
+import { FluentTable } from '../../components/FluentUI/FluentTable';
 
-interface DashboardStats {
-  totalProjects: number;
-  activeProjects: number;
-  totalIndustries: number;
-  totalRevenue: number;
-  totalEmployees: number;
-  chatMessages: number;
-  recentActivity: Array<{
-    id: string;
-    type: 'project' | 'industry' | 'chat';
-    title: string;
-    timestamp: string;
-  }>;
-}
+const statsData = [
+  { title: 'إجمالي الإيرادات', value: '1,250,000 ر.س', trend: 'up' as const, trendValue: '+12.5%', icon: <DollarSign size={20} />, color: 'blue' as const },
+  { title: 'الموظفين', value: '850', trend: 'up' as const, trendValue: '+5', icon: <Users size={20} />, color: 'green' as const },
+  { title: 'المشاريع النشطة', value: '12', trend: 'neutral' as const, trendValue: '0%', icon: <Briefcase size={20} />, color: 'purple' as const },
+  { title: 'الطلبات المعلقة', value: '45', trend: 'down' as const, trendValue: '-3', icon: <Package size={20} />, color: 'orange' as const },
+];
+
+const recentActivity = [
+  { id: '1', type: 'project', title: 'إنشاء مشروع نظام ERP', user: 'أحمد العلي', time: 'منذ 5 دقائق', status: 'success' },
+  { id: '2', type: 'inventory', title: 'تنبيه مخزون منخفض: لابتوب Dell', user: 'النظام', time: 'منذ 30 دقيقة', status: 'warning' },
+  { id: '3', type: 'hr', title: 'موافقة على إجازة جديدة', user: 'سارة أحمد', time: 'منذ ساعة', status: 'info' },
+  { id: '4', type: 'sales', title: 'طلب شراء جديد #PO-2026-001', user: 'خالد السالم', time: 'منذ يوم', status: 'success' },
+  { id: '5', type: 'ai', title: 'تقرير تحليلي تم إنشاؤه بواسطة AI', user: 'AI Assistant', time: 'منذ يومين', status: 'info' },
+];
+
+const upcomingTasks = [
+  { id: '1', title: 'اجتماع فريق التطوير', date: '2026-07-12', priority: 'high', completed: false },
+  { id: '2', title: 'مراجعة المخزون الشهرية', date: '2026-07-15', priority: 'medium', completed: false },
+  { id: '3', title: 'تقديم تقرير المبيعات', date: '2026-07-18', priority: 'high', completed: true },
+  { id: '4', title: 'صيانة دورية للأجهزة', date: '2026-07-20', priority: 'low', completed: false },
+];
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalProjects: 12,
-    activeProjects: 8,
-    totalIndustries: 24,
-    totalRevenue: 125000000,
-    totalEmployees: 850,
-    chatMessages: 156,
-    recentActivity: [
-      { id: '1', type: 'project', title: 'إنشاء مشروع نظام ERP', timestamp: '2026-07-10T10:30:00' },
-      { id: '2', type: 'industry', title: 'إضافة قطاع التقنية', timestamp: '2026-07-10T09:15:00' },
-      { id: '3', type: 'chat', title: 'محادثة مع AI Assistant', timestamp: '2026-07-10T08:45:00' },
-    ]
-  });
+  const [timeRange, setTimeRange] = useState('month');
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      const dashboard = await projectApi.getDashboard();
-      if (dashboard) setStats(dashboard);
-    } catch (err) {
-      console.log('Using demo data');
-    }
-  };
-
-  const statCards = [
-    { 
-      title: 'المشاريع', 
-      value: stats.totalProjects, 
-      sub: `${stats.activeProjects} نشط`,
-      icon: Briefcase, 
-      color: 'bg-blue-500', 
-      trend: '+12%',
-      trendUp: true 
-    },
-    { 
-      title: 'القطاعات', 
-      value: stats.totalIndustries, 
-      sub: 'قطاع نشط',
-      icon: Building2, 
-      color: 'bg-green-500', 
-      trend: '+5%',
-      trendUp: true 
-    },
-    { 
-      title: 'الإيرادات', 
-      value: `${(stats.totalRevenue / 1000000).toFixed(0)}M`, 
-      sub: 'ريال سعودي',
-      icon: DollarSign, 
-      color: 'bg-purple-500', 
-      trend: '+18%',
-      trendUp: true 
-    },
-    { 
-      title: 'الموظفين', 
-      value: stats.totalEmployees, 
-      sub: 'موظف',
-      icon: Users, 
-      color: 'bg-orange-500', 
-      trend: '+8%',
-      trendUp: true 
-    },
+  const activityColumns = [
+    { key: 'title', label: 'النشاط', render: (v: string, row: any) => (
+      <div className="flex items-center gap-2">
+        {row.status === 'success' && <CheckCircle size={16} className="text-[#107c10]" />}
+        {row.status === 'warning' && <AlertTriangle size={16} className="text-[#d83b01]" />}
+        {row.status === 'info' && <Activity size={16} className="text-[#0078d4]" />}
+        <span>{v}</span>
+      </div>
+    )},
+    { key: 'user', label: 'المستخدم' },
+    { key: 'time', label: 'الوقت' },
   ];
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'project': return Briefcase;
-      case 'industry': return Building2;
-      case 'chat': return MessageSquare;
-      default: return Activity;
-    }
-  };
-
-  const getActivityColor = (type: string) => {
-    switch (type) {
-      case 'project': return 'bg-blue-100 text-blue-600';
-      case 'industry': return 'bg-green-100 text-green-600';
-      case 'chat': return 'bg-purple-100 text-purple-600';
-      default: return 'bg-gray-100 text-gray-600';
-    }
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">لوحة التحكم</h1>
-          <p className="text-gray-500 mt-1">نظرة عامة على النظام</p>
-        </div>
-        <div className="text-sm text-gray-500">
-          {new Date().toLocaleDateString('ar-SA', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#faf9f8]">
+      {/* Command Bar */}
+      <FluentCommandBar
+        title="لوحة المعلومات"
+        subtitle="نظرة عامة على أداء المؤسسة"
+        commands={[
+          { id: 'refresh', label: 'تحديث', icon: <Clock size={16} />, variant: 'secondary' },
+          { id: 'export', label: 'تصدير', icon: <BarChart3 size={16} />, variant: 'secondary' },
+          { id: 'new', label: 'نشاط جديد', icon: <ArrowUpRight size={16} />, variant: 'primary' },
+        ]}
+      />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div key={card.title} className="bg-white rounded-2xl border shadow-sm p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${card.color} bg-opacity-10`}>
-                  <Icon className={card.color.replace('bg-', 'text-')} size={24} />
-                </div>
-                <div className={`flex items-center gap-1 text-sm font-medium ${card.trendUp ? 'text-green-600' : 'text-red-600'}`}>
-                  {card.trendUp ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-                  {card.trend}
-                </div>
+      <div className="p-6 space-y-6">
+        {/* Time Range Selector */}
+        <div className="flex items-center gap-2">
+          {['day', 'week', 'month', 'quarter', 'year'].map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`
+                px-3 py-1.5 text-sm font-medium rounded-sm transition-colors
+                ${timeRange === range
+                  ? 'bg-[#0078d4] text-white'
+                  : 'bg-white text-[#323130] border border-[#e1dfdd] hover:bg-[#f3f2f1]'
+                }
+              `}
+            >
+              {range === 'day' ? 'يوم' : range === 'week' ? 'أسبوع' : range === 'month' ? 'شهر' : range === 'quarter' ? 'ربع' : 'سنة'}
+            </button>
+          ))}
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statsData.map((stat) => (
+            <FluentStatsCard key={stat.title} {...stat} />
+          ))}
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recent Activity */}
+          <div className="lg:col-span-2">
+            <FluentCard title="النشاط الأخير" subtitle="آخر التحديثات في النظام">
+              <FluentTable
+                columns={activityColumns}
+                data={recentActivity}
+                emptyMessage="لا توجد أنشطة حديثة"
+              />
+            </FluentCard>
+          </div>
+
+          {/* Upcoming Tasks */}
+          <div>
+            <FluentCard title="المهام القادمة" subtitle="المهام المجدولة">
+              <div className="space-y-3">
+                {upcomingTasks.map((task) => (
+                  <div key={task.id} className="flex items-start gap-3 p-3 bg-[#faf9f8] rounded-sm border border-[#f3f2f1]">
+                    <div className={`
+                      w-2 h-2 rounded-full mt-2 shrink-0
+                      ${task.priority === 'high' ? 'bg-[#d83b01]' : task.priority === 'medium' ? 'bg-[#ffc107]' : 'bg-[#107c10]'}
+                    `} />
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${task.completed ? 'line-through text-[#a19f9d]' : 'text-[#323130]'}`}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-[#605e5c] mt-1 flex items-center gap-1">
+                        <Calendar size={12} />
+                        {task.date}
+                      </p>
+                    </div>
+                    <FluentBadge
+                      label={task.priority === 'high' ? 'عالي' : task.priority === 'medium' ? 'متوسط' : 'منخفض'}
+                      variant={task.priority === 'high' ? 'error' : task.priority === 'medium' ? 'warning' : 'success'}
+                      size="small"
+                    />
+                  </div>
+                ))}
               </div>
-              <h3 className="text-2xl font-bold text-gray-800">{card.value}</h3>
-              <p className="text-sm text-gray-500 mt-1">{card.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{card.sub}</p>
-            </div>
-          );
-        })}
-      </div>
+            </FluentCard>
+          </div>
+        </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Projects Status Chart */}
-        <div className="bg-white rounded-2xl border shadow-sm p-6">
-          <h3 className="font-bold text-gray-800 mb-4">حالة المشاريع</h3>
-          <div className="space-y-4">
-            {[
-              { label: 'نشط', value: 8, total: 12, color: 'bg-green-500' },
-              { label: 'تخطيط', value: 2, total: 12, color: 'bg-blue-500' },
-              { label: 'معلق', value: 1, total: 12, color: 'bg-yellow-500' },
-              { label: 'مكتمل', value: 1, total: 12, color: 'bg-purple-500' },
-            ].map((item) => (
-              <div key={item.label}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">{item.label}</span>
-                  <span className="font-medium text-gray-800">{item.value} / {item.total}</span>
-                </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <FluentCard title="أداء المبيعات" subtitle="الإيرادات الشهرية">
+            <div className="h-64 flex items-end justify-around gap-2 pt-4">
+              {[65, 45, 80, 55, 70, 90, 60, 75, 85, 50, 95, 70].map((height, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1 flex-1">
                   <div 
-                    className={`h-full rounded-full ${item.color}`}
-                    style={{ width: `${(item.value / item.total) * 100}%` }}
-                  />
+                    className="w-full bg-[#0078d4] rounded-t-sm hover:bg-[#106ebe] transition-colors cursor-pointer relative group"
+                    style={{ height: `${height}%` }}
+                  >
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#323130] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {height}K ر.س
+                    </div>
+                  </div>
+                  <span className="text-xs text-[#605e5c]">{['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'][idx]}</span>
+                </div>
+              ))}
+            </div>
+          </FluentCard>
+
+          <FluentCard title="توزيع المشاريع" subtitle="حسب القطاع">
+            <div className="h-64 flex items-center justify-center">
+              <div className="relative w-48 h-48">
+                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#eff6fc" strokeWidth="20" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#0078d4" strokeWidth="20" strokeDasharray="125.6 251.2" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#107c10" strokeWidth="20" strokeDasharray="75.36 251.2" strokeDashoffset="-125.6" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#d83b01" strokeWidth="20" strokeDasharray="50.24 251.2" strokeDashoffset="-200.96" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#323130]">24</p>
+                    <p className="text-xs text-[#605e5c]">مشروع</p>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-2xl border shadow-sm p-6">
-          <h3 className="font-bold text-gray-800 mb-4">النشاط الأخير</h3>
-          <div className="space-y-4">
-            {stats.recentActivity.map((activity) => {
-              const Icon = getActivityIcon(activity.type);
-              return (
-                <div key={activity.id} className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-xl ${getActivityColor(activity.type)}`}>
-                    <Icon size={18} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-800 text-sm">{activity.title}</p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(activity.timestamp).toLocaleString('ar-SA')}
-                    </p>
-                  </div>
+              <div className="mr-8 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-[#0078d4]" />
+                  <span className="text-sm text-[#323130]">تقنية (50%)</span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Links */}
-      <div className="bg-white rounded-2xl border shadow-sm p-6">
-        <h3 className="font-bold text-gray-800 mb-4">وصول سريع</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { path: '/chat', label: 'المحادثات', icon: MessageSquare, color: 'bg-blue-50 text-blue-600 hover:bg-blue-100' },
-            { path: '/industry', label: 'مكتبة القطاعات', icon: Building2, color: 'bg-green-50 text-green-600 hover:bg-green-100' },
-            { path: '/pmo', label: 'إدارة المشاريع', icon: Briefcase, color: 'bg-purple-50 text-purple-600 hover:bg-purple-100' },
-            { path: '/dashboard', label: 'الإعدادات', icon: LayoutDashboard, color: 'bg-gray-50 text-gray-600 hover:bg-gray-100' },
-          ].map((link) => {
-            const Icon = link.icon;
-            return (
-              <a
-                key={link.path}
-                href={link.path}
-                className={`flex items-center gap-3 p-4 rounded-xl transition-colors ${link.color}`}
-              >
-                <Icon size={24} />
-                <span className="font-medium">{link.label}</span>
-              </a>
-            );
-          })}
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-[#107c10]" />
+                  <span className="text-sm text-[#323130]">صناعة (30%)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-[#d83b01]" />
+                  <span className="text-sm text-[#323130]">خدمات (20%)</span>
+                </div>
+              </div>
+            </div>
+          </FluentCard>
         </div>
       </div>
     </div>
