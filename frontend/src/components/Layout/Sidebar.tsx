@@ -1,16 +1,22 @@
 // components/Layout/Sidebar.tsx
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, MessageSquare, Building2, Briefcase, 
-  Settings, LogOut, Menu, X, ChevronLeft 
+  LayoutDashboard, MessageSquare, Brain, Building2, Briefcase, 
+  Shield, MapPin, Warehouse, Users, Settings, LogOut, Menu, X, ChevronLeft 
 } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { path: '/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
   { path: '/chat', label: 'المحادثات', icon: MessageSquare },
+  { path: '/ai', label: 'الذكاء الاصطناعي', icon: Brain },
   { path: '/industry', label: 'مكتبة القطاعات', icon: Building2 },
   { path: '/pmo', label: 'إدارة المشاريع', icon: Briefcase },
+  { path: '/regulatory', label: 'الالتزام التنظيمي', icon: Shield },
+  { path: '/branches', label: 'الفروع والمواقع', icon: MapPin },
+  { path: '/warehouses', label: 'المستودعات', icon: Warehouse },
+  { path: '/users', label: 'المستخدمين', icon: Users },
+  { path: '/settings', label: 'الإعدادات', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -34,7 +40,7 @@ export function Sidebar() {
         {/* Logo */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-lg">N</span>
             </div>
             {isOpen && (
@@ -67,7 +73,7 @@ export function Sidebar() {
                 to={item.path}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
                   isActive 
-                    ? 'bg-blue-50 text-blue-600 font-medium' 
+                    ? 'bg-gray-800 text-white font-medium' 
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
                 }`}
               >
@@ -80,10 +86,6 @@ export function Sidebar() {
 
         {/* Bottom Actions */}
         <div className="p-3 border-t space-y-1">
-          <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
-            <Settings size={20} className="flex-shrink-0" />
-            {isOpen && <span className="text-sm">الإعدادات</span>}
-          </button>
           <button 
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
@@ -97,7 +99,7 @@ export function Sidebar() {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold">N</span>
           </div>
           <h1 className="font-bold text-gray-800">Nexus</h1>
@@ -126,7 +128,7 @@ export function Sidebar() {
                     onClick={() => setIsMobileOpen(false)}
                     className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
                       isActive 
-                        ? 'bg-blue-50 text-blue-600 font-medium' 
+                        ? 'bg-gray-800 text-white font-medium' 
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >

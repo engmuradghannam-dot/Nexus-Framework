@@ -13,6 +13,12 @@ import IndustryPage from './pages/Industry/IndustryPage';
 import PMOPage from './pages/PMO/PMOPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import LoginPage from './pages/Auth/LoginPage';
+import AIPage from './pages/AI/AIPage';
+import RegulatoryPage from './pages/Regulatory/RegulatoryPage';
+import BranchesPage from './pages/Branches/BranchesPage';
+import WarehousesPage from './pages/Warehouses/WarehousesPage';
+import UsersPage from './pages/Users/UsersPage';
+import SettingsPage from './pages/Settings/SettingsPage';
 
 // Auth Guard
 import { AuthGuard } from './components/Auth/AuthGuard';
@@ -20,7 +26,7 @@ import { AuthGuard } from './components/Auth/AuthGuard';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
       retry: 2,
     },
   },
@@ -53,8 +59,14 @@ function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/chat" element={<ChatPage />} />
+                <Route path="/ai" element={<AIPage />} />
                 <Route path="/industry" element={<IndustryPage />} />
                 <Route path="/pmo" element={<PMOPage />} />
+                <Route path="/regulatory" element={<RegulatoryPage />} />
+                <Route path="/branches" element={<BranchesPage />} />
+                <Route path="/warehouses" element={<WarehousesPage />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
 
