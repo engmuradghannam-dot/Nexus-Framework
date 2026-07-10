@@ -91,7 +91,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.production')
 django.setup()
 from django.conf import settings
 print(f'   Engine: {settings.DATABASES["default"]["ENGINE"]}')
-print(f'   Name: {settings.DATABASES["default"].get("NAME", "N/A")')
+print(f'   Name: {settings.DATABASES["default"].get("NAME", "N/A")}')
 " || true
 
 # Start server with gunicorn

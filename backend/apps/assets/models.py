@@ -1,62 +1,117 @@
-from django.db import models
 from django.core.validators import FileExtensionValidator
-from apps.core.models import Company, Branch
-from apps.core.validators import validate_image_size, ALLOWED_IMAGE_EXTENSIONS
+from django.db import models
+
+from apps.core.models import Branch, Company
+from apps.core.validators import ALLOWED_IMAGE_EXTENSIONS, validate_image_size
 from apps.hr.models import Employee
 
 DEPRECIATION_METHODS = [
-    ('Straight Line', 'Straight Line'),
-    ('Declining Balance', 'Declining Balance'),
-    ('None', 'None'),
+    ("Straight Line", "Straight Line"),
+    ("Declining Balance", "Declining Balance"),
+    ("None", "None"),
 ]
 ASSET_TYPES = [
-    ('Fixed', 'Fixed'), ('Movable', 'Movable'), ('IT Equipment', 'IT Equipment'),
-    ('Vehicle', 'Vehicle'), ('Furniture', 'Furniture'), ('Machinery', 'Machinery'),
+    ("Fixed", "Fixed"),
+    ("Movable", "Movable"),
+    ("IT Equipment", "IT Equipment"),
+    ("Vehicle", "Vehicle"),
+    ("Furniture", "Furniture"),
+    ("Machinery", "Machinery"),
 ]
 
 
 class AssetCategory(models.Model):
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='asset_categories')
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="asset_categories"
+    )
     name = models.CharField(max_length=255)
-    parent_category = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True)
+    parent_category = models.ForeignKey(
+        "self", on_delete=models.CASCADE, null=True, blank=True
+    )
 
     def __str__(self):
         return self.name
 
+
 class Asset(models.Model):
-    STATUS_CHOICES = [('Draft', 'Draft'), ('Submitted', 'Submitted'), ('In Maintenance', 'In Maintenance'), ('Disposed', 'Disposed')]
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='assets')
+    STATUS_CHOICES = [
+        ("Draft", "Draft"),
+        ("Submitted", "Submitted"),
+        ("In Maintenance", "In Maintenance"),
+        ("Disposed", "Disposed"),
+    ]
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="assets"
+    )
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     asset_name = models.CharField(max_length=255)
     asset_code = models.CharField(max_length=100, unique=True)
-    asset_type = models.CharField(max_length=50, choices=ASSET_TYPES, default='Fixed')
-    category = models.ForeignKey(AssetCategory, on_delete=models.SET_NULL, null=True, blank=True)
+    asset_type = models.CharField(max_length=50, choices=ASSET_TYPES, default="Fixed")
+    category = models.ForeignKey(
+        AssetCategory, on_delete=models.SET_NULL, null=True, blank=True
+    )
     description = models.TextField(blank=True)
     purchase_date = models.DateField(null=True, blank=True)
     purchase_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     current_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     salvage_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
-    depreciation_method = models.CharField(max_length=50, choices=DEPRECIATION_METHODS, default='Straight Line')
-    depreciation_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='Annual depreciation rate as a percentage')
+    depreciation_method = models.CharField(
+        max_length=50, choices=DEPRECIATION_METHODS, default="Straight Line"
+    )
+    depreciation_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Annual depreciation rate as a percentage",
+    )
     useful_life_years = models.PositiveIntegerField(null=True, blank=True)
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
-    condition = models.CharField(max_length=50, blank=True, choices=[
-        ('New', 'New'), ('Good', 'Good'), ('Fair', 'Fair'), ('Poor', 'Poor'),
-    ])
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Draft")
+    condition = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ("New", "New"),
+            ("Good", "Good"),
+            ("Fair", "Fair"),
+            ("Poor", "Poor"),
+        ],
+    )
     warranty_expiry = models.DateField(null=True, blank=True)
-    maintenance_schedule = models.CharField(max_length=100, blank=True, choices=[
-        ('Monthly', 'Monthly'), ('Quarterly', 'Quarterly'), ('Semi-Annual', 'Semi-Annual'),
-        ('Annual', 'Annual'), ('None', 'None'),
-    ])
+    maintenance_schedule = models.CharField(
+        max_length=100,
+        blank=True,
+        choices=[
+            ("Monthly", "Monthly"),
+            ("Quarterly", "Quarterly"),
+            ("Semi-Annual", "Semi-Annual"),
+            ("Annual", "Annual"),
+            ("None", "None"),
+        ],
+    )
     insurance_policy = models.CharField(max_length=100, blank=True)
-    supplier = models.ForeignKey('buying.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
-    custodian = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    supplier = models.ForeignKey(
+        "buying.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assets",
+    )
+    custodian = models.ForeignKey(
+        Employee, on_delete=models.SET_NULL, null=True, blank=True
+    )
     location = models.CharField(max_length=255, blank=True)
-    department = models.ForeignKey('hr.Department', on_delete=models.SET_NULL, null=True, blank=True)
+    department = models.ForeignKey(
+        "hr.Department", on_delete=models.SET_NULL, null=True, blank=True
+    )
     serial_number = models.CharField(max_length=100, blank=True)
     image = models.ImageField(
-        upload_to='asset_images/', blank=True, null=True,
-        validators=[validate_image_size, FileExtensionValidator(ALLOWED_IMAGE_EXTENSIONS)]
+        upload_to="asset_images/",
+        blank=True,
+        null=True,
+        validators=[
+            validate_image_size,
+            FileExtensionValidator(ALLOWED_IMAGE_EXTENSIONS),
+        ],
     )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -68,19 +123,28 @@ class Asset(models.Model):
     def accumulated_depreciation(self):
         import datetime
         from decimal import Decimal
-        if self.depreciation_method == 'None' or not self.purchase_date or not self.depreciation_rate:
-            return Decimal('0')
-        years_elapsed = Decimal((datetime.date.today() - self.purchase_date).days) / Decimal('365.25')
+
+        if (
+            self.depreciation_method == "None"
+            or not self.purchase_date
+            or not self.depreciation_rate
+        ):
+            return Decimal("0")
+        years_elapsed = Decimal(
+            (datetime.date.today() - self.purchase_date).days
+        ) / Decimal("365.25")
         depreciable_base = self.purchase_value - self.salvage_value
-        if self.depreciation_method == 'Straight Line':
-            annual_depreciation = depreciable_base * (self.depreciation_rate / Decimal('100'))
+        if self.depreciation_method == "Straight Line":
+            annual_depreciation = depreciable_base * (
+                self.depreciation_rate / Decimal("100")
+            )
             return min(annual_depreciation * years_elapsed, depreciable_base)
-        if self.depreciation_method == 'Declining Balance':
+        if self.depreciation_method == "Declining Balance":
             remaining = self.purchase_value
             for _ in range(int(years_elapsed)):
-                remaining -= remaining * (self.depreciation_rate / Decimal('100'))
-            return max(self.purchase_value - remaining, Decimal('0'))
-        return Decimal('0')
+                remaining -= remaining * (self.depreciation_rate / Decimal("100"))
+            return max(self.purchase_value - remaining, Decimal("0"))
+        return Decimal("0")
 
     @property
     def book_value(self):

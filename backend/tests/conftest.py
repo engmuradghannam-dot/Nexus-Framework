@@ -6,20 +6,20 @@ if not settings.configured:
     settings.configure(
         DEBUG=True,
         DATABASES={
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': ':memory:',
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": ":memory:",
             }
         },
         INSTALLED_APPS=[
-            'django.contrib.contenttypes',
-            'django.contrib.auth',
-            'rest_framework',
-            'apps.core',
-            'apps.industry',
-            'apps.pmo',
-            'apps.ai_module',
-            'apps.regulatory',
+            "django.contrib.contenttypes",
+            "django.contrib.auth",
+            "rest_framework",
+            "apps.core",
+            "apps.industry",
+            "apps.pmo",
+            "apps.ai_module",
+            "apps.regulatory",
         ],
-        DEFAULT_AUTO_FIELD='django.db.models.BigAutoField',
+        DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
     )

@@ -1,1 +1,1 @@
-default_app_config = 'apps.pmo.apps.PmoConfig'
+default_app_config = "apps.pmo.apps.PmoConfig"

@@ -2,9 +2,9 @@ from django.apps import AppConfig
 
 
 class RegulatoryConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.regulatory'
-    verbose_name = 'Regulatory Compliance'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.regulatory"
+    verbose_name = "Regulatory Compliance"
 
     def ready(self):
         import apps.regulatory.signals  # noqa: F401

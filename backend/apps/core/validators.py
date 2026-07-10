@@ -1,7 +1,23 @@
 """Core validators for the Nexus Framework."""
+
 from django.core.exceptions import ValidationError
 
-ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+ALLOWED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp"]
+ALLOWED_ATTACHMENT_EXTENSIONS = [
+    "pdf",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+    "csv",
+    "txt",
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "zip",
+]
 
 
 def validate_image_size(image):

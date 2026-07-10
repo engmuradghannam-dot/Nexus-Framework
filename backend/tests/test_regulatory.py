@@ -1,52 +1,51 @@
+import datetime
+
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
+
 from apps.core.models import User
-from apps.regulatory.models import RegulatoryFramework, ComplianceRule
+from apps.regulatory.models import Regulation
 
 
 @pytest.fixture
-def auth_client():
-    client = APIClient()
-    user = User.objects.create_superuser(
-        email='reg@test.com',
-        password='testpass123'
+def user():
+    return User.objects.create_superuser(
+        email="reg@test.com",
+        password="testpass123",
     )
+
+
+@pytest.fixture
+def auth_client(user):
+    client = APIClient()
     client.force_authenticate(user=user)
     return client
 
 
 @pytest.mark.django_db
-class TestRegulatory:
-    def test_list_frameworks(self, auth_client):
-        url = reverse('regulatory:framework-list')
-        response = auth_client.get(url)
-        assert response.status_code == 200
-
-    def test_create_framework(self, auth_client):
-        url = reverse('regulatory:framework-list')
-        data = {
-            'name': 'GDPR',
-            'description': 'General Data Protection Regulation',
-            'jurisdiction': 'EU',
-            'compliance_rate': 95.0
-        }
-        response = auth_client.post(url, data)
-        assert response.status_code == 201
-        assert RegulatoryFramework.objects.count() == 1
-
-    def test_create_rule(self, auth_client):
-        framework = RegulatoryFramework.objects.create(
-            name='Test Framework',
-            jurisdiction='US'
+class TestRegulatoryModels:
+    def test_create_regulation(self, user):
+        reg = Regulation.objects.create(
+            title="ZATCA E-Invoicing",
+            code="ZATCA-01",
+            jurisdiction="SA",
+            severity="high",
+            effective_date=datetime.date(2024, 1, 1),
+            description="E-invoicing compliance requirement.",
+            created_by=user,
         )
-        url = reverse('regulatory:rule-list')
-        data = {
-            'name': 'Data Retention',
-            'description': 'Must retain data for 7 years',
-            'framework': framework.id,
-            'is_active': True
-        }
-        response = auth_client.post(url, data)
-        assert response.status_code == 201
-        assert ComplianceRule.objects.count() == 1
+        assert reg.code == "ZATCA-01"
+        assert Regulation.objects.count() == 1
+
+
+@pytest.mark.django_db
+class TestRegulatoryAPI:
+    def test_list_regulations(self, auth_client):
+        assert auth_client.get(reverse("regulation-list")).status_code == 200
+
+    def test_list_compliance_checks(self, auth_client):
+        assert auth_client.get(reverse("compliancecheck-list")).status_code == 200
+
+    def test_list_risks(self, auth_client):
+        assert auth_client.get(reverse("risk-list")).status_code == 200

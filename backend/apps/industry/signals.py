@@ -1,5 +1,6 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+
 from .models import Company, Metric
 
 
@@ -9,13 +10,13 @@ def handle_company_save(sender, instance, created, **kwargs):
     if created:
         Metric.objects.get_or_create(
             company=instance,
-            name='Default Efficiency',
+            name="Default Efficiency",
             defaults={
-                'metric_type': 'operational',
-                'value': 0.0,
-                'unit': 'score',
-                'period': 'initial'
-            }
+                "metric_type": "operational",
+                "value": 0.0,
+                "unit": "score",
+                "period": "initial",
+            },
         )
 
 

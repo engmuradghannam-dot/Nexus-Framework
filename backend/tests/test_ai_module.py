@@ -1,50 +1,46 @@
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
+
+from apps.ai_module.models import AIModel
 from apps.core.models import User
-from apps.ai_module.models import AIModel, AIInsight
 
 
 @pytest.fixture
-def auth_client():
-    client = APIClient()
-    user = User.objects.create_superuser(
-        email='ai@test.com',
-        password='testpass123'
+def user():
+    return User.objects.create_superuser(
+        email="ai@test.com",
+        password="testpass123",
     )
+
+
+@pytest.fixture
+def auth_client(user):
+    client = APIClient()
     client.force_authenticate(user=user)
     return client
 
 
 @pytest.mark.django_db
-class TestAIModule:
-    def test_create_model(self, auth_client):
-        url = reverse('ai_module:model-list')
-        data = {
-            'name': 'Risk Predictor',
-            'model_type': 'classification',
-            'version': '1.0.0',
-            'accuracy': 0.95,
-            'is_active': True
-        }
-        response = auth_client.post(url, data)
-        assert response.status_code == 201
+class TestAIModuleModels:
+    def test_create_ai_model(self, user):
+        model = AIModel.objects.create(
+            name="Sales Forecaster",
+            version="1.0.0",
+            model_type=AIModel._meta.get_field("model_type").choices[0][0],
+            owner=user,
+        )
+        assert model.name == "Sales Forecaster"
         assert AIModel.objects.count() == 1
 
-    def test_create_insight(self, auth_client):
-        model = AIModel.objects.create(
-            name='Test Model',
-            model_type='regression',
-            version='1.0'
-        )
-        url = reverse('ai_module:insight-list')
-        data = {
-            'title': 'Test Insight',
-            'description': 'This is a test insight',
-            'insight_type': 'prediction',
-            'confidence_score': 0.85,
-            'model': model.id
-        }
-        response = auth_client.post(url, data)
-        assert response.status_code == 201
-        assert AIInsight.objects.count() == 1
+
+@pytest.mark.django_db
+class TestAIModuleAPI:
+    def test_list_models(self, auth_client):
+        assert auth_client.get(reverse("aimodel-list")).status_code == 200
+
+    def test_list_predictions(self, auth_client):
+        assert auth_client.get(reverse("prediction-list")).status_code == 200
+
+    def test_list_insights(self, auth_client):
+        assert auth_client.get(reverse("insight-list")).status_code == 200

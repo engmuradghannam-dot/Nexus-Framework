@@ -1,1 +1,1 @@
-default_app_config = 'apps.regulatory.apps.RegulatoryConfig'
+default_app_config = "apps.regulatory.apps.RegulatoryConfig"
