@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=6
+ARG CACHE_BUST=7
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
@@ -12,7 +12,7 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
-ARG CACHE_BUST=6
+ARG CACHE_BUST=7
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
@@ -82,17 +82,6 @@ else:
     print(f'✅ Superuser already exists: {email}')
 " || echo "⚠️ Superuser creation skipped"
 
-# Show database info
-echo "📊 Database configuration:"
-python -c "
-import os
-import django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.production')
-django.setup()
-from django.conf import settings
-print(f'   Engine: {settings.DATABASES["default"]["ENGINE"]}')
-print(f'   Name: {settings.DATABASES["default"].get("NAME", "N/A")}')
-" || true
 
 # Start server with gunicorn
 PORT=${PORT:-8000}
