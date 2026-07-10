@@ -6,7 +6,6 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.mixins import CompanyScopedMixin
-from apps.inventory.models import Item
 
 from .models import BOM, BOMItem, WorkOrder
 from .serializers import BOMItemSerializer, BOMSerializer, WorkOrderSerializer
