@@ -16,9 +16,9 @@ export default function RegulatoryDashboard() {
   const fetchData = async () => {
     try {
       const [fwRes, ruleRes, auditRes] = await Promise.all([
-        api.get('/regulatory/frameworks/'),
-        api.get('/regulatory/rules/'),
-        api.get('/regulatory/audits/')
+        api.get('/regulatory/regulations/'),
+        api.get('/regulatory/compliance-checks/'),
+        api.get('/regulatory/risks/')
       ]);
       setFrameworks(fwRes.data.results || fwRes.data);
       setRules(ruleRes.data.results || ruleRes.data);
@@ -40,11 +40,11 @@ export default function RegulatoryDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader><CardTitle>Frameworks</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Regulations</CardTitle></CardHeader>
           <CardContent><p className="text-4xl font-bold">{frameworks.length}</p></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Compliance Rules</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Compliance Checks</CardTitle></CardHeader>
           <CardContent><p className="text-4xl font-bold">{rules.length}</p></CardContent>
         </Card>
         <Card>
@@ -54,7 +54,7 @@ export default function RegulatoryDashboard() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Audits</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Risks</CardTitle></CardHeader>
           <CardContent><p className="text-4xl font-bold">{audits.length}</p></CardContent>
         </Card>
       </div>

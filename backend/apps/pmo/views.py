@@ -3,8 +3,21 @@ from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Milestone, Project, Task
-from .serializers import MilestoneSerializer, ProjectSerializer, TaskSerializer
+from .models import Milestone, Portfolio, Project, Task
+from .serializers import (
+    MilestoneSerializer,
+    PortfolioSerializer,
+    ProjectSerializer,
+    TaskSerializer,
+)
+
+
+class PortfolioViewSet(viewsets.ModelViewSet):
+    queryset = Portfolio.objects.select_related("manager").prefetch_related("projects")
+    serializer_class = PortfolioSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["status", "manager"]
+    search_fields = ["name", "description"]
 
 
 class ProjectViewSet(viewsets.ModelViewSet):

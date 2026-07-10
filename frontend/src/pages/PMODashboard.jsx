@@ -16,7 +16,7 @@ export default function PMODashboard() {
     try {
       const [portRes, progRes, projRes] = await Promise.all([
         api.get('/pmo/portfolios/'),
-        api.get('/pmo/programs/'),
+        api.get('/pmo/milestones/'),
         api.get('/pmo/projects/')
       ]);
       setPortfolios(portRes.data.results || portRes.data);
@@ -47,7 +47,7 @@ export default function PMODashboard() {
           <CardContent><p className="text-4xl font-bold">{portfolios.length}</p></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Programs</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Milestones</CardTitle></CardHeader>
           <CardContent><p className="text-4xl font-bold">{programs.length}</p></CardContent>
         </Card>
         <Card>

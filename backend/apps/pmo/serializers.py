@@ -1,6 +1,28 @@
 from rest_framework import serializers
 
-from .models import Milestone, Project, Task
+from .models import Milestone, Portfolio, Project, Task
+
+
+class PortfolioSerializer(serializers.ModelSerializer):
+    manager_name = serializers.CharField(source="manager.get_full_name", read_only=True)
+    project_count = serializers.IntegerField(source="projects.count", read_only=True)
+
+    class Meta:
+        model = Portfolio
+        fields = [
+            "id",
+            "name",
+            "description",
+            "manager",
+            "manager_name",
+            "status",
+            "start_date",
+            "end_date",
+            "budget",
+            "project_count",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class TaskSerializer(serializers.ModelSerializer):

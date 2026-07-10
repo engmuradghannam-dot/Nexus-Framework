@@ -17,7 +17,7 @@ export default function IndustryDashboard() {
   const fetchData = async () => {
     try {
       const [projectsRes, metricsRes] = await Promise.all([
-        api.get('/industry/projects/'),
+        api.get('/pmo/projects/'),
         api.get('/industry/metrics/')
       ]);
       setProjects(projectsRes.data.results || projectsRes.data);
