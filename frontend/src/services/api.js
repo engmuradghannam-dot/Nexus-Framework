@@ -169,3 +169,12 @@ export const recordsApi = {
   update: (id, module, payload) => data(API.put(`/records/${id}/`, { module, data: payload })),
   remove: (id) => API.delete(`/records/${id}/`),
 }
+
+// ════════ Accounting ════════
+export const accountingApi = {
+  accounts: () => list(API.get('/accounts/accounts/', { params: { page_size: 200 } })),
+  trialBalance: () => data(API.get('/accounts/accounts/trial_balance/')),
+  financialStatements: () => data(API.get('/accounts/accounts/financial_statements/')),
+  journalEntries: () => list(API.get('/accounts/journal-entries/', { params: { page_size: 200 } })),
+  generalLedger: (id) => data(API.get(`/accounts/accounts/${id}/general_ledger/`)),
+}

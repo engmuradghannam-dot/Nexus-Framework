@@ -28,6 +28,7 @@ import HRPage from './pages/HR/HRPage';
 import InventoryPage from './pages/Inventory/InventoryPage';
 import ControlsPage from './pages/Controls/ControlsPage';
 import CompanySetupPage from './pages/CompanySetup/CompanySetupPage';
+import AccountingPage from './pages/Accounting/AccountingPage';
 import TaxesPage from './pages/Taxes/TaxesPage';
 import I18nPage from './pages/I18n/I18nPage';
 
@@ -87,6 +88,7 @@ function App() {
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/hr" element={<HRPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/accounting" element={<AccountingPage />} />
                 <Route path="/taxes" element={<TaxesPage />} />
                 <Route path="/i18n" element={<I18nPage />} />
               </Route>

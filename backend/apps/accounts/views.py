@@ -1,4 +1,5 @@
 from django.db.models import Sum
+from django.db import models
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -98,6 +99,32 @@ class AccountViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
                 },
             }
         )
+
+
+    @action(detail=True, methods=["get"])
+    def general_ledger(self, request, pk=None):
+        """All journal lines touching this account, with a running balance."""
+        from .models import JournalEntry
+        account = self.get_object()
+        entries = JournalEntry.objects.filter(
+            models.Q(debit_account=account) | models.Q(credit_account=account)
+        ).order_by("posting_date", "id")
+        debit_side = (account.root_type or account.account_type) in account.DEBIT_INCREASES
+        running = 0
+        rows = []
+        for e in entries:
+            d = float(e.amount) if e.debit_account_id == account.id else 0
+            c = float(e.amount) if e.credit_account_id == account.id else 0
+            running += (d - c) if debit_side else (c - d)
+            rows.append({
+                "date": e.posting_date, "entry_number": e.entry_number,
+                "reference": e.reference, "debit": d, "credit": c,
+                "balance": running,
+            })
+        return Response({
+            "account": {"number": account.account_number, "name": account.account_name},
+            "rows": rows, "closing_balance": running,
+        })
 
 
 class JournalEntryViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
