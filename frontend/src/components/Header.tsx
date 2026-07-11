@@ -1,9 +1,9 @@
 // components/Header.tsx
 import { useState } from 'react';
-import { Search, Bell, Settings, HelpCircle, User, Command, Sun, Moon } from 'lucide-react';
+import { Menu, Bell, Settings, HelpCircle, User, Command } from 'lucide-react';
 import { FluentSearchBox } from './FluentUI/FluentSearchBox';
 
-export default function Header() {
+export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const [notifications] = useState([
     { id: 1, title: 'مشروع جديد تم إنشاؤه', time: 'منذ 5 دقائق', read: false },
     { id: 2, title: 'تنبيه مخزون منخفض', time: 'منذ ساعة', read: false },
@@ -15,9 +15,20 @@ export default function Header() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <header className="fixed top-0 left-0 right-[260px] h-12 bg-[#0078d4] z-30 flex items-center justify-between px-4">
-      {/* Search */}
-      <div className="flex items-center gap-4 flex-1">
+    <header className="fixed top-0 left-0 right-0 h-12 bg-[#0078d4] z-30 flex items-center justify-between px-4">
+      {/* Menu (Start) button + brand */}
+      <div className="flex items-center gap-3 flex-1">
+        <button
+          onClick={onMenuClick}
+          className="p-2 text-white hover:bg-white/20 rounded-sm transition-colors"
+          aria-label="القائمة"
+        >
+          <Menu size={20} />
+        </button>
+        <div className="hidden sm:flex items-center gap-2 ml-2">
+          <span className="text-white font-semibold text-sm">Nexus</span>
+          <span className="text-white/70 text-xs">Framework</span>
+        </div>
         <div className="w-64">
           <FluentSearchBox 
             placeholder="البحث في النظام..."

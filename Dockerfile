@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=18
+ARG CACHE_BUST=19
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
@@ -12,7 +12,7 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
-ARG CACHE_BUST=18
+ARG CACHE_BUST=19
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
@@ -97,6 +97,7 @@ print('Superuser ensured:', email)
 echo "🌱 Seeding demo data..."
 python manage.py seed_demo || echo "⚠️ Demo seed skipped"
 python manage.py seed_sector_controls || echo "⚠️ Sector controls seed skipped"
+python manage.py seed_languages || echo "⚠️ Languages seed skipped"
 
 # Start server with gunicorn
 PORT=${PORT:-8000}

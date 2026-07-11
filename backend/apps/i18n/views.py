@@ -26,6 +26,7 @@ from .serializers import (
 class LanguageViewSet(viewsets.ModelViewSet):
     queryset = Language.objects.all()
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # languages are a bounded reference set — return all
 
     def get_serializer_class(self):
         if self.action == "list":

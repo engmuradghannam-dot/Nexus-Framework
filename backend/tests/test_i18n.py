@@ -47,7 +47,9 @@ class TestLanguageAPI:
     def test_list_languages(self, auth_client, english_lang, arabic_lang):
         response = auth_client.get("/api/i18n/languages/")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 2
+        # languages endpoint is unpaginated (bounded reference set)
+        data = response.data["results"] if isinstance(response.data, dict) else response.data
+        assert len(data) == 2
 
     def test_create_language(self, auth_client):
         data = {
