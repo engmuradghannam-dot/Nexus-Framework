@@ -22,7 +22,7 @@ export default function SettingsPage() {
         title="الإعدادات"
         subtitle="System Configuration & Preferences"
         commands={[
-          { id: 'save', label: 'حفظ التغييرات', icon: <Save size={16} />, variant: 'primary' },
+          { id: 'save', label: 'حفظ التغييرات', icon: <Save size={16} />, variant: 'primary', onClick: () => window.location.reload() },
         ]}
       />
       <div className="p-6">

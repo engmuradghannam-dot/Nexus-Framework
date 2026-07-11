@@ -8,6 +8,7 @@ import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const stockItems = [
   { id: '1', name: 'لابتوب Dell XPS 15', sku: 'DL-XPS-15-001', warehouse: 'الرياض', quantity: 45, minLevel: 10, reorderPoint: 20, status: 'in_stock' },
@@ -51,10 +52,10 @@ export default function InventoryPage() {
         title="المخزون"
         subtitle="Stock Overview & Inventory Control"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(stockItems, 'inventory.csv') },
           { id: 'reorder', label: 'إعادة طلب', icon: <ArrowUpDown size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'إضافة صنف', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'new', label: 'إضافة صنف', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedItem({}); setShowPanel(true); } },
         ]}
       />
       <div className="p-6 space-y-6">

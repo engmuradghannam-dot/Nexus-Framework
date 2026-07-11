@@ -7,6 +7,7 @@ import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const workOrders = [
   { id: 'MO-001', product: 'وحدة تحكم صناعية', quantity: 500, completed: 340, dueDate: '2026-07-20', status: 'in_progress' },
@@ -52,9 +53,9 @@ export default function ManufacturingPage() {
         title="التصنيع"
         subtitle="Manufacturing & Production Orders"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'أمر تصنيع', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(workOrders, 'manufacturing.csv') },
+          { id: 'new', label: 'أمر تصنيع', icon: <Plus size={16} />, variant: 'primary', onClick: () => window.location.reload() },
         ]}
       />
       <div className="p-6 space-y-6">

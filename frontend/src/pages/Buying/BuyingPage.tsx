@@ -8,6 +8,7 @@ import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const purchaseOrders = [
   { id: 'PO-2026-001', supplier: 'شركة Dell Technologies', date: '2026-07-10', total: 125000, status: 'approved', items: 10 },
@@ -49,10 +50,10 @@ export default function BuyingPage() {
         title="المشتريات"
         subtitle="Purchase Orders & Supplier Management"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(purchaseOrders, 'buying.csv') },
           { id: 'rfq', label: 'طلب عرض سعر', icon: <FileText size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'طلب شراء', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'new', label: 'طلب شراء', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedPO({}); setShowPanel(true); } },
         ]}
       />
       <div className="p-6 space-y-6">

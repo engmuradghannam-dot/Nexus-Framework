@@ -8,6 +8,7 @@ import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const orders = [
   { id: 'SO-2026-001', customer: 'شركة التقنية المتقدمة', date: '2026-07-10', total: 45000, status: 'confirmed', items: 5 },
@@ -49,10 +50,10 @@ export default function SellingPage() {
         title="المبيعات"
         subtitle="Sales Orders & Quotations"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(orders, 'selling.csv') },
           { id: 'quote', label: 'عرض سعر', icon: <FileText size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'طلب بيع', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'new', label: 'طلب بيع', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedOrder({}); setShowPanel(true); } },
         ]}
       />
       <div className="p-6 space-y-6">

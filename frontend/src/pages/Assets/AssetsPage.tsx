@@ -8,6 +8,7 @@ import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const assets = [
   { id: 'AST-001', name: 'مبنى الإدارة الرئيسي', category: 'عقارات', location: 'الرياض', value: 5000000, status: 'active', purchaseDate: '2020-01-15' },
@@ -50,10 +51,10 @@ export default function AssetsPage() {
         title="الأصول"
         subtitle="Asset Management & Tracking"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(assets, 'assets.csv') },
           { id: 'maintenance', label: 'جدولة صيانة', icon: <Wrench size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'أصل جديد', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'new', label: 'أصل جديد', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedAsset({}); setShowPanel(true); } },
         ]}
       />
       <div className="p-6 space-y-6">

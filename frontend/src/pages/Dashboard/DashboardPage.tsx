@@ -10,6 +10,7 @@ import { FluentCard } from '../../components/FluentUI/FluentCard';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
 import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const statsData = [
   { title: 'إجمالي الإيرادات', value: '1,250,000 ر.س', trend: 'up' as const, trendValue: '+12.5%', icon: <DollarSign size={20} />, color: 'blue' as const },
@@ -56,9 +57,9 @@ export default function DashboardPage() {
         title="لوحة المعلومات"
         subtitle="نظرة عامة على أداء المؤسسة"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <Clock size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <BarChart3 size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'نشاط جديد', icon: <ArrowUpRight size={16} />, variant: 'primary' },
+          { id: 'refresh', label: 'تحديث', icon: <Clock size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <BarChart3 size={16} />, variant: 'secondary', onClick: () => exportToCsv(statsData, 'dashboard.csv') },
+          { id: 'new', label: 'نشاط جديد', icon: <ArrowUpRight size={16} />, variant: 'primary', onClick: () => window.location.reload() },
         ]}
       />
 

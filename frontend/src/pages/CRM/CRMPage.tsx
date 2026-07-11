@@ -8,6 +8,7 @@ import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const customers = [
   { id: '1', name: 'شركة التقنية المتقدمة', contact: 'أحمد العلي', email: 'info@tech-adv.com', phone: '+966 11 111 1111', industry: 'تقنية', status: 'active', rating: 5, revenue: 2500000 },
@@ -61,9 +62,9 @@ export default function CRMPage() {
         title="إدارة العملاء (CRM)"
         subtitle="Customer Relationship Management"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'عميل جديد', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(customers, 'crm.csv') },
+          { id: 'new', label: 'عميل جديد', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedCustomer({}); setShowPanel(true); } },
         ]}
       />
       <div className="p-6 space-y-6">

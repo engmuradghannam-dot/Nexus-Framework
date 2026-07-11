@@ -96,10 +96,10 @@ export default function WarehousesPage() {
         title="المستودعات والمخزون"
         subtitle="Inventory & Warehouses — إدارة المخزون والطلبات"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => window.print() },
           { id: 'report', label: 'تقرير', icon: <BarChart3 size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'إضافة صنف', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'new', label: 'إضافة صنف', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedItem({}); setShowPanel(true); } },
         ]}
       />
 

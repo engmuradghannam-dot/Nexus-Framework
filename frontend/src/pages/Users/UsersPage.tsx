@@ -8,6 +8,7 @@ import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const users = [
   { id: 'USR-001', name: 'أحمد العلي', email: 'ahmed@nexus.com', role: 'مدير النظام', department: 'تقنية', status: 'active', lastLogin: '2026-07-10 09:30' },
@@ -49,10 +50,10 @@ export default function UsersPage() {
         title="المستخدمين"
         subtitle="User Management & Permissions"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(users, 'users.csv') },
           { id: 'roles', label: 'الأدوار', icon: <Shield size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'مستخدم جديد', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'new', label: 'مستخدم جديد', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedUser({}); setShowPanel(true); } },
         ]}
       />
       <div className="p-6 space-y-6">

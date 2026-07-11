@@ -8,6 +8,7 @@ import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { FluentSearchBox } from '../../components/FluentUI/FluentSearchBox';
 import { FluentPanel, FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
+import { exportToCsv } from '../../utils/exportCsv';
 
 const employees = [
   { id: 'EMP-001', name: 'أحمد العلي', position: 'مدير تقني', department: 'تقنية', email: 'ahmed@company.com', phone: '+966 50 111 1111', status: 'active', joinDate: '2020-03-15' },
@@ -51,10 +52,10 @@ export default function HRPage() {
         title="الموارد البشرية"
         subtitle="Human Resources Management"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => exportToCsv(employees, 'hr.csv') },
           { id: 'leave', label: 'طلب إجازة', icon: <Calendar size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'موظف جديد', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'new', label: 'موظف جديد', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedEmployee({}); setShowPanel(true); } },
         ]}
       />
       <div className="p-6 space-y-6">

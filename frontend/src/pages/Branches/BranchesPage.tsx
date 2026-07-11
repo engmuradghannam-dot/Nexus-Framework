@@ -84,9 +84,9 @@ export default function BranchesPage() {
         title="الفروع والمواقع"
         subtitle="Branches & Locations — إدارة الفروع والمستودعات"
         commands={[
-          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary' },
-          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary' },
-          { id: 'new', label: 'إضافة فرع', icon: <Plus size={16} />, variant: 'primary' },
+          { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
+          { id: 'export', label: 'تصدير', icon: <Download size={16} />, variant: 'secondary', onClick: () => window.print() },
+          { id: 'new', label: 'إضافة فرع', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setSelectedBranch({}); setShowPanel(true); } },
         ]}
       />
 
