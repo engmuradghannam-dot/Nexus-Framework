@@ -1,5 +1,7 @@
 // pages/Buying/BuyingPage.tsx
 import { useState } from 'react';
+import { ModuleForm } from '../../components/ModuleForm';
+import { MODULE_FIELDS } from '../../config/moduleFields';
 import { Store, Plus, RefreshCw, Download, FileText, CheckCircle, Clock, Truck } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
@@ -79,13 +81,7 @@ export default function BuyingPage() {
         </div>
       }>
         {selectedPO && (
-          <div className="space-y-4">
-            <FluentFormField label="رقم الطلب"><FluentInput defaultValue={selectedPO.id} disabled /></FluentFormField>
-            <FluentFormField label="المورد"><FluentInput defaultValue={selectedPO.supplier} /></FluentFormField>
-            <FluentFormField label="التاريخ"><FluentInput type="date" defaultValue={selectedPO.date} /></FluentFormField>
-            <FluentFormField label="الحالة"><FluentSelect defaultValue={selectedPO.status}><option value="approved">معتمد</option><option value="pending">معلق</option><option value="received">مستلم</option><option value="draft">مسودة</option></FluentSelect></FluentFormField>
-            <FluentFormField label="الإجمالي"><FluentInput type="number" defaultValue={selectedPO.total} /></FluentFormField>
-          </div>
+          <ModuleForm fields={MODULE_FIELDS.purchase_order} value={selectedPO} onChange={setSelectedPO} />
         )}
       </FluentPanel>
     </div>

@@ -1,5 +1,7 @@
 // pages/Selling/SellingPage.tsx
 import { useState } from 'react';
+import { ModuleForm } from '../../components/ModuleForm';
+import { MODULE_FIELDS } from '../../config/moduleFields';
 import { ShoppingCart, Plus, RefreshCw, Download, FileText, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
@@ -79,13 +81,7 @@ export default function SellingPage() {
         </div>
       }>
         {selectedOrder && (
-          <div className="space-y-4">
-            <FluentFormField label="رقم الطلب"><FluentInput defaultValue={selectedOrder.id} disabled /></FluentFormField>
-            <FluentFormField label="العميل"><FluentInput defaultValue={selectedOrder.customer} /></FluentFormField>
-            <FluentFormField label="التاريخ"><FluentInput type="date" defaultValue={selectedOrder.date} /></FluentFormField>
-            <FluentFormField label="الحالة"><FluentSelect defaultValue={selectedOrder.status}><option value="confirmed">مؤكد</option><option value="pending">معلق</option><option value="shipped">تم الشحن</option><option value="cancelled">ملغى</option></FluentSelect></FluentFormField>
-            <FluentFormField label="الإجمالي"><FluentInput type="number" defaultValue={selectedOrder.total} /></FluentFormField>
-          </div>
+          <ModuleForm fields={MODULE_FIELDS.selling} value={selectedOrder} onChange={setSelectedOrder} />
         )}
       </FluentPanel>
     </div>

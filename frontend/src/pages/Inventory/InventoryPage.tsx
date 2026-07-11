@@ -1,5 +1,7 @@
 // pages/Inventory/InventoryPage.tsx
 import { useState } from 'react';
+import { ModuleForm } from '../../components/ModuleForm';
+import { MODULE_FIELDS } from '../../config/moduleFields';
 import { Boxes, Plus, RefreshCw, Download, AlertTriangle, CheckCircle, ArrowUpDown, Package } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
@@ -81,17 +83,7 @@ export default function InventoryPage() {
         </div>
       }>
         {selectedItem && (
-          <div className="space-y-4">
-            <FluentFormField label="الرمز (SKU)"><FluentInput defaultValue={selectedItem.sku} disabled /></FluentFormField>
-            <FluentFormField label="اسم الصنف"><FluentInput defaultValue={selectedItem.name} /></FluentFormField>
-            <FluentFormField label="المستودع"><FluentSelect defaultValue={selectedItem.warehouse}><option>الرياض</option><option>جدة</option><option>الدمام</option></FluentSelect></FluentFormField>
-            <div className="grid grid-cols-2 gap-4">
-              <FluentFormField label="الكمية"><FluentInput type="number" defaultValue={selectedItem.quantity} /></FluentFormField>
-              <FluentFormField label="الحد الأدنى"><FluentInput type="number" defaultValue={selectedItem.minLevel} /></FluentFormField>
-            </div>
-            <FluentFormField label="نقطة إعادة الطلب"><FluentInput type="number" defaultValue={selectedItem.reorderPoint} /></FluentFormField>
-            <FluentFormField label="الحالة"><FluentSelect defaultValue={selectedItem.status}><option value="in_stock">متوفر</option><option value="low_stock">منخفض</option><option value="out_of_stock">نفذ</option><option value="reorder">إعادة طلب</option></FluentSelect></FluentFormField>
-          </div>
+          <ModuleForm fields={MODULE_FIELDS.inventory} value={selectedItem} onChange={setSelectedItem} />
         )}
       </FluentPanel>
     </div>

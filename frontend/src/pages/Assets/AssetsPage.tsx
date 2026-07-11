@@ -1,5 +1,7 @@
 // pages/Assets/AssetsPage.tsx
 import { useState } from 'react';
+import { ModuleForm } from '../../components/ModuleForm';
+import { MODULE_FIELDS } from '../../config/moduleFields';
 import { Briefcase, Plus, RefreshCw, Download, Building2, Wrench, CheckCircle, AlertTriangle } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
@@ -80,15 +82,7 @@ export default function AssetsPage() {
         </div>
       }>
         {selectedAsset && (
-          <div className="space-y-4">
-            <FluentFormField label="الرمز"><FluentInput defaultValue={selectedAsset.id} disabled /></FluentFormField>
-            <FluentFormField label="اسم الأصل"><FluentInput defaultValue={selectedAsset.name} /></FluentFormField>
-            <FluentFormField label="الفئة"><FluentSelect defaultValue={selectedAsset.category}><option>عقارات</option><option>مركبات</option><option>تقنية</option><option>تكييف</option><option>معدات</option></FluentSelect></FluentFormField>
-            <FluentFormField label="الموقع"><FluentInput defaultValue={selectedAsset.location} /></FluentFormField>
-            <FluentFormField label="القيمة"><FluentInput type="number" defaultValue={selectedAsset.value} /></FluentFormField>
-            <FluentFormField label="تاريخ الشراء"><FluentInput type="date" defaultValue={selectedAsset.purchaseDate} /></FluentFormField>
-            <FluentFormField label="الحالة"><FluentSelect defaultValue={selectedAsset.status}><option value="active">نشط</option><option value="maintenance">صيانة</option><option value="retired">متقاعد</option></FluentSelect></FluentFormField>
-          </div>
+          <ModuleForm fields={MODULE_FIELDS.assets} value={selectedAsset} onChange={setSelectedAsset} />
         )}
       </FluentPanel>
     </div>

@@ -1,5 +1,7 @@
 // pages/CRM/CRMPage.tsx
 import { useState } from 'react';
+import { ModuleForm } from '../../components/ModuleForm';
+import { MODULE_FIELDS } from '../../config/moduleFields';
 import { HeartHandshake, Plus, RefreshCw, Download, Phone, Mail, Building2, Star, Trash2, Edit3 } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
@@ -96,14 +98,7 @@ export default function CRMPage() {
         </div>
       }>
         {selectedCustomer && (
-          <div className="space-y-4">
-            <FluentFormField label="اسم الشركة" required><FluentInput defaultValue={selectedCustomer.name} /></FluentFormField>
-            <FluentFormField label="اسم المسؤول"><FluentInput defaultValue={selectedCustomer.contact} /></FluentFormField>
-            <FluentFormField label="البريد الإلكتروني"><FluentInput defaultValue={selectedCustomer.email} /></FluentFormField>
-            <FluentFormField label="الهاتف"><FluentInput defaultValue={selectedCustomer.phone} /></FluentFormField>
-            <FluentFormField label="القطاع"><FluentSelect defaultValue={selectedCustomer.industry}><option>تقنية</option><option>تجارة</option><option>صناعة</option><option>صحة</option><option>إنشاءات</option></FluentSelect></FluentFormField>
-            <FluentFormField label="الحالة"><FluentSelect defaultValue={selectedCustomer.status}><option value="active">نشط</option><option value="prospect"> prospect</option><option value="inactive">غير نشط</option></FluentSelect></FluentFormField>
-          </div>
+          <ModuleForm fields={MODULE_FIELDS.crm} value={selectedCustomer} onChange={setSelectedCustomer} />
         )}
       </FluentPanel>
     </div>

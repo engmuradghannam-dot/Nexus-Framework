@@ -1,5 +1,7 @@
 // pages/HR/HRPage.tsx
 import { useState } from 'react';
+import { ModuleForm } from '../../components/ModuleForm';
+import { MODULE_FIELDS } from '../../config/moduleFields';
 import { Users, Plus, RefreshCw, Download, Briefcase, Calendar, CheckCircle, Clock } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
@@ -81,16 +83,7 @@ export default function HRPage() {
         </div>
       }>
         {selectedEmployee && (
-          <div className="space-y-4">
-            <FluentFormField label="الرمز"><FluentInput defaultValue={selectedEmployee.id} disabled /></FluentFormField>
-            <FluentFormField label="الاسم الكامل"><FluentInput defaultValue={selectedEmployee.name} /></FluentFormField>
-            <FluentFormField label="المنصب"><FluentInput defaultValue={selectedEmployee.position} /></FluentFormField>
-            <FluentFormField label="القسم"><FluentSelect defaultValue={selectedEmployee.department}><option>تقنية</option><option>مبيعات</option><option>مالية</option><option>عمليات</option><option>موارد بشرية</option></FluentSelect></FluentFormField>
-            <FluentFormField label="البريد الإلكتروني"><FluentInput defaultValue={selectedEmployee.email} /></FluentFormField>
-            <FluentFormField label="الهاتف"><FluentInput defaultValue={selectedEmployee.phone} /></FluentFormField>
-            <FluentFormField label="تاريخ الانضمام"><FluentInput type="date" defaultValue={selectedEmployee.joinDate} /></FluentFormField>
-            <FluentFormField label="الحالة"><FluentSelect defaultValue={selectedEmployee.status}><option value="active">نشط</option><option value="on_leave">إجازة</option><option value="terminated">منتهي</option></FluentSelect></FluentFormField>
-          </div>
+          <ModuleForm fields={MODULE_FIELDS.hr} value={selectedEmployee} onChange={setSelectedEmployee} />
         )}
       </FluentPanel>
     </div>
