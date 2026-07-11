@@ -1,6 +1,14 @@
 from rest_framework import serializers
 
-from .models import AIAgent, FormControl, Industry, IndustryControl, MasterEntity
+from .models import (
+    AIAgent,
+    CompanySetup,
+    FormControl,
+    Industry,
+    IndustryControl,
+    MasterEntity,
+    SectorControl,
+)
 
 
 class IndustrySerializer(serializers.ModelSerializer):
@@ -52,3 +60,15 @@ class FormControlSerializer(serializers.ModelSerializer):
             "status",
             "priority",
         ]
+
+
+class SectorControlSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SectorControl
+        fields = ["id", "sector", "entity", "description", "fields", "module", "icon", "is_core", "order"]
+
+
+class CompanySetupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanySetup
+        fields = "__all__"

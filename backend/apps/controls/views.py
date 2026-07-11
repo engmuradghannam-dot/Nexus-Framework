@@ -7,7 +7,15 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
-from .models import AIAgent, FormControl, Industry, IndustryControl, MasterEntity
+from .models import (
+    AIAgent,
+    CompanySetup,
+    FormControl,
+    Industry,
+    IndustryControl,
+    MasterEntity,
+    SectorControl,
+)
 
 
 class LargePageNumberPagination(PageNumberPagination):
@@ -16,6 +24,8 @@ class LargePageNumberPagination(PageNumberPagination):
     page_size_query_param = "page_size"
     max_page_size = 1000
 from .serializers import (
+    CompanySetupSerializer,
+    SectorControlSerializer,
     AIAgentSerializer,
     FormControlSerializer,
     IndustryControlSerializer,
@@ -114,3 +124,29 @@ class FormControlViewSet(viewsets.ReadOnlyModelViewSet):
             row["coverage_percent"] = round((row["present"] / total) * 100, 1)
             result.append(row)
         return Response(result)
+
+
+class SectorControlViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SectorControl.objects.all()
+    serializer_class = SectorControlSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["sector", "module"]
+    search_fields = ["sector", "entity", "description"]
+
+    @action(detail=False, methods=["get"])
+    def sectors(self, request):
+        """List available sectors with their entity counts."""
+        data = (
+            SectorControl.objects.values("sector")
+            .annotate(entity_count=Count("id"))
+            .order_by("sector")
+        )
+        return Response(list(data))
+
+
+class CompanySetupViewSet(viewsets.ModelViewSet):
+    queryset = CompanySetup.objects.all()
+    serializer_class = CompanySetupSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["sector", "country"]
+    search_fields = ["company_name", "company_code"]

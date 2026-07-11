@@ -3,10 +3,12 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AIAgentViewSet,
+    CompanySetupViewSet,
     FormControlViewSet,
     IndustryControlViewSet,
     IndustryViewSet,
     MasterEntityViewSet,
+    SectorControlViewSet,
 )
 
 router = DefaultRouter()
@@ -17,6 +19,8 @@ router.register(
 router.register(r"ai-agents", AIAgentViewSet, basename="ai-agent")
 router.register(r"master-entities", MasterEntityViewSet, basename="master-entity")
 router.register(r"form-controls", FormControlViewSet, basename="form-control")
+router.register(r"sector-controls", SectorControlViewSet, basename="sector-control")
+router.register(r"company-setup", CompanySetupViewSet, basename="company-setup")
 
 urlpatterns = [
     path("", include(router.urls)),

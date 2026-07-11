@@ -27,6 +27,7 @@ import AssetsPage from './pages/Assets/AssetsPage';
 import HRPage from './pages/HR/HRPage';
 import InventoryPage from './pages/Inventory/InventoryPage';
 import ControlsPage from './pages/Controls/ControlsPage';
+import CompanySetupPage from './pages/CompanySetup/CompanySetupPage';
 import TaxesPage from './pages/Taxes/TaxesPage';
 import I18nPage from './pages/I18n/I18nPage';
 
@@ -74,6 +75,7 @@ function App() {
                 <Route path="/pmo" element={<PMOPage />} />
                 <Route path="/regulatory" element={<RegulatoryPage />} />
                 <Route path="/controls" element={<ControlsPage />} />
+                <Route path="/company-setup" element={<CompanySetupPage />} />
                 <Route path="/branches" element={<BranchesPage />} />
                 <Route path="/warehouses" element={<WarehousesPage />} />
                 <Route path="/users" element={<UsersPage />} />

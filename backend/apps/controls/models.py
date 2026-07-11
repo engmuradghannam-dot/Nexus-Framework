@@ -118,3 +118,59 @@ class FormControl(models.Model):
 
     def __str__(self):
         return f"{self.form_name} / {self.input_name}"
+
+
+class SectorControl(models.Model):
+    """A sector-specific entity/control shown during company setup.
+
+    Example: sector 'Hospitality' -> entity 'Rooms' with its key fields.
+    """
+
+    sector = models.CharField(max_length=100, db_index=True)
+    entity = models.CharField(max_length=100)
+    description = models.CharField(max_length=300, blank=True)
+    fields = models.JSONField(default=list, blank=True)
+    module = models.CharField(max_length=100, blank=True)
+    icon = models.CharField(max_length=50, blank=True)
+    is_core = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "controls_sector_controls"
+        ordering = ["sector", "order", "entity"]
+        unique_together = ["sector", "entity"]
+
+    def __str__(self):
+        return f"{self.sector} / {self.entity}"
+
+
+class CompanySetup(models.Model):
+    """A saved company setup / registration (from the setup wizard)."""
+
+    company_name = models.CharField(max_length=200)
+    legal_name = models.CharField(max_length=200, blank=True)
+    company_code = models.CharField(max_length=30, unique=True)
+    sector = models.CharField(max_length=100, blank=True, db_index=True)
+    industry = models.CharField(max_length=150, blank=True)
+    sub_industry = models.CharField(max_length=150, blank=True)
+    company_type = models.CharField(max_length=50, blank=True)
+    country = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    currency = models.CharField(max_length=10, default="SAR")
+    language = models.CharField(max_length=30, default="Arabic")
+    timezone = models.CharField(max_length=50, default="Asia/Riyadh")
+    fiscal_year = models.CharField(max_length=30, blank=True)
+    tax_number = models.CharField(max_length=50, blank=True)
+    commercial_registration = models.CharField(max_length=50, blank=True)
+    enabled_modules = models.JSONField(default=list, blank=True)
+    departments = models.JSONField(default=list, blank=True)
+    enabled_entities = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "controls_company_setup"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.company_code} - {self.company_name}"

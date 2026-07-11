@@ -131,6 +131,11 @@ export const controlsApi = {
   industryControls: () => data(API.get('/controls/industry-controls/')),
   categories: () => data(API.get('/controls/industries/categories/')),
   industries: () => data(API.get('/controls/industries/')),
+  sectors: () => data(API.get('/controls/sector-controls/sectors/')),
+  sectorControls: (sector) =>
+    list(API.get('/controls/sector-controls/', { params: { sector, page_size: 100 } })),
+  saveCompanySetup: (payload) => data(API.post('/controls/company-setup/', payload)),
+  listCompanySetups: () => list(API.get('/controls/company-setup/')),
 }
 
 export const industryApi = {
