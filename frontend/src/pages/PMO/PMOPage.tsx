@@ -85,7 +85,16 @@ export default function PMOPage() {
     sortBy: 'startDate'
   });
 
-  const displayData = projects.length > 0 ? projects : demoProjects;
+  const displayData = (projects.length > 0 ? projects : demoProjects).map((p: any) => ({
+    team: [],
+    milestones: [],
+    objectives: [],
+    risks: [],
+    progress: 0,
+    budget: 0,
+    spent: 0,
+    ...p,
+  }));
 
   const handleSearch = (query: string) => setSearchQuery(query);
   const handleFilter = (newFilters: PMOFilters) => setFilters(newFilters);
