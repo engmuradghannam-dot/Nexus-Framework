@@ -47,6 +47,7 @@ urlpatterns = [
     path("api/i18n/", include("apps.i18n.urls")),
 
     path("api/controls/", include("apps.controls.urls")),
+    path("api/", include("apps.records.urls")),
 ]
 
 if settings.DEBUG:

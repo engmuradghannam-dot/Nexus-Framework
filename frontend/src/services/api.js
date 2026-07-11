@@ -161,3 +161,11 @@ export const chatApi = {
   getModels: () => data(API.get('/chat/models/')),
   clearHistory: (sessionId) => data(API.delete(`/chat/clear/${sessionId || ''}`)),
 }
+
+// ════════ Generic module records (real CRUD) ════════
+export const recordsApi = {
+  list: (module) => list(API.get('/records/', { params: { module, page_size: 500 } })),
+  create: (module, payload) => data(API.post('/records/', { module, data: payload })),
+  update: (id, module, payload) => data(API.put(`/records/${id}/`, { module, data: payload })),
+  remove: (id) => API.delete(`/records/${id}/`),
+}

@@ -110,6 +110,7 @@ LOCAL_APPS = [
     "apps.i18n",
 
     "apps.controls",
+    "apps.records",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
