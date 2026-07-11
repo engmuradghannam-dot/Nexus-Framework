@@ -34,9 +34,6 @@ const navGroups: NavGroup[] = [
       { path: '/pmo', icon: FolderKanban, label: 'إدارة المشاريع (PMO)' },
       { path: '/industry', icon: Building2, label: 'القطاعات الصناعية' },
       { path: '/ai', icon: BrainCircuit, label: 'محرك الذكاء الاصطناعي' },
-      { path: '/regulatory', icon: ShieldCheck, label: 'الامتثال التنظيمي' },
-      { path: '/controls', icon: ClipboardCheck, label: 'مكتبة الضوابط' },
-      { path: '/company-setup', icon: BadgeCheck, label: 'إعداد الشركة' },
     ],
   },
   {
@@ -66,10 +63,13 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'النظام',
+    label: 'الإعدادات',
     items: [
+      { path: '/company-setup', icon: BadgeCheck, label: 'إعداد الشركة' },
+      { path: '/controls', icon: ClipboardCheck, label: 'مكتبة الضوابط' },
+      { path: '/regulatory', icon: ShieldCheck, label: 'الامتثال التنظيمي' },
       { path: '/users', icon: Users, label: 'المستخدمين' },
-      { path: '/settings', icon: Settings, label: 'الإعدادات' },
+      { path: '/settings', icon: Settings, label: 'الإعدادات العامة' },
     ],
   },
 ];
