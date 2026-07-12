@@ -258,3 +258,10 @@ export const tenantsApi = {
   create: (payload) => data(API.post('/tenancy/tenants/', payload)),
   update: (id, payload) => data(API.patch(`/tenancy/tenants/${id}/`, payload)),
 }
+
+// ════════ Currencies / FX ════════
+export const currenciesApi = {
+  list: () => data(API.get('/fx/currencies/')),
+  convert: (amount, from, to) => data(API.get('/fx/currencies/convert/', { params: { amount, from, to } })),
+  update: (id, payload) => data(API.patch(`/fx/currencies/${id}/`, payload)),
+}

@@ -34,6 +34,7 @@ import AgingPage from './pages/Aging/AgingPage';
 import DepreciationPage from './pages/Depreciation/DepreciationPage';
 import BankingPage from './pages/Banking/BankingPage';
 import TenantsPage from './pages/Tenants/TenantsPage';
+import CurrenciesPage from './pages/Currencies/CurrenciesPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -116,6 +117,7 @@ function App() {
                 <Route path="/banking" element={<BankingPage />} />
                 <Route path="/trade" element={<DocumentsPage />} />
                 <Route path="/taxes" element={<TaxesPage />} />
+                <Route path="/currencies" element={<CurrenciesPage />} />
                 <Route path="/i18n" element={<I18nPage />} />
               </Route>
             </Route>

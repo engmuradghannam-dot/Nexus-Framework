@@ -62,6 +62,7 @@ urlpatterns = [
     path("api/depreciation/", include("apps.depreciation.urls")),
     path("api/banking/", include("apps.banking.urls")),
     path("api/tenancy/", include("apps.tenants.urls")),
+    path("api/fx/", include("apps.currencies.urls")),
 ]
 
 if settings.DEBUG:
