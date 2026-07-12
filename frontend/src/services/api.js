@@ -243,3 +243,10 @@ export const depreciationApi = {
   assets: () => list(API.get('/depreciation/assets/', { params: { page_size: 200 } })),
   schedule: (id) => data(API.get(`/depreciation/assets/${id}/schedule/`)),
 }
+
+// ════════ Banking & reconciliation ════════
+export const bankingApi = {
+  accounts: () => list(API.get('/banking/accounts/', { params: { page_size: 100 } })),
+  transactions: (account) => list(API.get('/banking/transactions/', { params: { account, page_size: 300 } })),
+  toggleReconcile: (id) => data(API.post(`/banking/transactions/${id}/toggle_reconcile/`)),
+}

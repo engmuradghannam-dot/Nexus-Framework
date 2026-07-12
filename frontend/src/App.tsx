@@ -32,6 +32,7 @@ import AccountingPage from './pages/Accounting/AccountingPage';
 import InvoicingPage from './pages/Invoicing/InvoicingPage';
 import AgingPage from './pages/Aging/AgingPage';
 import DepreciationPage from './pages/Depreciation/DepreciationPage';
+import BankingPage from './pages/Banking/BankingPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -110,6 +111,7 @@ function App() {
                 <Route path="/accounting" element={<AccountingPage />} />
                 <Route path="/invoicing" element={<InvoicingPage />} />
                 <Route path="/aging" element={<AgingPage />} />
+                <Route path="/banking" element={<BankingPage />} />
                 <Route path="/trade" element={<DocumentsPage />} />
                 <Route path="/taxes" element={<TaxesPage />} />
                 <Route path="/i18n" element={<I18nPage />} />

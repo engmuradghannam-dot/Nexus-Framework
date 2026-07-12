@@ -60,6 +60,7 @@ urlpatterns = [
     path("api/stock/", include("apps.stockledger.urls")),
     path("api/trade/", include("apps.trade.urls")),
     path("api/depreciation/", include("apps.depreciation.urls")),
+    path("api/banking/", include("apps.banking.urls")),
 ]
 
 if settings.DEBUG:
