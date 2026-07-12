@@ -190,6 +190,8 @@ export const invoicingApi = {
   list: () => list(API.get('/invoicing/invoices/', { params: { page_size: 200 } })),
   create: (payload) => data(API.post('/invoicing/invoices/', payload)),
   post: (id) => data(API.post(`/invoicing/invoices/${id}/post_to_ledger/`)),
+  aging: (type) => data(API.get("/invoicing/invoices/aging/", { params: { type } })),
+  recordPayment: (id, amount) => data(API.post(`/invoicing/invoices/${id}/record_payment/`, { amount })),
 }
 
 // ════════ RBAC (roles & permissions) ════════

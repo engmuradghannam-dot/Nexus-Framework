@@ -20,6 +20,8 @@ class Invoice(models.Model):
     zatca_category = models.CharField(max_length=1, default="S", blank=True)
     status = models.CharField(max_length=10, choices=STATUS, default="draft", db_index=True)
     notes = models.TextField(blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    paid_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -29,6 +31,11 @@ class Invoice(models.Model):
     def __str__(self):
         return f"{self.invoice_number} ({self.invoice_type})"
 
+    @property
+    def outstanding(self):
+        from decimal import Decimal
+        return Decimal(self.total or 0) - Decimal(self.paid_amount or 0)
+
     def recompute(self):
         sub = Decimal(self.subtotal or 0)
         self.tax_amount = (sub * Decimal(self.tax_rate or 0) / Decimal(100)).quantize(Decimal("0.01"))
@@ -36,6 +43,9 @@ class Invoice(models.Model):
 
     def save(self, *args, **kwargs):
         self.recompute()
+        if not self.due_date and self.invoice_date:
+            from datetime import timedelta
+            self.due_date = self.invoice_date + timedelta(days=30)
         super().save(*args, **kwargs)
 
     def post_to_ledger(self):

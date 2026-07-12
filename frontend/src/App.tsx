@@ -30,6 +30,7 @@ import ControlsPage from './pages/Controls/ControlsPage';
 import CompanySetupPage from './pages/CompanySetup/CompanySetupPage';
 import AccountingPage from './pages/Accounting/AccountingPage';
 import InvoicingPage from './pages/Invoicing/InvoicingPage';
+import AgingPage from './pages/Aging/AgingPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import DocumentsPage from './pages/Documents/DocumentsPage';
@@ -104,6 +105,7 @@ function App() {
                 <Route path="/valuation" element={<ValuationPage />} />
                 <Route path="/accounting" element={<AccountingPage />} />
                 <Route path="/invoicing" element={<InvoicingPage />} />
+                <Route path="/aging" element={<AgingPage />} />
                 <Route path="/trade" element={<DocumentsPage />} />
                 <Route path="/taxes" element={<TaxesPage />} />
                 <Route path="/i18n" element={<I18nPage />} />
