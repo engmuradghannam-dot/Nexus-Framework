@@ -17,7 +17,7 @@ class LanguageSerializer(serializers.ModelSerializer):
 class LanguageListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Language
-        fields = ["id", "code", "name", "name_local", "flag_emoji", "is_active", "is_default"]
+        fields = ["id", "code", "name", "name_local", "flag_emoji", "is_active", "is_default", "direction", "date_format", "decimal_separator"]
 
 
 class TranslationSerializer(serializers.ModelSerializer):
