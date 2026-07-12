@@ -48,6 +48,7 @@ class User(AbstractUser):
     job_title = models.CharField(max_length=100, blank=True)
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     is_department_head = models.BooleanField(default=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.SET_NULL, null=True, blank=True, related_name="users")
     permissions_level = models.PositiveSmallIntegerField(
         choices=[
             (1, "Viewer"),

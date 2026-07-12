@@ -5,6 +5,7 @@ from django.db import models
 
 
 class Invoice(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     TYPES = [("sales", "Sales"), ("purchase", "Purchase")]
     STATUS = [("draft", "Draft"), ("posted", "Posted"), ("cancelled", "Cancelled")]
 

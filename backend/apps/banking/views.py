@@ -5,9 +5,10 @@ from rest_framework.response import Response
 
 from .models import BankAccount, BankTransaction
 from .serializers import BankAccountSerializer, BankTransactionSerializer
+from apps.tenants.mixins import TenantScopedMixin
 
 
-class BankAccountViewSet(viewsets.ModelViewSet):
+class BankAccountViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = BankAccount.objects.all()
     serializer_class = BankAccountSerializer
 

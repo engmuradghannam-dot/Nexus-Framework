@@ -250,3 +250,11 @@ export const bankingApi = {
   transactions: (account) => list(API.get('/banking/transactions/', { params: { account, page_size: 300 } })),
   toggleReconcile: (id) => data(API.post(`/banking/transactions/${id}/toggle_reconcile/`)),
 }
+
+// ════════ Tenants (multi-tenancy) ════════
+export const tenantsApi = {
+  list: () => list(API.get('/tenancy/tenants/', { params: { page_size: 100 } })),
+  current: () => data(API.get('/tenancy/tenants/current/')),
+  create: (payload) => data(API.post('/tenancy/tenants/', payload)),
+  update: (id, payload) => data(API.patch(`/tenancy/tenants/${id}/`, payload)),
+}

@@ -8,9 +8,10 @@ from rest_framework.response import Response
 
 from .models import Invoice
 from .serializers import InvoiceSerializer
+from apps.tenants.mixins import TenantScopedMixin
 
 
-class InvoiceViewSet(viewsets.ModelViewSet):
+class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
     filter_backends = [DjangoFilterBackend]

@@ -5,6 +5,7 @@ from django.db import models
 
 
 class BankAccount(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     name = models.CharField(max_length=200)
     bank_name = models.CharField(max_length=200, blank=True)
     iban = models.CharField(max_length=40, blank=True)

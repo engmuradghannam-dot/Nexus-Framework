@@ -5,9 +5,10 @@ from rest_framework.response import Response
 
 from .models import TradeDoc
 from .serializers import TradeDocSerializer
+from apps.tenants.mixins import TenantScopedMixin
 
 
-class TradeDocViewSet(viewsets.ModelViewSet):
+class TradeDocViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = TradeDoc.objects.all()
     serializer_class = TradeDocSerializer
     filter_backends = [DjangoFilterBackend]

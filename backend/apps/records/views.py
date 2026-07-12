@@ -6,12 +6,13 @@ from rest_framework.response import Response
 
 from apps.audit.models import record_audit
 from apps.rbac.models import RoleAssignment, user_can
+from apps.tenants.mixins import TenantScopedMixin
 
 from .models import ModuleRecord
 from .serializers import ModuleRecordSerializer
 
 
-class ModuleRecordViewSet(viewsets.ModelViewSet):
+class ModuleRecordViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = ModuleRecord.objects.all()
     serializer_class = ModuleRecordSerializer
     filter_backends = [DjangoFilterBackend]
@@ -57,7 +58,11 @@ class ModuleRecordViewSet(viewsets.ModelViewSet):
         module = serializer.validated_data.get("module", "")
         self._enforce("create", module)
         user = self.request.user if self.request.user.is_authenticated else None
-        obj = serializer.save(created_by=user)
+        tenant = getattr(user, "tenant", None) if user else None
+        if tenant is not None:
+            obj = serializer.save(created_by=user, tenant=tenant)
+        else:
+            obj = serializer.save(created_by=user)
         record_audit(self.request, "create", obj.module, obj.pk, obj.data)
 
     def perform_update(self, serializer):

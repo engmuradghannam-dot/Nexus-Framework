@@ -33,6 +33,7 @@ import InvoicingPage from './pages/Invoicing/InvoicingPage';
 import AgingPage from './pages/Aging/AgingPage';
 import DepreciationPage from './pages/Depreciation/DepreciationPage';
 import BankingPage from './pages/Banking/BankingPage';
+import TenantsPage from './pages/Tenants/TenantsPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -92,6 +93,7 @@ function App() {
                 <Route path="/branches" element={<BranchesPage />} />
                 <Route path="/warehouses" element={<WarehousesPage />} />
                 <Route path="/users" element={<UsersPage />} />
+                <Route path="/tenants" element={<TenantsPage />} />
                 <Route path="/roles" element={<RolesPage />} />
                 <Route path="/security" element={<SecurityPage />} />
                 <Route path="/audit" element={<AuditPage />} />

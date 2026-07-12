@@ -12,6 +12,7 @@ from django.db import models
 
 
 class TradeDoc(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     TYPES = [
         ("quotation", "Quotation"),
         ("delivery", "Delivery Note"),

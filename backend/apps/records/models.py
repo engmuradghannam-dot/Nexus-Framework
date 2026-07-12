@@ -4,6 +4,7 @@ from django.db import models
 
 
 class ModuleRecord(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     module = models.CharField(max_length=50, db_index=True)
     data = models.JSONField(default=dict)
     created_by = models.ForeignKey(
