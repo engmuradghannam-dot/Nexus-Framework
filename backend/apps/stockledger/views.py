@@ -13,6 +13,32 @@ class StockMovementViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["item_code", "warehouse", "movement_type"]
 
+    @action(detail=False, methods=["post"])
+    def transfer(self, request):
+        """Transfer stock between warehouses: OUT of source + IN to destination."""
+        d = request.data
+        try:
+            qty = float(d.get("quantity") or 0)
+        except (TypeError, ValueError):
+            qty = 0
+        code = d.get("item_code", "")
+        src = d.get("from_warehouse", "")
+        dst = d.get("to_warehouse", "")
+        if qty <= 0 or not code or not src or not dst:
+            return Response({"success": False, "message": "أدخل الصنف والكمية والمستودعين"}, status=400)
+        if src == dst:
+            return Response({"success": False, "message": "المستودع المصدر والوجهة متطابقان"}, status=400)
+        from datetime import date as _date
+        name = d.get("item_name", "")
+        cost = d.get("unit_cost") or 0
+        day = d.get("date") or _date.today().isoformat()
+        ref = f"نقل {src}→{dst}"
+        StockMovement.objects.create(item_code=code, item_name=name, warehouse=src,
+            movement_type="out", quantity=qty, unit_cost=cost, date=day, reference=ref)
+        StockMovement.objects.create(item_code=code, item_name=name, warehouse=dst,
+            movement_type="in", quantity=qty, unit_cost=cost, date=day, reference=ref)
+        return Response({"success": True, "message": f"تم نقل {qty} من {src} إلى {dst}"})
+
     @action(detail=False, methods=["get"])
     def valuation(self, request):
         """Inventory valuation per item under FIFO / LIFO / Moving Average."""

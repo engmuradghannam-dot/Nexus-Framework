@@ -226,6 +226,7 @@ export const twofaApi = {
 
 // ════════ Stock valuation ════════
 export const stockApi = {
+  transfer: (payload) => data(API.post("/stock/movements/transfer/", payload)),
   valuation: () => data(API.get('/stock/movements/valuation/')),
   movements: () => list(API.get('/stock/movements/', { params: { page_size: 300 } })),
 }

@@ -33,6 +33,7 @@ import InvoicingPage from './pages/Invoicing/InvoicingPage';
 import AgingPage from './pages/Aging/AgingPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
+import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
 import DocumentsPage from './pages/Documents/DocumentsPage';
 import RolesPage from './pages/Roles/RolesPage';
 import AttendancePage from './pages/Attendance/AttendancePage';
@@ -103,6 +104,7 @@ function App() {
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/reorder" element={<ReorderPage />} />
                 <Route path="/valuation" element={<ValuationPage />} />
+                <Route path="/stock-movements" element={<StockMovementsPage />} />
                 <Route path="/accounting" element={<AccountingPage />} />
                 <Route path="/invoicing" element={<InvoicingPage />} />
                 <Route path="/aging" element={<AgingPage />} />

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderKanban, Building2, BrainCircuit, ShieldCheck, ClipboardCheck, Receipt, Languages, BadgeCheck,
   MapPin, Warehouse, Users, Settings, ChevronLeft, ChevronRight, Zap,
   ShoppingCart, Store, Factory, Boxes, Briefcase, HeartHandshake, Contact,
-  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle, Shield, Clock, ShieldCheck, Calculator, FileText, Wallet
+  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle, Shield, Clock, ShieldCheck, Calculator, FileText, Wallet, ArrowLeftRight
 } from 'lucide-react';
 
 interface NavGroup {
@@ -45,6 +45,7 @@ const navGroups: NavGroup[] = [
       { path: '/inventory', icon: Boxes, label: 'المخزون' },
       { path: '/reorder', icon: AlertTriangle, label: 'إعادة الطلب' },
       { path: '/valuation', icon: Calculator, label: 'تقييم المخزون' },
+      { path: '/stock-movements', icon: ArrowLeftRight, label: 'حركات المخزون' },
       { path: '/warehouses', icon: Warehouse, label: 'المستودعات' },
       { path: '/manufacturing', icon: Factory, label: 'التصنيع' },
       { path: '/assets', icon: Briefcase, label: 'الأصول' },
