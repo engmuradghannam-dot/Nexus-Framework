@@ -1,5 +1,5 @@
 // pages/Dashboard/DashboardPage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, TrendingUp, TrendingDown, Users, DollarSign, 
   Package, Briefcase, Activity, ArrowUpRight, BarChart3, PieChart,
@@ -11,15 +11,16 @@ import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
 import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { exportToCsv } from '../../utils/exportCsv';
+import { accountingApi, invoicingApi, recordsApi, auditApi } from '../../services/api';
 
-const statsData = [
+const defaultStats = [
   { title: 'إجمالي الإيرادات', value: '1,250,000 ر.س', trend: 'up' as const, trendValue: '+12.5%', icon: <DollarSign size={20} />, color: 'blue' as const },
   { title: 'الموظفين', value: '850', trend: 'up' as const, trendValue: '+5', icon: <Users size={20} />, color: 'green' as const },
   { title: 'المشاريع النشطة', value: '12', trend: 'neutral' as const, trendValue: '0%', icon: <Briefcase size={20} />, color: 'purple' as const },
   { title: 'الطلبات المعلقة', value: '45', trend: 'down' as const, trendValue: '-3', icon: <Package size={20} />, color: 'orange' as const },
 ];
 
-const recentActivity = [
+const defaultActivity = [
   { id: '1', type: 'project', title: 'إنشاء مشروع نظام ERP', user: 'أحمد العلي', time: 'منذ 5 دقائق', status: 'success' },
   { id: '2', type: 'inventory', title: 'تنبيه مخزون منخفض: لابتوب Dell', user: 'النظام', time: 'منذ 30 دقيقة', status: 'warning' },
   { id: '3', type: 'hr', title: 'موافقة على إجازة جديدة', user: 'سارة أحمد', time: 'منذ ساعة', status: 'info' },
@@ -36,6 +37,42 @@ const upcomingTasks = [
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState('month');
+  const [stats, setStats] = useState<any[]>(defaultStats);
+  const [activity, setActivity] = useState<any[]>(defaultActivity);
+
+  useEffect(() => {
+    const fmt = (n: any) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    Promise.allSettled([
+      accountingApi.financialStatements(),
+      invoicingApi.list(),
+      recordsApi.lowStock(),
+    ]).then(([fs, inv, low]: any) => {
+      const f = fs.status === 'fulfilled' ? fs.value : null;
+      const invoices = inv.status === 'fulfilled' ? inv.value : [];
+      const lowCount = low.status === 'fulfilled' ? (low.value.count || 0) : 0;
+      const income = f?.income_statement?.total_income;
+      const net = f?.income_statement?.net_income;
+      const assets = f?.balance_sheet?.total_assets;
+      const invTotal = invoices.reduce((a: number, i: any) => a + Number(i.total || 0), 0);
+      setStats([
+        { title: 'إجمالي الإيرادات', value: `${fmt(income)} ر.س`, trend: 'up' as const, trendValue: 'محاسبي', icon: <DollarSign size={20} />, color: 'blue' as const },
+        { title: 'صافي الدخل', value: `${fmt(net)} ر.س`, trend: (Number(net) >= 0 ? 'up' : 'down') as const, trendValue: Number(net) >= 0 ? 'ربح' : 'خسارة', icon: <TrendingUp size={20} />, color: (Number(net) >= 0 ? 'green' : 'orange') as const },
+        { title: 'إجمالي الأصول', value: `${fmt(assets)} ر.س`, trend: 'neutral' as const, trendValue: 'ميزانية', icon: <Briefcase size={20} />, color: 'purple' as const },
+        { title: 'تنبيهات المخزون', value: `${lowCount}`, trend: (lowCount > 0 ? 'down' : 'up') as const, trendValue: `${invoices.length} فاتورة`, icon: <AlertTriangle size={20} />, color: 'orange' as const },
+      ]);
+    }).catch(() => {});
+
+    auditApi.logs({ page_size: 6 }).then((logs: any[]) => {
+      if (!logs || !logs.length) return;
+      const actionAr: Record<string, string> = { create: 'إنشاء', update: 'تعديل', delete: 'حذف' };
+      const statusOf: Record<string, string> = { create: 'success', update: 'info', delete: 'warning' };
+      setActivity(logs.slice(0, 6).map((l, i) => ({
+        id: String(i), title: `${actionAr[l.action] || l.action} في ${l.module}`,
+        user: l.user_email || 'النظام', time: new Date(l.timestamp).toLocaleString('ar-SA'),
+        status: statusOf[l.action] || 'info',
+      })));
+    }).catch(() => {});
+  }, []);
 
   const activityColumns = [
     { key: 'title', label: 'النشاط', render: (v: string, row: any) => (
@@ -58,7 +95,7 @@ export default function DashboardPage() {
         subtitle="نظرة عامة على أداء المؤسسة"
         commands={[
           { id: 'refresh', label: 'تحديث', icon: <Clock size={16} />, variant: 'secondary', onClick: () => window.location.reload() },
-          { id: 'export', label: 'تصدير', icon: <BarChart3 size={16} />, variant: 'secondary', onClick: () => exportToCsv(statsData, 'dashboard.csv') },
+          { id: 'export', label: 'تصدير', icon: <BarChart3 size={16} />, variant: 'secondary', onClick: () => exportToCsv(stats, 'dashboard.csv') },
           { id: 'new', label: 'نشاط جديد', icon: <ArrowUpRight size={16} />, variant: 'primary', onClick: () => window.location.reload() },
         ]}
       />
@@ -85,7 +122,7 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {statsData.map((stat) => (
+          {stats.map((stat) => (
             <FluentStatsCard key={stat.title} {...stat} />
           ))}
         </div>
@@ -97,7 +134,7 @@ export default function DashboardPage() {
             <FluentCard title="النشاط الأخير" subtitle="آخر التحديثات في النظام">
               <FluentTable
                 columns={activityColumns}
-                data={recentActivity}
+                data={activity}
                 emptyMessage="لا توجد أنشطة حديثة"
               />
             </FluentCard>
