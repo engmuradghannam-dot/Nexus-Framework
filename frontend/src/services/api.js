@@ -199,3 +199,8 @@ export const rbacApi = {
   updateRole: (id, permissions) => data(API.patch(`/rbac/roles/${id}/`, { permissions })),
   myPermissions: () => data(API.get('/rbac/roles/my_permissions/')),
 }
+
+// ════════ Tax templates (ZATCA) ════════
+export const taxApi = {
+  templates: () => data(API.get('/taxes/templates/')),
+}

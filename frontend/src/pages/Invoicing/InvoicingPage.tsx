@@ -8,7 +8,7 @@ import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
 import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentPanel } from '../../components/FluentUI/FluentPanel';
 import { FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
-import { invoicingApi } from '../../services/api';
+import { invoicingApi, taxApi } from '../../services/api';
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -18,12 +18,14 @@ export default function InvoicingPage() {
   const [showPanel, setShowPanel] = useState(false);
   const [form, setForm] = useState<any>({});
   const [msg, setMsg] = useState('');
+  const [templates, setTemplates] = useState<any[]>([]);
 
   const reload = () => {
     setLoading(true);
     invoicingApi.list().then(setInvoices).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(reload, []);
+  useEffect(() => { taxApi.templates().then(setTemplates).catch(() => {}); }, []);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
   const sub = Number(form.subtotal || 0);
@@ -101,6 +103,15 @@ export default function InvoicingPage() {
           <FluentFormField label="الطرف (عميل/مورّد)"><FluentInput value={form.party_name || ''} onChange={(e) => set('party_name', e.target.value)} /></FluentFormField>
           <FluentFormField label="التاريخ"><FluentInput type="date" value={form.invoice_date || ''} onChange={(e) => set('invoice_date', e.target.value)} /></FluentFormField>
           <FluentFormField label="المبلغ الأساسي"><FluentInput type="number" value={form.subtotal || ''} onChange={(e) => set('subtotal', e.target.value)} /></FluentFormField>
+          <FluentFormField label="قالب الضريبة (ZATCA)">
+            <FluentSelect value={form.tax_template || ''} onChange={(e) => {
+              const t = templates.find((x) => String(x.id) === e.target.value);
+              if (t) { set('tax_template', e.target.value); set('tax_rate', t.rate); set('zatca_category', t.zatca_category); }
+            }}>
+              <option value="">— اختر قالباً —</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name_ar || t.name} — {t.rate}% ({t.zatca_category})</option>)}
+            </FluentSelect>
+          </FluentFormField>
           <FluentFormField label="نسبة الضريبة %"><FluentInput type="number" value={form.tax_rate ?? 15} onChange={(e) => set('tax_rate', e.target.value)} /></FluentFormField>
           <div className="rounded-md bg-[#f3f2f1] p-3 text-sm space-y-1">
             <div className="flex justify-between text-[#605e5c]"><span>الضريبة ({rate}%)</span><span className="font-mono">{fmt(tax)}</span></div>

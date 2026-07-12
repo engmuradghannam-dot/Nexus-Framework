@@ -135,3 +135,15 @@ class TaxCalculationViewSet(viewsets.ModelViewSet):
             "is_b2b": calc.is_b2b,
         }
         return Response(output, status=status.HTTP_200_OK)
+
+
+from rest_framework import viewsets as _viewsets  # noqa: E402
+
+from .models import TaxTemplate  # noqa: E402
+from .serializers import TaxTemplateSerializer  # noqa: E402
+
+
+class TaxTemplateViewSet(_viewsets.ModelViewSet):
+    queryset = TaxTemplate.objects.filter(is_active=True)
+    serializer_class = TaxTemplateSerializer
+    pagination_class = None

@@ -203,3 +203,29 @@ class TaxCalculation(models.Model):
         self.total_amount = self.base_amount + self.tax_amount
         self.status = "calculated"
         return self
+
+
+class TaxTemplate(models.Model):
+    """A reusable, ZATCA-aligned VAT tax template applied to transactions."""
+
+    CATEGORY_CHOICES = [
+        ("S", "Standard Rated"),
+        ("Z", "Zero Rated"),
+        ("E", "Exempt"),
+        ("O", "Out of Scope"),
+    ]
+
+    name = models.CharField(max_length=100)
+    name_ar = models.CharField(max_length=100, blank=True)
+    rate = models.DecimalField(max_digits=5, decimal_places=2, default=15)
+    zatca_category = models.CharField(max_length=1, choices=CATEGORY_CHOICES, default="S")
+    description = models.CharField(max_length=255, blank=True)
+    is_default = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "tax_templates"
+        ordering = ["-is_default", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.rate}%)"

@@ -95,3 +95,14 @@ class TaxCalculatorOutputSerializer(serializers.Serializer):
     total_amount = serializers.DecimalField(max_digits=15, decimal_places=2)
     applied_rates = serializers.ListField(child=serializers.DictField())
     is_b2b = serializers.BooleanField()
+
+
+from .models import TaxTemplate  # noqa: E402
+
+
+class TaxTemplateSerializer(serializers.ModelSerializer):
+    zatca_category_display = serializers.CharField(source="get_zatca_category_display", read_only=True)
+
+    class Meta:
+        model = TaxTemplate
+        fields = ["id", "name", "name_ar", "rate", "zatca_category", "zatca_category_display", "description", "is_default", "is_active"]

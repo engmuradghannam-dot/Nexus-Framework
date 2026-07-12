@@ -17,6 +17,7 @@ class Invoice(models.Model):
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=15)
     tax_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    zatca_category = models.CharField(max_length=1, default="S", blank=True)
     status = models.CharField(max_length=10, choices=STATUS, default="draft", db_index=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
