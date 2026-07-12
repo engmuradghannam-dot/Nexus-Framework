@@ -25,6 +25,29 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             status=200 if ok else 400,
         )
 
+    @action(detail=True, methods=["get"])
+    def zatca_qr(self, request, pk=None):
+        """ZATCA Phase-1 QR (base64 TLV) + the fields needed to print the invoice."""
+        from datetime import datetime
+
+        from apps.core.models import Company
+
+        from .zatca import zatca_qr_base64
+
+        invoice = self.get_object()
+        company = Company.objects.order_by("id").first()
+        seller = getattr(company, "name", "") or "Nexus Company"
+        vat_number = getattr(company, "vat_number", "") or getattr(company, "tax_number", "") or "300000000000003"
+        ts = datetime.combine(invoice.invoice_date, datetime.min.time()).isoformat()
+        qr = zatca_qr_base64(seller, vat_number, ts, invoice.total, invoice.tax_amount)
+        return Response({
+            "qr": qr,
+            "seller_name": seller,
+            "vat_number": vat_number,
+            "timestamp": ts,
+            "invoice": self.get_serializer(invoice).data,
+        })
+
     @action(detail=True, methods=["post"])
     def record_payment(self, request, pk=None):
         invoice = self.get_object()

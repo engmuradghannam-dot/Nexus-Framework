@@ -1,6 +1,6 @@
 // pages/Invoicing/InvoicingPage.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { Receipt, Plus, RefreshCw, CheckCircle, Send } from 'lucide-react';
+import { Receipt, Plus, RefreshCw, CheckCircle, Send, Printer } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
@@ -9,6 +9,7 @@ import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentPanel } from '../../components/FluentUI/FluentPanel';
 import { FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
 import { invoicingApi, taxApi } from '../../services/api';
+import { printInvoice } from '../../utils/printInvoice';
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -40,6 +41,8 @@ export default function InvoicingPage() {
       setShowPanel(false); reload();
     } catch { alert('تعذّر الحفظ — تأكد من رقم الفاتورة والمبلغ.'); }
   };
+
+  const doPrint = async (id: number) => { try { const d = await invoicingApi.zatcaQr(id); await printInvoice(d); } catch { alert('تعذّرت الطباعة'); } };
 
   const postLedger = async (id: number) => {
     try {
@@ -83,9 +86,14 @@ export default function InvoicingPage() {
             { key: 'total', label: 'الإجمالي', render: (v: any) => fmt(v) },
             { key: 'status', label: 'الحالة', render: (v: string) => <FluentBadge label={v === 'posted' ? 'مُرحّلة' : v === 'draft' ? 'مسودة' : 'ملغاة'} variant={v === 'posted' ? 'success' : 'warning'} size="small" /> },
             {
-              key: '__post', label: '', render: (_: any, row: any) => row.status === 'draft'
-                ? <button onClick={(e) => { e.stopPropagation(); postLedger(row.id); }} className="flex items-center gap-1 text-xs text-white bg-[#0078d4] px-2 py-1 rounded hover:bg-[#106ebe]"><Send size={12} /> ترحيل</button>
-                : <span className="text-xs text-[#107c10]">✓ مُرحّلة</span>
+              key: '__post', label: '', render: (_: any, row: any) => (
+                <div className="flex items-center gap-1 justify-end">
+                  <button onClick={(e) => { e.stopPropagation(); doPrint(row.id); }} title="طباعة / PDF" className="flex items-center gap-1 text-xs text-[#0078d4] border border-[#0078d4] px-2 py-1 rounded hover:bg-[#eff6fc]"><Printer size={12} /> طباعة</button>
+                  {row.status === 'draft'
+                    ? <button onClick={(e) => { e.stopPropagation(); postLedger(row.id); }} className="flex items-center gap-1 text-xs text-white bg-[#0078d4] px-2 py-1 rounded hover:bg-[#106ebe]"><Send size={12} /> ترحيل</button>
+                    : <span className="text-xs text-[#107c10]">✓ مُرحّلة</span>}
+                </div>
+              )
             },
           ]}
           data={invoices}
