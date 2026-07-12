@@ -5,6 +5,7 @@ from django.db import models
 
 
 class DepreciableAsset(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     METHODS = [("straight_line", "Straight Line"), ("declining", "Declining Balance")]
 
     name = models.CharField(max_length=200)

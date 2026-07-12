@@ -4,6 +4,7 @@ from apps.core.models import Company
 
 
 class Account(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     ACCOUNT_TYPES = [
         ("Asset", "Asset"),
         ("Liability", "Liability"),
@@ -58,6 +59,7 @@ class Account(models.Model):
 
 
 class JournalEntry(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     JOURNAL_TYPES = [
         ("Journal Entry", "Journal Entry"),
         ("Bank Entry", "Bank Entry"),
@@ -171,6 +173,7 @@ class JournalEntryLine(models.Model):
 
 
 class CostCenter(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     company = models.ForeignKey(
         Company, on_delete=models.CASCADE, related_name="cost_centers"
     )
@@ -185,6 +188,7 @@ class CostCenter(models.Model):
 
 
 class Budget(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     STATUS_CHOICES = [("Draft", "Draft"), ("Active", "Active"), ("Closed", "Closed")]
 
     company = models.ForeignKey(

@@ -3,16 +3,17 @@ from rest_framework import viewsets
 
 from .models import Attendance, Timesheet
 from .serializers import AttendanceSerializer, TimesheetSerializer
+from apps.tenants.mixins import TenantScopedMixin
 
 
-class AttendanceViewSet(viewsets.ModelViewSet):
+class AttendanceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["status", "date", "employee_no"]
 
 
-class TimesheetViewSet(viewsets.ModelViewSet):
+class TimesheetViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = Timesheet.objects.all()
     serializer_class = TimesheetSerializer
     filter_backends = [DjangoFilterBackend]

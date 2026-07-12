@@ -3,6 +3,7 @@ from django.db import models
 
 
 class StockMovement(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     TYPES = [("in", "Receipt"), ("out", "Issue")]
 
     item_code = models.CharField(max_length=50, db_index=True)

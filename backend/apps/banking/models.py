@@ -40,6 +40,7 @@ class BankAccount(models.Model):
 
 
 class BankTransaction(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     DIRECTION = [("in", "Deposit"), ("out", "Withdrawal")]
 
     account = models.ForeignKey(BankAccount, on_delete=models.CASCADE, related_name="transactions")

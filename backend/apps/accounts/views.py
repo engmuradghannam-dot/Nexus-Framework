@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.mixins import CompanyScopedMixin
+from apps.tenants.mixins import TenantScopedMixin
 
 from .models import Account, Budget, CostCenter, JournalEntry
 from .serializers import (
@@ -16,7 +17,7 @@ from .serializers import (
 )
 
 
-class AccountViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+class AccountViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
     filter_backends = [DjangoFilterBackend]
@@ -127,19 +128,19 @@ class AccountViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
         })
 
 
-class JournalEntryViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+class JournalEntryViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = JournalEntry.objects.all()
     serializer_class = JournalEntrySerializer
     company_field = "company"
 
 
-class CostCenterViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+class CostCenterViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = CostCenter.objects.all()
     serializer_class = CostCenterSerializer
     company_field = "company"
 
 
-class BudgetViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+class BudgetViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = Budget.objects.all()
     serializer_class = BudgetSerializer
     filterset_fields = ["fiscal_year", "status", "cost_center", "account"]

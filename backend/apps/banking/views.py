@@ -13,7 +13,7 @@ class BankAccountViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     serializer_class = BankAccountSerializer
 
 
-class BankTransactionViewSet(viewsets.ModelViewSet):
+class BankTransactionViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = BankTransaction.objects.all()
     serializer_class = BankTransactionSerializer
     filter_backends = [DjangoFilterBackend]

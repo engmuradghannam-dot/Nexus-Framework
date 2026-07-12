@@ -5,6 +5,7 @@ from django.db import models
 
 
 class Attendance(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     STATUS = [("present", "Present"), ("late", "Late"), ("absent", "Absent"), ("leave", "On Leave")]
 
     employee_no = models.CharField(max_length=50, blank=True)
@@ -36,6 +37,7 @@ class Attendance(models.Model):
 
 
 class Timesheet(models.Model):
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     employee_name = models.CharField(max_length=200)
     date = models.DateField(db_index=True)
     project = models.CharField(max_length=200, blank=True)

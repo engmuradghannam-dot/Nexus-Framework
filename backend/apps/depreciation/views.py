@@ -4,9 +4,10 @@ from rest_framework.response import Response
 
 from .models import DepreciableAsset
 from .serializers import DepreciableAssetSerializer
+from apps.tenants.mixins import TenantScopedMixin
 
 
-class DepreciableAssetViewSet(viewsets.ModelViewSet):
+class DepreciableAssetViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = DepreciableAsset.objects.all()
     serializer_class = DepreciableAssetSerializer
 

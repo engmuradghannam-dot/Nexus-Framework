@@ -5,9 +5,10 @@ from rest_framework.response import Response
 
 from .models import StockMovement, valuate
 from .serializers import StockMovementSerializer
+from apps.tenants.mixins import TenantScopedMixin
 
 
-class StockMovementViewSet(viewsets.ModelViewSet):
+class StockMovementViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
     filter_backends = [DjangoFilterBackend]
