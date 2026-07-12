@@ -5,9 +5,9 @@ from apps.records.models import ModuleRecord
 
 SAMPLES = {
     "inventory": [
-        {"item_code": "IT-1001", "sku": "SKU-1001", "arabic_name": "لابتوب ديل", "english_name": "Dell Laptop", "category": "إلكترونيات", "unit": "قطعة", "cost": 3200, "selling_price": 4100, "min_stock": 5, "max_stock": 50, "warehouse": "الرياض"},
-        {"item_code": "IT-1002", "sku": "SKU-1002", "arabic_name": "طابعة HP", "english_name": "HP Printer", "category": "إلكترونيات", "unit": "قطعة", "cost": 850, "selling_price": 1200, "min_stock": 3, "max_stock": 30, "warehouse": "جدة"},
-        {"item_code": "IT-1003", "sku": "SKU-1003", "arabic_name": "كرسي مكتب", "english_name": "Office Chair", "category": "أثاث", "unit": "قطعة", "cost": 400, "selling_price": 650, "min_stock": 10, "max_stock": 100, "warehouse": "الدمام"},
+        {"item_code": "IT-1001", "sku": "SKU-1001", "arabic_name": "لابتوب ديل", "english_name": "Dell Laptop", "category": "إلكترونيات", "unit": "قطعة", "cost": 3200, "selling_price": 4100, "min_stock": 5, "max_stock": 50, "current_stock": 32, "reorder_level": 10, "warehouse": "الرياض"},
+        {"item_code": "IT-1002", "sku": "SKU-1002", "arabic_name": "طابعة HP", "english_name": "HP Printer", "category": "إلكترونيات", "unit": "قطعة", "cost": 850, "selling_price": 1200, "min_stock": 3, "max_stock": 30, "current_stock": 2, "reorder_level": 5, "warehouse": "جدة"},
+        {"item_code": "IT-1003", "sku": "SKU-1003", "arabic_name": "كرسي مكتب", "english_name": "Office Chair", "category": "أثاث", "unit": "قطعة", "cost": 400, "selling_price": 650, "min_stock": 10, "max_stock": 100, "current_stock": 8, "reorder_level": 15, "warehouse": "الدمام"},
     ],
     "crm": [
         {"customer_code": "C-2001", "customer_name": "شركة الأفق للتجارة", "type": "Company", "phone": "0551234567", "email": "info@alufuq.sa", "city": "الرياض", "country": "Saudi Arabia", "salesperson": "خالد", "credit_limit": 100000, "status": "Active"},

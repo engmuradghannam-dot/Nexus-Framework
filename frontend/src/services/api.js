@@ -165,6 +165,7 @@ export const chatApi = {
 // ════════ Generic module records (real CRUD) ════════
 export const recordsApi = {
   list: (module) => list(API.get('/records/', { params: { module, page_size: 500 } })),
+  lowStock: () => data(API.get('/records/low_stock/')),
   create: (module, payload) => data(API.post('/records/', { module, data: payload })),
   update: (id, module, payload) => data(API.put(`/records/${id}/`, { module, data: payload })),
   remove: (id) => API.delete(`/records/${id}/`),

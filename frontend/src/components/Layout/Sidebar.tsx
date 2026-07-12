@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderKanban, Building2, BrainCircuit, ShieldCheck, ClipboardCheck, Receipt, Languages, BadgeCheck,
   MapPin, Warehouse, Users, Settings, ChevronLeft, ChevronRight, Zap,
   ShoppingCart, Store, Factory, Boxes, Briefcase, HeartHandshake, Contact,
-  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon
+  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle
 } from 'lucide-react';
 
 interface NavGroup {
@@ -43,6 +43,7 @@ const navGroups: NavGroup[] = [
       { path: '/selling', icon: ShoppingCart, label: 'المبيعات' },
       { path: '/buying', icon: Store, label: 'المشتريات' },
       { path: '/inventory', icon: Boxes, label: 'المخزون' },
+      { path: '/reorder', icon: AlertTriangle, label: 'إعادة الطلب' },
       { path: '/warehouses', icon: Warehouse, label: 'المستودعات' },
       { path: '/manufacturing', icon: Factory, label: 'التصنيع' },
       { path: '/assets', icon: Briefcase, label: 'الأصول' },

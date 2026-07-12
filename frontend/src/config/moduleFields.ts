@@ -74,6 +74,8 @@ export const MODULE_FIELDS: Record<string, FieldDef[]> = {
     { key: 'selling_price', label: 'سعر البيع', type: 'number' },
     { key: 'min_stock', label: 'الحد الأدنى', type: 'number' },
     { key: 'max_stock', label: 'الحد الأقصى', type: 'number' },
+    { key: 'current_stock', label: 'المخزون الحالي', type: 'number' },
+    { key: 'reorder_level', label: 'حد إعادة الطلب', type: 'number' },
     { key: 'warehouse', label: 'المستودع' },
   ],
   warehouses: [
