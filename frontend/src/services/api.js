@@ -220,3 +220,9 @@ export const twofaApi = {
   verify: (code) => data(API.post('/security/2fa/verify/', { code })),
   disable: () => data(API.post('/security/2fa/disable/')),
 }
+
+// ════════ Stock valuation ════════
+export const stockApi = {
+  valuation: () => data(API.get('/stock/movements/valuation/')),
+  movements: () => list(API.get('/stock/movements/', { params: { page_size: 300 } })),
+}

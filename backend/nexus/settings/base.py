@@ -116,6 +116,7 @@ LOCAL_APPS = [
     "apps.rbac",
     "apps.attendance",
     "apps.twofa",
+    "apps.stockledger",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
