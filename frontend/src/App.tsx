@@ -32,6 +32,7 @@ import AccountingPage from './pages/Accounting/AccountingPage';
 import InvoicingPage from './pages/Invoicing/InvoicingPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import RolesPage from './pages/Roles/RolesPage';
+import AttendancePage from './pages/Attendance/AttendancePage';
 import AuditPage from './pages/Audit/AuditPage';
 import TaxesPage from './pages/Taxes/TaxesPage';
 import I18nPage from './pages/I18n/I18nPage';
@@ -93,6 +94,7 @@ function App() {
                 <Route path="/manufacturing" element={<ManufacturingPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/hr" element={<HRPage />} />
+                <Route path="/attendance" element={<AttendancePage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/reorder" element={<ReorderPage />} />
                 <Route path="/accounting" element={<AccountingPage />} />

@@ -204,3 +204,11 @@ export const rbacApi = {
 export const taxApi = {
   templates: () => data(API.get('/taxes/templates/')),
 }
+
+// ════════ Attendance & Timesheets ════════
+export const attendanceApi = {
+  attendance: () => list(API.get('/hr/attendance/', { params: { page_size: 200 } })),
+  timesheets: () => list(API.get('/hr/timesheets/', { params: { page_size: 200 } })),
+  createAttendance: (payload) => data(API.post('/hr/attendance/', payload)),
+  createTimesheet: (payload) => data(API.post('/hr/timesheets/', payload)),
+}
