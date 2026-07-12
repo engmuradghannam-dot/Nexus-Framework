@@ -191,3 +191,11 @@ export const invoicingApi = {
   create: (payload) => data(API.post('/invoicing/invoices/', payload)),
   post: (id) => data(API.post(`/invoicing/invoices/${id}/post_to_ledger/`)),
 }
+
+// ════════ RBAC (roles & permissions) ════════
+export const rbacApi = {
+  roles: () => list(API.get('/rbac/roles/')),
+  catalog: () => data(API.get('/rbac/roles/catalog/')),
+  updateRole: (id, permissions) => data(API.patch(`/rbac/roles/${id}/`, { permissions })),
+  myPermissions: () => data(API.get('/rbac/roles/my_permissions/')),
+}

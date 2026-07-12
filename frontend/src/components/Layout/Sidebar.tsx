@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderKanban, Building2, BrainCircuit, ShieldCheck, ClipboardCheck, Receipt, Languages, BadgeCheck,
   MapPin, Warehouse, Users, Settings, ChevronLeft, ChevronRight, Zap,
   ShoppingCart, Store, Factory, Boxes, Briefcase, HeartHandshake, Contact,
-  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle
+  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle, Shield
 } from 'lucide-react';
 
 interface NavGroup {
@@ -72,6 +72,7 @@ const navGroups: NavGroup[] = [
       { path: '/controls', icon: ClipboardCheck, label: 'مكتبة الضوابط' },
       { path: '/regulatory', icon: ShieldCheck, label: 'الامتثال التنظيمي' },
       { path: '/users', icon: Users, label: 'المستخدمين' },
+      { path: '/roles', icon: Shield, label: 'الأدوار والصلاحيات' },
       { path: '/audit', icon: History, label: 'سجل التدقيق' },
       { path: '/settings', icon: Settings, label: 'الإعدادات العامة' },
     ],

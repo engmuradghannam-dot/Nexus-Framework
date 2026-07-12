@@ -1,9 +1,11 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.audit.models import record_audit
+from apps.rbac.models import RoleAssignment, user_can
 
 from .models import ModuleRecord
 from .serializers import ModuleRecordSerializer
@@ -15,6 +17,16 @@ class ModuleRecordViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["module"]
 
+    def _enforce(self, module_action, module):
+        """RBAC on writes. Superusers bypass; users with NO roles are
+        grandfathered (not locked out); users WITH roles are enforced."""
+        u = self.request.user
+        if u.is_superuser:
+            return
+        if not RoleAssignment.objects.filter(user=u).exists():
+            return
+        if not user_can(u, module, module_action):
+            raise PermissionDenied(f"لا تملك صلاحية {module_action} على {module}")
 
     @action(detail=False, methods=["get"])
     def low_stock(self, request):
@@ -42,14 +54,18 @@ class ModuleRecordViewSet(viewsets.ModelViewSet):
         return Response({"count": len(alerts), "alerts": alerts})
 
     def perform_create(self, serializer):
+        module = serializer.validated_data.get("module", "")
+        self._enforce("create", module)
         user = self.request.user if self.request.user.is_authenticated else None
         obj = serializer.save(created_by=user)
         record_audit(self.request, "create", obj.module, obj.pk, obj.data)
 
     def perform_update(self, serializer):
+        self._enforce("edit", serializer.instance.module)
         obj = serializer.save()
         record_audit(self.request, "update", obj.module, obj.pk, obj.data)
 
     def perform_destroy(self, instance):
+        self._enforce("delete", instance.module)
         record_audit(self.request, "delete", instance.module, instance.pk, instance.data)
         instance.delete()
