@@ -56,6 +56,7 @@ urlpatterns = [
     path("api/invoicing/", include("apps.invoicing.urls")),
     path("api/rbac/", include("apps.rbac.urls")),
     path("api/hr/", include("apps.attendance.urls")),
+    path("api/security/", include("apps.twofa.urls")),
 ]
 
 if settings.DEBUG:

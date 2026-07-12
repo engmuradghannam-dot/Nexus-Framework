@@ -212,3 +212,11 @@ export const attendanceApi = {
   createAttendance: (payload) => data(API.post('/hr/attendance/', payload)),
   createTimesheet: (payload) => data(API.post('/hr/timesheets/', payload)),
 }
+
+// ════════ Two-factor auth ════════
+export const twofaApi = {
+  status: () => data(API.get('/security/2fa/status/')),
+  setup: () => data(API.post('/security/2fa/setup/')),
+  verify: (code) => data(API.post('/security/2fa/verify/', { code })),
+  disable: () => data(API.post('/security/2fa/disable/')),
+}

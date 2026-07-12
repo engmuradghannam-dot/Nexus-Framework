@@ -33,6 +33,7 @@ import InvoicingPage from './pages/Invoicing/InvoicingPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import RolesPage from './pages/Roles/RolesPage';
 import AttendancePage from './pages/Attendance/AttendancePage';
+import SecurityPage from './pages/Security/SecurityPage';
 import AuditPage from './pages/Audit/AuditPage';
 import TaxesPage from './pages/Taxes/TaxesPage';
 import I18nPage from './pages/I18n/I18nPage';
@@ -86,6 +87,7 @@ function App() {
                 <Route path="/warehouses" element={<WarehousesPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/roles" element={<RolesPage />} />
+                <Route path="/security" element={<SecurityPage />} />
                 <Route path="/audit" element={<AuditPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/crm" element={<CRMPage />} />
