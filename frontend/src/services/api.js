@@ -237,3 +237,9 @@ export const tradeApi = {
   create: (payload) => data(API.post('/trade/documents/', payload)),
   process: (id) => data(API.post(`/trade/documents/${id}/process/`)),
 }
+
+// ════════ Depreciation ════════
+export const depreciationApi = {
+  assets: () => list(API.get('/depreciation/assets/', { params: { page_size: 200 } })),
+  schedule: (id) => data(API.get(`/depreciation/assets/${id}/schedule/`)),
+}

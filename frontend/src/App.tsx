@@ -31,6 +31,7 @@ import CompanySetupPage from './pages/CompanySetup/CompanySetupPage';
 import AccountingPage from './pages/Accounting/AccountingPage';
 import InvoicingPage from './pages/Invoicing/InvoicingPage';
 import AgingPage from './pages/Aging/AgingPage';
+import DepreciationPage from './pages/Depreciation/DepreciationPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -99,6 +100,7 @@ function App() {
                 <Route path="/buying" element={<BuyingPage />} />
                 <Route path="/manufacturing" element={<ManufacturingPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
+                <Route path="/depreciation" element={<DepreciationPage />} />
                 <Route path="/hr" element={<HRPage />} />
                 <Route path="/attendance" element={<AttendancePage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
