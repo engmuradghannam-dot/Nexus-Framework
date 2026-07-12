@@ -226,3 +226,10 @@ export const stockApi = {
   valuation: () => data(API.get('/stock/movements/valuation/')),
   movements: () => list(API.get('/stock/movements/', { params: { page_size: 300 } })),
 }
+
+// ════════ Trade documents ════════
+export const tradeApi = {
+  list: () => list(API.get('/trade/documents/', { params: { page_size: 200 } })),
+  create: (payload) => data(API.post('/trade/documents/', payload)),
+  process: (id) => data(API.post(`/trade/documents/${id}/process/`)),
+}

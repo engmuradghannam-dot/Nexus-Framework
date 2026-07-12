@@ -58,6 +58,7 @@ urlpatterns = [
     path("api/hr/", include("apps.attendance.urls")),
     path("api/security/", include("apps.twofa.urls")),
     path("api/stock/", include("apps.stockledger.urls")),
+    path("api/trade/", include("apps.trade.urls")),
 ]
 
 if settings.DEBUG:
