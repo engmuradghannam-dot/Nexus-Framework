@@ -1,0 +1,16 @@
+{
+  "name": "Nexus Framework ERP",
+  "short_name": "Nexus",
+  "description": "نظام تخطيط موارد المؤسسات — Enterprise Command Center",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf9f8",
+  "theme_color": "#0078d4",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/static/nexus-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

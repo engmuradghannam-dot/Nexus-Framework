@@ -178,3 +178,8 @@ export const accountingApi = {
   journalEntries: () => list(API.get('/accounts/journal-entries/', { params: { page_size: 200 } })),
   generalLedger: (id) => data(API.get(`/accounts/accounts/${id}/general_ledger/`)),
 }
+
+// ════════ Audit trail ════════
+export const auditApi = {
+  logs: (params = {}) => list(API.get('/audit/logs/', { params: { page_size: 200, ...params } })),
+}

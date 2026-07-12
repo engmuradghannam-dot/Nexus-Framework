@@ -7,6 +7,8 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import Http404, HttpResponse
 from django.urls import include, path, re_path
+
+from nexus import pwa
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.core.admin_site import admin_site
@@ -23,6 +25,8 @@ def spa_index(request):
 
 
 urlpatterns = [
+    path("sw.js", pwa.service_worker),
+    path("manifest.webmanifest", pwa.manifest),
     path("admin/", admin_site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
@@ -48,6 +52,7 @@ urlpatterns = [
 
     path("api/controls/", include("apps.controls.urls")),
     path("api/", include("apps.records.urls")),
+    path("api/audit/", include("apps.audit.urls")),
 ]
 
 if settings.DEBUG:
