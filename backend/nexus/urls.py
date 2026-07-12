@@ -53,6 +53,7 @@ urlpatterns = [
     path("api/controls/", include("apps.controls.urls")),
     path("api/", include("apps.records.urls")),
     path("api/audit/", include("apps.audit.urls")),
+    path("api/invoicing/", include("apps.invoicing.urls")),
 ]
 
 if settings.DEBUG:

@@ -183,3 +183,10 @@ export const accountingApi = {
 export const auditApi = {
   logs: (params = {}) => list(API.get('/audit/logs/', { params: { page_size: 200, ...params } })),
 }
+
+// ════════ Invoicing ════════
+export const invoicingApi = {
+  list: () => list(API.get('/invoicing/invoices/', { params: { page_size: 200 } })),
+  create: (payload) => data(API.post('/invoicing/invoices/', payload)),
+  post: (id) => data(API.post(`/invoicing/invoices/${id}/post_to_ledger/`)),
+}
