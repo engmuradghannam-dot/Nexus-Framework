@@ -6,6 +6,8 @@ from .models import Invoice
 class InvoiceSerializer(serializers.ModelSerializer):
     creditable_remaining = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
     outstanding = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
+    base_total = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    is_foreign = serializers.BooleanField(read_only=True)
     class Meta:
         model = Invoice
         fields = "__all__"

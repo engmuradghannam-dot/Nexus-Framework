@@ -24,6 +24,7 @@ class Invoice(models.Model):
     party_name = models.CharField(max_length=200)
     invoice_date = models.DateField()
     currency = models.CharField(max_length=10, default="SAR")
+    exchange_rate = models.DecimalField(max_digits=14, decimal_places=6, default=1, help_text="Rate to base currency at invoice date")
     subtotal = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=15)
     tax_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
@@ -59,6 +60,14 @@ class Invoice(models.Model):
     @property
     def is_fully_paid(self):
         return self.outstanding <= Decimal("0.01")
+
+    @property
+    def base_total(self):
+        return (Decimal(self.total or 0) * Decimal(self.exchange_rate or 1)).quantize(Decimal("0.01"))
+
+    @property
+    def is_foreign(self):
+        return Decimal(self.exchange_rate or 1) != Decimal(1)
 
     def sync_paid_amount(self):
         """Recompute paid_amount from the posted payment log (source of truth)."""
@@ -115,7 +124,7 @@ class Invoice(models.Model):
 
         base = JournalEntry.objects.count() + 1
         for i, (dr, cr, amt) in enumerate(legs):
-            amt = Decimal(amt or 0)
+            amt = Decimal(amt or 0) * Decimal(self.exchange_rate or 1)
             if amt <= 0:
                 continue
             JournalEntry.objects.create(
@@ -171,7 +180,7 @@ class Invoice(models.Model):
             legs = [(ap, invacc, self.subtotal), (ap, vat, self.tax_amount)]
 
         for i, (dr, cr, amt) in enumerate(legs):
-            amt = Decimal(amt or 0)
+            amt = Decimal(amt or 0) * Decimal(self.exchange_rate or 1)
             if amt <= 0:
                 continue
             JournalEntry.objects.create(
@@ -288,7 +297,7 @@ class CreditNote(models.Model):
             legs = [(ap, invacc, self.subtotal), (ap, vat, self.tax_amount)]
 
         for i, (dr, cr, amt) in enumerate(legs):
-            amt = Decimal(amt or 0)
+            amt = Decimal(amt or 0) * Decimal(inv.exchange_rate or 1)
             if amt <= 0:
                 continue
             JournalEntry.objects.create(
@@ -323,6 +332,7 @@ class Payment(models.Model):
     payment_date = models.DateField()
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     method = models.CharField(max_length=8, choices=METHODS, default="bank")
+    exchange_rate = models.DecimalField(max_digits=14, decimal_places=6, default=1, help_text="Rate to base currency at payment date")
     reference = models.CharField(max_length=120, blank=True)
     notes = models.CharField(max_length=255, blank=True)
     posted = models.BooleanField(default=False)
@@ -372,21 +382,50 @@ class Payment(models.Model):
             dr, cr = ap, cash
 
         n = inv.payments.filter(posted=True).count() + 1
-        JournalEntry.objects.create(
-            company=company,
-            entry_number=f"PAY-{inv.invoice_number}-{n}",
-            posting_date=self.payment_date,
-            reference=f"Payment {inv.invoice_number} ({self.get_method_display()})",
-            debit_account=dr, credit_account=cr, amount=amt,
-            total_debit=amt, total_credit=amt,
-        )
-        dr.post(debit_amount=amt)
-        cr.post(credit_amount=amt)
+        pay_rate = Decimal(self.exchange_rate or 1)
+        inv_rate = Decimal(inv.exchange_rate or 1)
+        base_cash = (amt * pay_rate).quantize(Decimal("0.01"))       # actual base cash moved
+        base_relieved = (amt * inv_rate).quantize(Decimal("0.01"))   # AR/AP relieved at invoice rate
+        fx_gain, fx_loss = acc("4900"), acc("5900")
+        ref = f"Payment {inv.invoice_number} ({self.get_method_display()})"
+
+        def je(d, c, base_amt, suffix=""):
+            JournalEntry.objects.create(
+                company=company, entry_number=f"PAY-{inv.invoice_number}-{n}{suffix}",
+                posting_date=self.payment_date, reference=ref,
+                debit_account=d, credit_account=c, amount=base_amt,
+                total_debit=base_amt, total_credit=base_amt)
+            d.post(debit_amount=base_amt)
+            c.post(credit_amount=base_amt)
+
+        if inv.invoice_type == "sales":
+            diff = base_cash - base_relieved            # +ve => FX gain
+            if diff >= 0:
+                je(cash, ar, base_relieved)
+                if diff > 0 and fx_gain:
+                    je(cash, fx_gain, diff, "-fx")
+            else:
+                je(cash, ar, base_cash)
+                if fx_loss:
+                    je(fx_loss, ar, -diff, "-fx")
+        else:
+            diff = base_relieved - base_cash            # +ve => FX gain (paid less base)
+            if diff >= 0:
+                je(ap, cash, base_cash)
+                if diff > 0 and fx_gain:
+                    je(ap, fx_gain, diff, "-fx")
+            else:
+                je(ap, cash, base_relieved)
+                if fx_loss:
+                    je(fx_loss, cash, -diff, "-fx")
 
         self.posted = True
         self.save(update_fields=["posted"])
         inv.sync_paid_amount()
-        return True, "تم تسجيل الدفعة وترحيلها"
+        msg = "تم تسجيل الدفعة وترحيلها"
+        if base_cash != base_relieved:
+            msg += f" — فرق صرف {abs(base_cash - base_relieved)}"
+        return True, msg
 
     def company_or_default(self):
         from apps.core.models import Company

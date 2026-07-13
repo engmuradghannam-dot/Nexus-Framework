@@ -138,6 +138,15 @@ export default function InvoicingPage() {
           <FluentFormField label="الطرف (عميل/مورّد)"><FluentInput value={form.party_name || ''} onChange={(e) => set('party_name', e.target.value)} /></FluentFormField>
           <FluentFormField label="التاريخ"><FluentInput type="date" value={form.invoice_date || ''} onChange={(e) => set('invoice_date', e.target.value)} /></FluentFormField>
           <FluentFormField label="المبلغ الأساسي"><FluentInput type="number" value={form.subtotal || ''} onChange={(e) => set('subtotal', e.target.value)} /></FluentFormField>
+          <FluentFormField label="العملة">
+            <FluentSelect value={form.currency || 'SAR'} onChange={(e) => set('currency', e.target.value)}>
+              <option value="SAR">ريال سعودي (SAR)</option><option value="USD">دولار (USD)</option>
+              <option value="EUR">يورو (EUR)</option><option value="AED">درهم (AED)</option>
+              <option value="KWD">دينار كويتي (KWD)</option><option value="GBP">جنيه (GBP)</option>
+            </FluentSelect>
+          </FluentFormField>
+          {form.currency && form.currency !== 'SAR' &&
+            <FluentFormField label="سعر الصرف (مقابل الريال)"><FluentInput type="number" value={form.exchange_rate || ''} onChange={(e) => set('exchange_rate', e.target.value)} placeholder="مثال: 3.75" /></FluentFormField>}
           <FluentFormField label="قالب الضريبة (ZATCA)">
             <FluentSelect value={form.tax_template || ''} onChange={(e) => {
               const t = templates.find((x) => String(x.id) === e.target.value);
@@ -171,6 +180,8 @@ export default function InvoicingPage() {
             </FluentSelect>
           </FluentFormField>
           <FluentFormField label="التاريخ"><FluentInput type="date" value={payForm.payment_date || ''} onChange={(e) => setPayForm((f: any) => ({ ...f, payment_date: e.target.value }))} /></FluentFormField>
+          {payInvoice && payInvoice.currency && payInvoice.currency !== 'SAR' &&
+            <FluentFormField label={`سعر الصرف يوم الدفع (${payInvoice.currency})`}><FluentInput type="number" value={payForm.exchange_rate || ''} onChange={(e) => setPayForm((f: any) => ({ ...f, exchange_rate: e.target.value }))} placeholder={String(payInvoice.exchange_rate || '')} /></FluentFormField>}
           <FluentFormField label="مرجع (اختياري)"><FluentInput value={payForm.reference || ''} onChange={(e) => setPayForm((f: any) => ({ ...f, reference: e.target.value }))} /></FluentFormField>
           {payHistory.length > 0 && <div>
             <div className="text-xs font-semibold text-[#605e5c] mt-2 mb-1">سجل الدفعات ({payHistory.length})</div>

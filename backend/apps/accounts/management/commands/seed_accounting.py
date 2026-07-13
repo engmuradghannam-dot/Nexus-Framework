@@ -45,6 +45,8 @@ class Command(BaseCommand):
             ("5200", "الرواتب / Salaries", "Expense", False, "5000"),
             ("5300", "الإيجار / Rent", "Expense", False, "5000"),
             ("5400", "المرافق / Utilities", "Expense", False, "5000"),
+            ("4900", "أرباح فروق الصرف / FX Gains", "Income", False, "4000"),
+            ("5900", "خسائر فروق الصرف / FX Losses", "Expense", False, "5000"),
         ]
         acc = {}
         for number, name, root, is_group, parent in chart:

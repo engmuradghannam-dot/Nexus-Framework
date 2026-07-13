@@ -70,6 +70,7 @@ class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
             payment_date=request.data.get("payment_date") or _date.today(),
             method=request.data.get("method", "bank"),
             reference=request.data.get("reference", ""),
+            exchange_rate=(request.data.get("exchange_rate") or invoice.exchange_rate or 1),
             tenant=getattr(request.user, "tenant", None))
         ok, msg = pay.post_to_ledger()
         if not ok:
