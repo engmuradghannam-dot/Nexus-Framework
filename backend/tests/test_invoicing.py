@@ -200,20 +200,42 @@ class TestInvoicePostToLedger:
 
 @pytest.mark.django_db
 class TestInvoiceAPI:
-    def test_record_payment_caps_at_total(self, auth_client, company):
+    def test_record_payment_rejects_overpayment(self, auth_client, chart_of_accounts, company):
+        """Overpayment is rejected (not silently capped); payments require a
+        posted invoice and are tracked in the payment log."""
         inv = Invoice.objects.create(
+            company=company,
             invoice_type="sales",
             invoice_number="INV-A-001",
             party_name="Client A",
             invoice_date=date(2026, 1, 1),
             subtotal=100,  # total = 115 at 15% tax
         )
-        response = auth_client.post(
+        # a payment on an unposted invoice is refused
+        r_unposted = auth_client.post(
+            f"/api/invoicing/invoices/{inv.id}/record_payment/", {"amount": "50"}
+        )
+        assert r_unposted.status_code == status.HTTP_400_BAD_REQUEST
+
+        inv.post_to_ledger()
+        # a cash account is needed for the receipt leg (not in the base fixture)
+        Account.objects.create(company=company, account_number="1100",
+                               account_name="Cash", account_type="Asset", root_type="Asset")
+        # overpayment on a posted invoice is refused, nothing recorded
+        r_over = auth_client.post(
             f"/api/invoicing/invoices/{inv.id}/record_payment/", {"amount": "9999"}
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert r_over.status_code == status.HTTP_400_BAD_REQUEST
         inv.refresh_from_db()
-        assert inv.paid_amount == inv.total
+        assert inv.paid_amount == Decimal("0")
+
+        # a valid partial payment is accepted and capped only by the outstanding
+        r_ok = auth_client.post(
+            f"/api/invoicing/invoices/{inv.id}/record_payment/", {"amount": "40", "method": "cash"}
+        )
+        assert r_ok.status_code == status.HTTP_200_OK
+        inv.refresh_from_db()
+        assert inv.paid_amount == Decimal("40.00")
 
     def test_post_to_ledger_endpoint(self, auth_client, chart_of_accounts, company):
         inv = Invoice.objects.create(

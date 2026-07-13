@@ -22,3 +22,14 @@ class CreditNoteSerializer(serializers.ModelSerializer):
         model = CreditNote
         fields = "__all__"
         read_only_fields = ["tenant", "status", "total", "created_at"]
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    method_display = serializers.CharField(source="get_method_display", read_only=True)
+    invoice_number = serializers.CharField(source="invoice.invoice_number", read_only=True)
+
+    class Meta:
+        from .models import Payment
+        model = Payment
+        fields = "__all__"
+        read_only_fields = ["tenant", "posted", "created_at"]

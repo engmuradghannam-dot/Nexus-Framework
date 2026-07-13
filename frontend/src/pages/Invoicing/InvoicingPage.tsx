@@ -1,6 +1,6 @@
 // pages/Invoicing/InvoicingPage.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { Receipt, Plus, RefreshCw, CheckCircle, Send, Printer , Ban} from 'lucide-react';
+import { Receipt, Plus, RefreshCw, CheckCircle, Send, Printer , Ban, Wallet} from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
@@ -20,6 +20,9 @@ export default function InvoicingPage() {
   const [form, setForm] = useState<any>({});
   const [msg, setMsg] = useState('');
   const [templates, setTemplates] = useState<any[]>([]);
+  const [payInvoice, setPayInvoice] = useState<any>(null);
+  const [payForm, setPayForm] = useState<any>({ method: 'bank' });
+  const [payHistory, setPayHistory] = useState<any[]>([]);
 
   const reload = () => {
     setLoading(true);
@@ -47,6 +50,19 @@ export default function InvoicingPage() {
     if (!confirm('إلغاء الفاتورة وعكس ترحيلها المحاسبي؟')) return;
     try { const r = await invoicingApi.void(id); if (!r.success) alert(r.message); reload(); }
     catch (e) { alert('تعذّر الإلغاء'); }
+  };
+  const openPay = (inv: any) => {
+    setPayInvoice(inv); setPayForm({ method: 'bank', payment_date: new Date().toISOString().slice(0, 10) });
+    invoicingApi.payments(inv.id).then(setPayHistory).catch(() => setPayHistory([]));
+  };
+  const doPay = async () => {
+    if (!payForm.amount) return alert('أدخل المبلغ');
+    try {
+      const r = await invoicingApi.recordPayment(payInvoice.id, payForm);
+      if (!r.success) { alert(r.message); return; }
+      setMsg(r.message); setTimeout(() => setMsg(''), 4000);
+      setPayInvoice(null); reload();
+    } catch (e: any) { alert(e?.response?.data?.message || 'تعذّر تسجيل الدفعة'); }
   };
 
   const postLedger = async (id: number) => {
@@ -97,7 +113,11 @@ export default function InvoicingPage() {
                   {row.status === 'draft'
                     ? <button onClick={(e) => { e.stopPropagation(); postLedger(row.id); }} className="flex items-center gap-1 text-xs text-white bg-[#0078d4] px-2 py-1 rounded hover:bg-[#106ebe]"><Send size={12} /> ترحيل</button>
                     : row.status === 'posted'
-                    ? <button onClick={(e) => { e.stopPropagation(); doVoid(row.id); }} title="إلغاء وعكس الترحيل" className="flex items-center gap-1 text-xs text-[#a4262c] border border-[#a4262c] px-2 py-1 rounded hover:bg-[#fdf3f4]"><Ban size={12} /> إلغاء</button>
+                    ? <>
+                      {Number(row.outstanding ?? (row.total - (row.paid_amount || 0))) > 0.01 &&
+                        <button onClick={(e) => { e.stopPropagation(); openPay(row); }} title="تسجيل دفعة" className="flex items-center gap-1 text-xs text-[#107c10] border border-[#107c10] px-2 py-1 rounded hover:bg-[#f3faf3]"><Wallet size={12} /> دفعة</button>}
+                      <button onClick={(e) => { e.stopPropagation(); doVoid(row.id); }} title="إلغاء وعكس الترحيل" className="flex items-center gap-1 text-xs text-[#a4262c] border border-[#a4262c] px-2 py-1 rounded hover:bg-[#fdf3f4]"><Ban size={12} /> إلغاء</button>
+                    </>
                     : <span className="text-xs text-[#a19f9d]">ملغاة</span>}
                 </div>
               )
@@ -134,6 +154,35 @@ export default function InvoicingPage() {
           </div>
           <p className="text-xs text-[#605e5c]">بعد الحفظ، اضغط «ترحيل» لإنشاء القيود المحاسبية تلقائياً في دفتر الأستاذ.</p>
         </div>
+      </FluentPanel>
+
+      <FluentPanel isOpen={!!payInvoice} onClose={() => setPayInvoice(null)} title={`تسجيل دفعة — ${payInvoice?.invoice_number || ''}`}
+        footer={<div className="flex gap-2 justify-end"><button onClick={() => setPayInvoice(null)} className="px-4 py-2 text-sm border border-[#8a8886] rounded-sm">إلغاء</button><button onClick={doPay} className="px-4 py-2 text-sm text-white bg-[#107c10] rounded-sm">تسجيل وترحيل</button></div>}>
+        {payInvoice && <div className="space-y-3">
+          <div className="rounded-md bg-[#eff6fc] p-3 text-sm">
+            <div className="flex justify-between"><span className="text-[#605e5c]">الإجمالي</span><span className="font-semibold">{fmt(payInvoice.total)}</span></div>
+            <div className="flex justify-between"><span className="text-[#605e5c]">المدفوع</span><span>{fmt(payInvoice.paid_amount)}</span></div>
+            <div className="flex justify-between text-[#0078d4]"><span>المتبقّي</span><span className="font-bold">{fmt(payInvoice.outstanding ?? (payInvoice.total - (payInvoice.paid_amount || 0)))}</span></div>
+          </div>
+          <FluentFormField label="المبلغ"><FluentInput type="number" value={payForm.amount || ''} onChange={(e) => setPayForm((f: any) => ({ ...f, amount: e.target.value }))} /></FluentFormField>
+          <FluentFormField label="طريقة الدفع">
+            <FluentSelect value={payForm.method} onChange={(e) => setPayForm((f: any) => ({ ...f, method: e.target.value }))}>
+              <option value="bank">تحويل بنكي</option><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="cheque">شيك</option>
+            </FluentSelect>
+          </FluentFormField>
+          <FluentFormField label="التاريخ"><FluentInput type="date" value={payForm.payment_date || ''} onChange={(e) => setPayForm((f: any) => ({ ...f, payment_date: e.target.value }))} /></FluentFormField>
+          <FluentFormField label="مرجع (اختياري)"><FluentInput value={payForm.reference || ''} onChange={(e) => setPayForm((f: any) => ({ ...f, reference: e.target.value }))} /></FluentFormField>
+          {payHistory.length > 0 && <div>
+            <div className="text-xs font-semibold text-[#605e5c] mt-2 mb-1">سجل الدفعات ({payHistory.length})</div>
+            <div className="space-y-1 max-h-40 overflow-auto">
+              {payHistory.map((p: any) => (
+                <div key={p.id} className="flex justify-between text-xs bg-[#f3f2f1] rounded px-2 py-1">
+                  <span>{p.payment_date} · {p.method_display}</span><span className="font-semibold">{fmt(p.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>}
+        </div>}
       </FluentPanel>
     </div>
   );

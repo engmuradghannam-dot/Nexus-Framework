@@ -6,8 +6,8 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import CreditNote, Invoice
-from .serializers import CreditNoteSerializer, InvoiceSerializer
+from .models import CreditNote, Invoice, Payment
+from .serializers import CreditNoteSerializer, InvoiceSerializer, PaymentSerializer
 from apps.tenants.mixins import TenantScopedMixin
 
 
@@ -64,11 +64,20 @@ class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
             amount = Decimal(str(request.data.get("amount", 0)))
         except Exception:
             return Response({"success": False, "message": "مبلغ غير صالح"}, status=400)
-        invoice.paid_amount = (invoice.paid_amount or 0) + amount
-        if invoice.paid_amount > invoice.total:
-            invoice.paid_amount = invoice.total
-        invoice.save(update_fields=["paid_amount"])
-        return Response({"success": True, "message": "تم تسجيل الدفعة",
+        from datetime import date as _date
+        pay = Payment.objects.create(
+            invoice=invoice, amount=amount,
+            payment_date=request.data.get("payment_date") or _date.today(),
+            method=request.data.get("method", "bank"),
+            reference=request.data.get("reference", ""),
+            tenant=getattr(request.user, "tenant", None))
+        ok, msg = pay.post_to_ledger()
+        if not ok:
+            pay.delete()
+            return Response({"success": False, "message": msg}, status=400)
+        invoice.refresh_from_db()
+        return Response({"success": True, "message": msg,
+                         "payment": PaymentSerializer(pay).data,
                          "invoice": self.get_serializer(invoice).data})
 
     @action(detail=False, methods=["get"])
@@ -130,3 +139,13 @@ class CreditNoteViewSet(TenantScopedMixin, viewsets.ModelViewSet):
         return Response({"success": ok, "message": msg,
                          "credit_note": self.get_serializer(cn).data},
                         status=200 if ok else 400)
+
+
+class PaymentViewSet(TenantScopedMixin, viewsets.ReadOnlyModelViewSet):
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        inv = self.request.query_params.get("invoice")
+        return qs.filter(invoice=inv) if inv else qs

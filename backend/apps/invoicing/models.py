@@ -56,6 +56,18 @@ class Invoice(models.Model):
         posted = self.credit_notes.filter(status="posted").aggregate(s=Sum("total"))["s"] or Decimal(0)
         return Decimal(self.total or 0) - Decimal(posted)
 
+    @property
+    def is_fully_paid(self):
+        return self.outstanding <= Decimal("0.01")
+
+    def sync_paid_amount(self):
+        """Recompute paid_amount from the posted payment log (source of truth)."""
+        from django.db.models import Sum
+        total_paid = self.payments.filter(posted=True).aggregate(s=Sum("amount"))["s"] or Decimal(0)
+        self.paid_amount = total_paid
+        self.save(update_fields=["paid_amount"])
+        return self.paid_amount
+
     def recompute(self):
         sub = Decimal(self.subtotal or 0)
         self.tax_amount = (sub * Decimal(self.tax_rate or 0) / Decimal(100)).quantize(Decimal("0.01"))
@@ -287,3 +299,87 @@ class CreditNote(models.Model):
         self.status = "posted"
         self.save(update_fields=["status"])
         return True, f"تم ترحيل الإشعار الدائن ({self.return_type})"
+
+
+class Payment(models.Model):
+    """A single payment against an invoice — full audit trail for partial pays.
+
+    Sales receipt:  Dr Cash/Bank, Cr A/R
+    Purchase pay:   Dr A/P,       Cr Cash/Bank
+    The cash vs bank account is chosen by the payment method.
+    """
+
+    METHODS = [("cash", "Cash"), ("bank", "Bank Transfer"), ("card", "Card"),
+               ("cheque", "Cheque")]
+
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
+    payment_date = models.DateField()
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    method = models.CharField(max_length=8, choices=METHODS, default="bank")
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.CharField(max_length=255, blank=True)
+    posted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "invoice_payments"
+        ordering = ["-payment_date", "-id"]
+
+    def __str__(self):
+        return f"{self.amount} on {self.invoice.invoice_number}"
+
+    def post_to_ledger(self):
+        """Validate, post the cash/AR (or AP/cash) entry, and sync the invoice."""
+        from apps.accounts.models import Account, JournalEntry
+        from apps.core.models import Company
+
+        if self.posted:
+            return False, "الدفعة مُرحّلة مسبقاً"
+        inv = self.invoice
+        if inv.status != "posted":
+            return False, "لا يمكن تسجيل دفعة إلا لفاتورة مُرحّلة"
+        amt = Decimal(self.amount or 0)
+        if amt <= 0:
+            return False, "مبلغ غير صالح"
+        if amt > inv.outstanding + Decimal("0.01"):
+            return False, f"المبلغ ({amt}) يتجاوز المتبقّي ({inv.outstanding})"
+
+        company = self.company_or_default()
+        if company is None:
+            return False, "لا توجد شركة"
+
+        def acc(number):
+            return Account.objects.filter(company=company, account_number=number).first()
+
+        cash = acc("1100") if self.method == "cash" else acc("1200")
+        ar, ap = acc("1300"), acc("2100")
+        if inv.invoice_type == "sales":
+            if not all([cash, ar]):
+                return False, "حسابات النقد/المدينون غير مهيأة"
+            dr, cr = cash, ar
+        else:
+            if not all([cash, ap]):
+                return False, "حسابات النقد/الدائنون غير مهيأة"
+            dr, cr = ap, cash
+
+        n = inv.payments.filter(posted=True).count() + 1
+        JournalEntry.objects.create(
+            company=company,
+            entry_number=f"PAY-{inv.invoice_number}-{n}",
+            posting_date=self.payment_date,
+            reference=f"Payment {inv.invoice_number} ({self.get_method_display()})",
+            debit_account=dr, credit_account=cr, amount=amt,
+            total_debit=amt, total_credit=amt,
+        )
+        dr.post(debit_amount=amt)
+        cr.post(credit_amount=amt)
+
+        self.posted = True
+        self.save(update_fields=["posted"])
+        inv.sync_paid_amount()
+        return True, "تم تسجيل الدفعة وترحيلها"
+
+    def company_or_default(self):
+        from apps.core.models import Company
+        return self.invoice.company or Company.objects.order_by("id").first()

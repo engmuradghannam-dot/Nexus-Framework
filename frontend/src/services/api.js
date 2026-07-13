@@ -193,7 +193,8 @@ export const invoicingApi = {
   post: (id) => data(API.post(`/invoicing/invoices/${id}/post_to_ledger/`)),
   aging: (type) => data(API.get("/invoicing/invoices/aging/", { params: { type } })),
   zatcaQr: (id) => data(API.get(`/invoicing/invoices/${id}/zatca_qr/`)),
-  recordPayment: (id, amount) => data(API.post(`/invoicing/invoices/${id}/record_payment/`, { amount })),
+  recordPayment: (id, payload) => data(API.post(`/invoicing/invoices/${id}/record_payment/`, payload)),
+  payments: (invoice) => list(API.get('/invoicing/payments/', { params: { invoice, page_size: 200 } })),
   void: (id) => data(API.post(`/invoicing/invoices/${id}/void/`)),
 }
 
