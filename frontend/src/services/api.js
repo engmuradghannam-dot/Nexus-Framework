@@ -265,3 +265,10 @@ export const currenciesApi = {
   convert: (amount, from, to) => data(API.get('/fx/currencies/convert/', { params: { amount, from, to } })),
   update: (id, payload) => data(API.patch(`/fx/currencies/${id}/`, payload)),
 }
+
+// ════════ Custom fields ════════
+export const customFieldsApi = {
+  list: (module) => data(API.get('/customfields/fields/', { params: module ? { module } : {} })),
+  create: (payload) => data(API.post('/customfields/fields/', payload)),
+  remove: (id) => API.delete(`/customfields/fields/${id}/`),
+}

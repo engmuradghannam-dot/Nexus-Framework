@@ -1,5 +1,5 @@
 // components/ModuleCrudPage.tsx
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useMemo, useState, useEffect } from 'react';
 import { Plus, RefreshCw, Download, Trash2, Boxes, CheckCircle } from 'lucide-react';
 import { FluentCommandBar } from './FluentUI/FluentCommandBar';
 import { FluentCard } from './FluentUI/FluentCard';
@@ -11,6 +11,7 @@ import { FluentBadge } from './FluentUI/FluentBadge';
 import { ModuleForm } from './ModuleForm';
 import { useModuleRecords } from '../hooks/useModuleRecords';
 import { exportToCsv } from '../utils/exportCsv';
+import { customFieldsApi } from '../services/api';
 import type { FieldDef } from '../config/moduleFields';
 
 interface Props {
@@ -24,6 +25,16 @@ interface Props {
 
 export function ModuleCrudPage({ module, fields, title, subtitle, icon, newLabel = 'إضافة' }: Props) {
   const { records, loading, save, remove } = useModuleRecords(module);
+  const [customFields, setCustomFields] = useState<FieldDef[]>([]);
+  useEffect(() => {
+    customFieldsApi.list(module).then((cfs: any[]) => setCustomFields((cfs || []).map((c) => ({
+      key: c.field_key,
+      label: c.label_ar || c.label,
+      type: (c.field_type === 'boolean' ? 'select' : c.field_type) as any,
+      options: c.field_type === 'boolean' ? ['نعم', 'لا'] : (Array.isArray(c.options) && c.options.length ? c.options : undefined),
+    })))).catch(() => setCustomFields([]));
+  }, [module]);
+  const allFields = useMemo(() => [...fields, ...customFields], [fields, customFields]);
   const [query, setQuery] = useState('');
   const [showPanel, setShowPanel] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -42,7 +53,7 @@ export function ModuleCrudPage({ module, fields, title, subtitle, icon, newLabel
   }, [records, query]);
 
   const columns = useMemo(() => {
-    const cols: any[] = fields.slice(0, 6).map((f) => ({
+    const cols: any[] = allFields.slice(0, 6).map((f) => ({
       key: f.key,
       label: f.label,
       sortable: true,
@@ -66,7 +77,7 @@ export function ModuleCrudPage({ module, fields, title, subtitle, icon, newLabel
       ),
     });
     return cols;
-  }, [fields, remove]);
+  }, [allFields, remove]);
 
   const openNew = () => { setEditing({}); setShowPanel(true); };
   const openEdit = (row: any) => { setEditing(row); setShowPanel(true); };
@@ -136,7 +147,7 @@ export function ModuleCrudPage({ module, fields, title, subtitle, icon, newLabel
           </div>
         }
       >
-        {editing && <ModuleForm fields={fields} value={editing} onChange={setEditing} />}
+        {editing && <ModuleForm fields={allFields} value={editing} onChange={setEditing} />}
       </FluentPanel>
     </div>
   );
