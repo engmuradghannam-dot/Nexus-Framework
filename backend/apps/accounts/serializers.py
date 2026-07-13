@@ -104,3 +104,11 @@ class BudgetSerializer(serializers.ModelSerializer):
         if self.instance and new_status and new_status != self.instance.status:
             validate_transition(BUDGET_TRANSITIONS, self.instance.status, new_status)
         return data
+
+
+class AccountingPeriodSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import AccountingPeriod
+        model = AccountingPeriod
+        fields = "__all__"
+        read_only_fields = ["tenant", "closed_at", "created_at"]

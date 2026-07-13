@@ -178,6 +178,10 @@ export const accountingApi = {
   financialStatements: () => data(API.get('/accounts/accounts/financial_statements/')),
   journalEntries: () => list(API.get('/accounts/journal-entries/', { params: { page_size: 200 } })),
   reverseEntry: (id) => data(API.post(`/accounts/journal-entries/${id}/reverse/`)),
+  periods: () => list(API.get('/accounts/accounting-periods/', { params: { page_size: 200 } })),
+  createPeriod: (p) => data(API.post('/accounts/accounting-periods/', p)),
+  closePeriod: (id) => data(API.post(`/accounts/accounting-periods/${id}/close/`)),
+  reopenPeriod: (id) => data(API.post(`/accounts/accounting-periods/${id}/reopen/`)),
   generalLedger: (id) => data(API.get(`/accounts/accounts/${id}/general_ledger/`)),
 }
 

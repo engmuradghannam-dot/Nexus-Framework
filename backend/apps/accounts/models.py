@@ -169,10 +169,13 @@ class JournalEntry(models.Model):
             return None, "القيد مُعكّس مسبقاً"
         if self.reversal_of_id:
             return None, "لا يمكن عكس قيد عكسي"
+        rev_date = posting_date or _date.today()
+        if AccountingPeriod.is_locked(self.company, rev_date):
+            return None, "الفترة المحاسبية مقفلة لهذا التاريخ"
         rev = JournalEntry.objects.create(
             company=self.company, tenant=self.tenant,
             entry_number=f"REV-{self.entry_number}",
-            posting_date=posting_date or _date.today(),
+            posting_date=rev_date,
             reference=reference or f"عكس القيد {self.entry_number}",
             debit_account=self.credit_account, credit_account=self.debit_account,
             amount=self.amount, total_debit=self.amount, total_credit=self.amount,
@@ -251,3 +254,51 @@ class Budget(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.fiscal_year})"
+
+
+class AccountingPeriod(models.Model):
+    """A fiscal period that can be closed to block back-dated postings.
+
+    When a period is 'closed', no journal entry, invoice posting, payment,
+    credit note, void, or reversal may post with a date inside it. This is the
+    period-lock control every audited ledger needs.
+    """
+
+    STATUS = [("open", "Open"), ("closed", "Closed")]
+
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
+    company = models.ForeignKey("core.CompanyProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="accounting_periods")
+    name = models.CharField(max_length=80)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=6, choices=STATUS, default="open", db_index=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "accounting_periods"
+        ordering = ["-start_date"]
+
+    def __str__(self):
+        return f"{self.name} ({self.status})"
+
+    @classmethod
+    def is_locked(cls, company, on_date):
+        """True if on_date falls inside a closed period for this company."""
+        if on_date is None:
+            return False
+        qs = cls.objects.filter(status="closed", start_date__lte=on_date, end_date__gte=on_date)
+        if company is not None:
+            qs = qs.filter(models.Q(company=company) | models.Q(company__isnull=True))
+        return qs.exists()
+
+    def close(self):
+        from django.utils import timezone
+        self.status = "closed"
+        self.closed_at = timezone.now()
+        self.save(update_fields=["status", "closed_at"])
+
+    def reopen(self):
+        self.status = "open"
+        self.closed_at = None
+        self.save(update_fields=["status", "closed_at"])

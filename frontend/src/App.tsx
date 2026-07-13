@@ -36,6 +36,7 @@ const CompanySetupPage = lazy(() => import('./pages/CompanySetup/CompanySetupPag
 const AccountingPage = lazy(() => import('./pages/Accounting/AccountingPage'));
 const InvoicingPage = lazy(() => import('./pages/Invoicing/InvoicingPage'));
 const CreditNotesPage = lazy(() => import('./pages/CreditNotes/CreditNotesPage'));
+const PeriodsPage = lazy(() => import('./pages/Periods/PeriodsPage'));
 const AgingPage = lazy(() => import('./pages/Aging/AgingPage'));
 const DepreciationPage = lazy(() => import('./pages/Depreciation/DepreciationPage'));
 const BankingPage = lazy(() => import('./pages/Banking/BankingPage'));
@@ -148,6 +149,7 @@ function App() {
                   <Route path="/accounting" element={<AccountingPage />} />
                   <Route path="/invoicing" element={<InvoicingPage />} />
                   <Route path="/credit-notes" element={<CreditNotesPage />} />
+                  <Route path="/periods" element={<PeriodsPage />} />
                   <Route path="/aging" element={<AgingPage />} />
                   <Route path="/banking" element={<BankingPage />} />
                   <Route path="/trade" element={<DocumentsPage />} />

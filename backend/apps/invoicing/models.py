@@ -87,7 +87,7 @@ class Invoice(models.Model):
         Purchase: Dr Inventory (subtotal) + Dr VAT (tax)   Cr A/P (total)
         Implemented as two single debit/credit entries so it stays balanced.
         """
-        from apps.accounts.models import Account, JournalEntry
+        from apps.accounts.models import Account, AccountingPeriod, JournalEntry
         from apps.core.models import Company
 
         if self.status == "posted":
@@ -97,6 +97,8 @@ class Invoice(models.Model):
         if company is None:
             return False, "لا توجد شركة"
 
+        if AccountingPeriod.is_locked(company, self.invoice_date):
+            return False, "الفترة المحاسبية مقفلة لهذا التاريخ"
         def acc(number):
             return Account.objects.filter(company=company, account_number=number).first()
 
@@ -138,7 +140,7 @@ class Invoice(models.Model):
         notes (those must be handled first). Creates balanced reversing entries
         and sets the invoice to cancelled.
         """
-        from apps.accounts.models import Account, JournalEntry
+        from apps.accounts.models import Account, AccountingPeriod, JournalEntry
         from apps.core.models import Company
 
         if self.status != "posted":
@@ -152,6 +154,8 @@ class Invoice(models.Model):
         if company is None:
             return False, "لا توجد شركة"
 
+        if AccountingPeriod.is_locked(company, self.invoice_date):
+            return False, "الفترة المحاسبية مقفلة لهذا التاريخ"
         def acc(number):
             return Account.objects.filter(company=company, account_number=number).first()
 
@@ -246,7 +250,7 @@ class CreditNote(models.Model):
 
     def post_to_ledger(self):
         """Post the reversing journal entries. Idempotent + validated."""
-        from apps.accounts.models import Account, JournalEntry
+        from apps.accounts.models import Account, AccountingPeriod, JournalEntry
         from apps.core.models import Company
 
         if self.status == "posted":
@@ -265,6 +269,8 @@ class CreditNote(models.Model):
         if company is None:
             return False, "لا توجد شركة"
 
+        if AccountingPeriod.is_locked(company, self.credit_date):
+            return False, "الفترة المحاسبية مقفلة لهذا التاريخ"
         def acc(number):
             return Account.objects.filter(company=company, account_number=number).first()
 
@@ -331,7 +337,7 @@ class Payment(models.Model):
 
     def post_to_ledger(self):
         """Validate, post the cash/AR (or AP/cash) entry, and sync the invoice."""
-        from apps.accounts.models import Account, JournalEntry
+        from apps.accounts.models import Account, AccountingPeriod, JournalEntry
         from apps.core.models import Company
 
         if self.posted:
@@ -349,6 +355,8 @@ class Payment(models.Model):
         if company is None:
             return False, "لا توجد شركة"
 
+        if AccountingPeriod.is_locked(company, self.payment_date):
+            return False, "الفترة المحاسبية مقفلة لهذا التاريخ"
         def acc(number):
             return Account.objects.filter(company=company, account_number=number).first()
 

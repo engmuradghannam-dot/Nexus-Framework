@@ -8,8 +8,9 @@ from rest_framework.response import Response
 from apps.core.mixins import CompanyScopedMixin
 from apps.tenants.mixins import TenantScopedMixin
 
-from .models import Account, Budget, CostCenter, JournalEntry
+from .models import Account, AccountingPeriod, Budget, CostCenter, JournalEntry
 from .serializers import (
+    AccountingPeriodSerializer,
     AccountSerializer,
     BudgetSerializer,
     CostCenterSerializer,
@@ -132,6 +133,15 @@ class JournalEntryViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelV
     queryset = JournalEntry.objects.all()
     serializer_class = JournalEntrySerializer
 
+    def perform_create(self, serializer):
+        from rest_framework.exceptions import ValidationError
+        from .models import AccountingPeriod
+        pd = serializer.validated_data.get("posting_date")
+        company = serializer.validated_data.get("company")
+        if AccountingPeriod.is_locked(company, pd):
+            raise ValidationError("الفترة المحاسبية مقفلة لهذا التاريخ — لا يمكن الترحيل.")
+        serializer.save()
+
     @action(detail=True, methods=["post"])
     def reverse(self, request, pk=None):
         entry = self.get_object()
@@ -156,3 +166,22 @@ class BudgetViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet
     serializer_class = BudgetSerializer
     filterset_fields = ["fiscal_year", "status", "cost_center", "account"]
     company_field = "company"
+
+
+class AccountingPeriodViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = AccountingPeriod.objects.all()
+    serializer_class = AccountingPeriodSerializer
+
+    @action(detail=True, methods=["post"])
+    def close(self, request, pk=None):
+        period = self.get_object()
+        period.close()
+        return Response({"success": True, "message": f"تم إقفال الفترة {period.name}",
+                         "period": self.get_serializer(period).data})
+
+    @action(detail=True, methods=["post"])
+    def reopen(self, request, pk=None):
+        period = self.get_object()
+        period.reopen()
+        return Response({"success": True, "message": f"تم فتح الفترة {period.name}",
+                         "period": self.get_serializer(period).data})
