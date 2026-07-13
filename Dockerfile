@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=51
+ARG CACHE_BUST=52
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
@@ -10,15 +10,20 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Backend Stage ─────────────────────────────────
-FROM python:3.11
+FROM python:3.11-slim
 
-ARG CACHE_BUST=51
+ARG CACHE_BUST=52
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
 ENV PORT=8000
 
 WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Cache bust to force fresh build
 RUN echo "Cache bust: $CACHE_BUST"
@@ -36,7 +41,7 @@ COPY --from=frontend-build /app/frontend/dist ./staticfiles/
 # Create necessary directories
 RUN mkdir -p /app/cache /app/media /app/staticfiles
 
-# Create comprehensive startup script
+# Create startup script - NO hardcoded passwords, NO makemigrations in production
 RUN cat > /app/start.sh << 'EOF'
 #!/bin/bash
 set -e
@@ -50,49 +55,47 @@ mkdir -p /app/cache /app/media /app/staticfiles
 
 # Collect static files
 echo "📦 Collecting static files..."
-python manage.py collectstatic --noinput || echo "⚠️ Static collection had issues, continuing..."
+python manage.py collectstatic --noinput
 
-# Create migrations for new apps
-echo "📝 Creating migrations for new apps..."
-python manage.py makemigrations hr inventory manufacturing accounts assets buying selling crm --noinput || echo "⚠️ makemigrations had issues, continuing..."
-
-# Run migrations
+# Run migrations ONLY (no makemigrations in production)
 echo "🗄️  Running database migrations..."
-python manage.py migrate --noinput || {
-    echo "⚠️ Migration failed, trying with fresh SQLite..."
-    rm -f /app/db.sqlite3
-    python manage.py migrate --noinput
-}
+python manage.py migrate --noinput
 
 # Import the controls library (idempotent)
 echo "📚 Importing controls library..."
 python manage.py import_controls || echo "⚠️ Controls import skipped"
 python manage.py import_erp_fields || echo "⚠️ ERP fields import skipped"
 
-# Create superuser if it doesn't exist
-echo "👤 Ensuring superuser..."
-python -c "
+# Create superuser from environment variables ONLY
+if [ -n "$NEXUS_SUPERUSER_PASSWORD" ]; then
+    echo "👤 Ensuring superuser..."
+    python -c "
 import os
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.production')
 django.setup()
 from django.contrib.auth import get_user_model
 User = get_user_model()
-email = 'eng.murad.ghannam@gmail.com'
-password = 'Ghannam2020'
-user = User.objects.filter(email__iexact=email).first()
-if user is None:
-    user = User(email=email, username=email)
-user.email = email
-user.username = user.username or email
-user.is_staff = True
-user.is_superuser = True
-user.is_active = True
-user.set_password(password)
-user.save()
-print('Superuser ensured:', email)
+email = os.environ.get('NEXUS_SUPERUSER_EMAIL', 'eng.murad.ghannam@gmail.com')
+password = os.environ.get('NEXUS_SUPERUSER_PASSWORD', '')
+if not password:
+    print('WARNING: NEXUS_SUPERUSER_PASSWORD not set, skipping superuser creation')
+else:
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        user = User(email=email, username=email)
+    user.email = email
+    user.username = user.username or email
+    user.is_staff = True
+    user.is_superuser = True
+    user.is_active = True
+    user.set_password(password)
+    user.save()
+    print('Superuser ensured:', email)
 " || echo "Superuser step skipped"
-
+else
+    echo "⚠️ NEXUS_SUPERUSER_PASSWORD not set, skipping superuser creation"
+fi
 
 # Seed demo data (idempotent)
 echo "🌱 Seeding demo data..."
@@ -126,6 +129,10 @@ exec gunicorn nexus.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 
 EOF
 
 RUN chmod +x /app/start.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8000}/api/health/ || exit 1
 
 EXPOSE 8000
 CMD ["/app/start.sh"]
