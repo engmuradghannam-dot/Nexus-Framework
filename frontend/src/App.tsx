@@ -37,6 +37,7 @@ import TenantsPage from './pages/Tenants/TenantsPage';
 import CurrenciesPage from './pages/Currencies/CurrenciesPage';
 import CustomFieldsPage from './pages/CustomFields/CustomFieldsPage';
 import PricingPage from './pages/Pricing/PricingPage';
+import BarcodePage from './pages/Barcode/BarcodePage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -112,6 +113,7 @@ function App() {
                 <Route path="/hr" element={<HRPage />} />
                 <Route path="/attendance" element={<AttendancePage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/barcode" element={<BarcodePage />} />
                 <Route path="/reorder" element={<ReorderPage />} />
                 <Route path="/valuation" element={<ValuationPage />} />
                 <Route path="/stock-movements" element={<StockMovementsPage />} />
