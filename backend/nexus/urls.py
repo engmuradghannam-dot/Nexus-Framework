@@ -14,6 +14,18 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from apps.core.admin_site import admin_site
 
 
+def health_view(request):
+    """Liveness/readiness probe for Docker HEALTHCHECK / Railway."""
+    from django.db import connection
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except Exception as exc:
+        return HttpResponse(f"unhealthy: {exc}", status=503)
+    return HttpResponse("ok")
+
+
 def spa_index(request):
     """Serve the built React SPA entry point for non-API routes."""
     index_path = os.path.join(settings.STATIC_ROOT, "index.html")
@@ -28,6 +40,7 @@ urlpatterns = [
     path("sw.js", pwa.service_worker),
     path("manifest.webmanifest", pwa.manifest),
     path("admin/", admin_site.urls),
+    path("api/health/", health_view, name="api-health"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
