@@ -6,8 +6,8 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Invoice
-from .serializers import InvoiceSerializer
+from .models import CreditNote, Invoice
+from .serializers import CreditNoteSerializer, InvoiceSerializer
 from apps.tenants.mixins import TenantScopedMixin
 
 
@@ -104,3 +104,21 @@ class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
                 [{k: (float(v) if isinstance(v, Decimal) else v) for k, v in p.items()} for p in parties.values()],
                 key=lambda x: x["total"], reverse=True),
         })
+
+
+class CreditNoteViewSet(TenantScopedMixin, viewsets.ModelViewSet):
+    queryset = CreditNote.objects.all()
+    serializer_class = CreditNoteSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        inv = self.request.query_params.get("invoice")
+        return qs.filter(original_invoice=inv) if inv else qs
+
+    @action(detail=True, methods=["post"])
+    def post_to_ledger(self, request, pk=None):
+        cn = self.get_object()
+        ok, msg = cn.post_to_ledger()
+        return Response({"success": ok, "message": msg,
+                         "credit_note": self.get_serializer(cn).data},
+                        status=200 if ok else 400)

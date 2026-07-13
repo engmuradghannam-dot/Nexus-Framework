@@ -195,6 +195,13 @@ export const invoicingApi = {
   recordPayment: (id, amount) => data(API.post(`/invoicing/invoices/${id}/record_payment/`, { amount })),
 }
 
+// ════════ Credit notes / returns ════════
+export const creditNotesApi = {
+  list: (invoice) => list(API.get('/invoicing/credit-notes/', { params: { invoice, page_size: 200 } })),
+  create: (payload) => data(API.post('/invoicing/credit-notes/', payload)),
+  post: (id) => data(API.post(`/invoicing/credit-notes/${id}/post_to_ledger/`)),
+}
+
 // ════════ RBAC (roles & permissions) ════════
 export const rbacApi = {
   roles: () => list(API.get('/rbac/roles/')),

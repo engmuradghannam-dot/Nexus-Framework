@@ -47,6 +47,15 @@ class Invoice(models.Model):
         from decimal import Decimal
         return Decimal(self.total or 0) - Decimal(self.paid_amount or 0)
 
+    @property
+    def creditable_remaining(self):
+        """Invoice total minus already-posted credit notes (for partial returns)."""
+        from django.db.models import Sum
+        if not self.pk:
+            return Decimal(self.total or 0)
+        posted = self.credit_notes.filter(status="posted").aggregate(s=Sum("total"))["s"] or Decimal(0)
+        return Decimal(self.total or 0) - Decimal(posted)
+
     def recompute(self):
         sub = Decimal(self.subtotal or 0)
         self.tax_amount = (sub * Decimal(self.tax_rate or 0) / Decimal(100)).quantize(Decimal("0.01"))
@@ -109,3 +118,118 @@ class Invoice(models.Model):
         self.status = "posted"
         self.save(update_fields=["status"])
         return True, "تم الترحيل إلى دفتر الأستاذ"
+
+
+class CreditNote(models.Model):
+    """Credit note / return against a posted invoice.
+
+    Sales invoice   -> sales return   (reverses: Dr Sales + Dr VAT, Cr A/R)
+    Purchase invoice-> purchase return (reverses: Dr A/P, Cr Inventory + Cr VAT)
+
+    Supports partial returns: the sum of posted credit notes for one invoice can
+    never exceed that invoice's total. The reversal mirrors the original posting
+    for the credited amount, keeping the ledger balanced.
+    """
+
+    STATUS = [("draft", "Draft"), ("posted", "Posted")]
+
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
+    company = models.ForeignKey("core.CompanyProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="credit_notes")
+    original_invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name="credit_notes")
+    credit_number = models.CharField(max_length=50, unique=True)
+    credit_date = models.DateField()
+    reason = models.CharField(max_length=255, blank=True)
+    subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    status = models.CharField(max_length=8, choices=STATUS, default="draft", db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "credit_notes"
+        ordering = ["-credit_date", "-id"]
+
+    def __str__(self):
+        return f"{self.credit_number} -> {self.original_invoice.invoice_number}"
+
+    @property
+    def return_type(self):
+        return "sales_return" if self.original_invoice.invoice_type == "sales" else "purchase_return"
+
+    def recompute(self):
+        self.total = Decimal(self.subtotal or 0) + Decimal(self.tax_amount or 0)
+
+    def save(self, *args, **kwargs):
+        self.recompute()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.original_invoice_id and self.original_invoice.status != "posted":
+            raise ValidationError("لا يمكن إصدار إشعار دائن إلا لفاتورة مُرحّلة.")
+        self.recompute()
+        if Decimal(self.total or 0) <= 0:
+            raise ValidationError("قيمة الإشعار الدائن يجب أن تكون أكبر من صفر.")
+        remaining = self.original_invoice.creditable_remaining if self.original_invoice_id else Decimal(0)
+        # exclude self when editing an existing draft
+        if self.pk:
+            remaining += Decimal(self.total or 0) if self.status == "posted" else Decimal(0)
+        if Decimal(self.total or 0) > remaining + Decimal("0.01"):
+            raise ValidationError(
+                f"القيمة ({self.total}) تتجاوز المبلغ القابل للإشعار ({remaining}) من الفاتورة.")
+
+    def post_to_ledger(self):
+        """Post the reversing journal entries. Idempotent + validated."""
+        from apps.accounts.models import Account, JournalEntry
+        from apps.core.models import Company
+
+        if self.status == "posted":
+            return False, "الإشعار الدائن مُرحّل مسبقاً"
+        inv = self.original_invoice
+        if inv.status != "posted":
+            return False, "الفاتورة الأصلية غير مُرحّلة"
+
+        self.recompute()
+        if Decimal(self.total or 0) <= 0:
+            return False, "قيمة غير صالحة"
+        if Decimal(self.total or 0) > inv.creditable_remaining + Decimal("0.01"):
+            return False, f"القيمة تتجاوز المبلغ القابل للإشعار ({inv.creditable_remaining})"
+
+        company = self.company or inv.company or Company.objects.order_by("id").first()
+        if company is None:
+            return False, "لا توجد شركة"
+
+        def acc(number):
+            return Account.objects.filter(company=company, account_number=number).first()
+
+        if inv.invoice_type == "sales":
+            ar, rev, vat = acc("1300"), acc("4100"), acc("2200")
+            if not all([ar, rev, vat]):
+                return False, "حسابات المبيعات غير مهيأة"
+            # reverse of (Dr AR / Cr Rev) and (Dr AR / Cr VAT)
+            legs = [(rev, ar, self.subtotal), (vat, ar, self.tax_amount)]
+        else:
+            invacc, ap, vat = acc("1400"), acc("2100"), acc("2200")
+            if not all([invacc, ap, vat]):
+                return False, "حسابات المشتريات غير مهيأة"
+            # reverse of (Dr Inventory / Cr AP) and (Dr VAT / Cr AP)
+            legs = [(ap, invacc, self.subtotal), (ap, vat, self.tax_amount)]
+
+        for i, (dr, cr, amt) in enumerate(legs):
+            amt = Decimal(amt or 0)
+            if amt <= 0:
+                continue
+            JournalEntry.objects.create(
+                company=company,
+                entry_number=f"CN-{self.credit_number}-{i+1}",
+                posting_date=self.credit_date,
+                reference=f"Credit Note {self.credit_number} (rev {inv.invoice_number})",
+                debit_account=dr, credit_account=cr, amount=amt,
+                total_debit=amt, total_credit=amt,
+            )
+            dr.post(debit_amount=amt)
+            cr.post(credit_amount=amt)
+
+        self.status = "posted"
+        self.save(update_fields=["status"])
+        return True, f"تم ترحيل الإشعار الدائن ({self.return_type})"

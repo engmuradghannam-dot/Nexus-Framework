@@ -6,7 +6,7 @@ import {
   MapPin, Warehouse, Users, Settings, ChevronLeft, ChevronRight, Zap,
   ShoppingCart, Store, Factory, Boxes, Briefcase, HeartHandshake, Contact,
   ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle, Shield, Clock, Calculator, FileText, Wallet, ArrowLeftRight, TrendingDown, Building, Coins, SlidersHorizontal, Tag, Barcode as BarcodeIcon, ShoppingBag, FileBarChart, Mail, UserCog, Ruler, Clock as ClockIcon2
-} from 'lucide-react';
+, Undo2} from 'lucide-react';
 
 interface NavGroup {
   label: string;
@@ -70,6 +70,7 @@ const navGroups: NavGroup[] = [
     items: [
       { path: '/accounting', icon: Landmark, label: 'المحاسبة' },
       { path: '/invoicing', icon: ReceiptIcon, label: 'الفواتير' },
+      { path: '/credit-notes', icon: Undo2, label: 'الإشعارات الدائنة' },
       { path: '/aging', icon: Wallet, label: 'تقادم الذمم' },
       { path: '/banking', icon: Building2, label: 'التسوية البنكية' },
       { path: '/trade', icon: FileText, label: 'المستندات التجارية' },
