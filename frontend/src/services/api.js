@@ -272,3 +272,11 @@ export const customFieldsApi = {
   create: (payload) => data(API.post('/customfields/fields/', payload)),
   remove: (id) => API.delete(`/customfields/fields/${id}/`),
 }
+
+// ════════ Pricing rules ════════
+export const pricingApi = {
+  list: () => list(API.get('/pricing/rules/', { params: { page_size: 200 } })),
+  create: (payload) => data(API.post('/pricing/rules/', payload)),
+  remove: (id) => API.delete(`/pricing/rules/${id}/`),
+  quote: (params) => data(API.get('/pricing/rules/quote/', { params })),
+}

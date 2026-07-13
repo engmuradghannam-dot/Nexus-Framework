@@ -36,6 +36,7 @@ import BankingPage from './pages/Banking/BankingPage';
 import TenantsPage from './pages/Tenants/TenantsPage';
 import CurrenciesPage from './pages/Currencies/CurrenciesPage';
 import CustomFieldsPage from './pages/CustomFields/CustomFieldsPage';
+import PricingPage from './pages/Pricing/PricingPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -103,6 +104,7 @@ function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/crm" element={<CRMPage />} />
                 <Route path="/selling" element={<SellingPage />} />
+                <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/buying" element={<BuyingPage />} />
                 <Route path="/manufacturing" element={<ManufacturingPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
