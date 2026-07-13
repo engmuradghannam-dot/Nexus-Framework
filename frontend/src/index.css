@@ -78,6 +78,17 @@
     color: var(--fluent-neutral-120);
     background-color: var(--fluent-neutral-10);
   }
+
+  /* Chrome/Edge/Safari force their own text and background color on
+     autofilled inputs, overriding page CSS. Force it back to match the
+     rest of the app so autofilled fields don't look faded or inconsistent. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--fluent-neutral-120);
+    caret-color: var(--fluent-neutral-120);
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 @layer components {
