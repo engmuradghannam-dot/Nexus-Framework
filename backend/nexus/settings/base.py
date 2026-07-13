@@ -322,10 +322,8 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ── SUPERUSER DEFAULT ──────────────────────────────
-NEXUS_SUPERUSER_EMAIL = os.getenv(
-    "NEXUS_SUPERUSER_EMAIL", "eng.murad.ghannam@gmail.com"
-)
-# SECURITY: Password MUST come from environment variable
+# SECURITY: No hardcoded default — must come from environment variables.
+NEXUS_SUPERUSER_EMAIL = os.getenv("NEXUS_SUPERUSER_EMAIL", "")
 NEXUS_SUPERUSER_PASSWORD = os.getenv("NEXUS_SUPERUSER_PASSWORD", "")
 
 # Whitenoise static files

@@ -36,7 +36,7 @@ class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
         from .zatca import zatca_qr_base64
 
         invoice = self.get_object()
-        company = Company.objects.order_by("id").first()
+        company = invoice.company or Company.objects.order_by("id").first()
         seller = getattr(company, "name", "") or "Nexus Company"
         vat_number = getattr(company, "vat_number", "") or getattr(company, "tax_number", "") or "300000000000003"
         ts = datetime.combine(invoice.invoice_date, datetime.min.time()).isoformat()

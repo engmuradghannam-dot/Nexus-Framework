@@ -79,6 +79,19 @@ class CompanyProfile(models.Model):
     """
     Company Profile - links to Industry Vertical.
     This is the ROOT entity that determines what modules/features are available.
+
+    NOT the same model as ``apps.industry.models.Company``:
+    - ``core.CompanyProfile`` (this model) is the Nexus TENANT itself — the
+      organisation that owns the data (branches, warehouses, users) in this
+      installation. Referenced by ``core.Branch``, ``core.Warehouse``, etc.
+    - ``industry.Company`` is a record TRACKED by the Industry Intelligence
+      module (e.g. a portfolio/competitor company being analysed) — it has
+      market cap, revenue, employee count, and industry metrics, and is
+      unrelated to who owns this Nexus tenant.
+    The similar naming is a known source of confusion (see the
+    "تقرير_مراجعة" review, P2 #5); the two are kept separate deliberately
+    rather than merged, since merging would conflate "who runs Nexus" with
+    "what Nexus is analysing".
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

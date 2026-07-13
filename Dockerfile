@@ -76,10 +76,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.production')
 django.setup()
 from django.contrib.auth import get_user_model
 User = get_user_model()
-email = os.environ.get('NEXUS_SUPERUSER_EMAIL', 'eng.murad.ghannam@gmail.com')
-password = os.environ.get('NEXUS_SUPERUSER_PASSWORD', '')
-if not password:
-    print('WARNING: NEXUS_SUPERUSER_PASSWORD not set, skipping superuser creation')
+email = os.environ.get('NEXUS_SUPERUSER_EMAIL')
+password = os.environ.get('NEXUS_SUPERUSER_PASSWORD')
+if not email or not password:
+    print('NEXUS_SUPERUSER_EMAIL / NEXUS_SUPERUSER_PASSWORD not set, skipping superuser bootstrap')
 else:
     user = User.objects.filter(email__iexact=email).first()
     if user is None:

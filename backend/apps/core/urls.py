@@ -7,6 +7,7 @@ from .views import (
     UserViewSet,
     WarehouseViewSet,
     login_view,
+    register_view,
 )
 
 router = DefaultRouter()
@@ -18,4 +19,5 @@ router.register(r"warehouses", WarehouseViewSet, basename="warehouse")
 urlpatterns = [
     path("", include(router.urls)),
     path("auth/login/", login_view, name="api_login"),
+    path("auth/register/", register_view, name="api_register"),
 ]

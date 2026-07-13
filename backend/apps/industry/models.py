@@ -131,6 +131,16 @@ class Company(models.Model):
     """
     Company belongs to ONE Industry Vertical.
     All modules, features, and reports are derived from the vertical.
+
+    NOT the same model as ``apps.core.models.CompanyProfile``:
+    - ``industry.Company`` (this model) is a company TRACKED by the Industry
+      Intelligence module — market cap, revenue, employees, sector — for
+      analysis/reporting. It is not the Nexus tenant itself.
+    - ``core.CompanyProfile`` is the Nexus TENANT (the organisation that
+      owns the branches/warehouses/users in this installation).
+    Kept as two separate models on purpose (see "تقرير_مراجعة" review,
+    P2 #5): they answer different questions ("who is being analysed" vs
+    "who owns this data").
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

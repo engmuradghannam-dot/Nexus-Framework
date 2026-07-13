@@ -344,3 +344,112 @@ export const automationApi = {
   triggerWebhook: (id, payload) => data(API.post(`/automation/webhooks/${id}/trigger/`, { payload })),
   deliveries: () => list(API.get('/automation/deliveries/', { params: { page_size: 200 } })),
 }
+
+// ════════ Inventory: items, item groups, stock entries ════════
+export const itemsApi = {
+  list: () => list(API.get('/inventory/items/', { params: { page_size: 500 } })),
+  create: (p) => data(API.post('/inventory/items/', p)),
+  update: (id, p) => data(API.patch(`/inventory/items/${id}/`, p)),
+  remove: (id) => API.delete(`/inventory/items/${id}/`),
+}
+
+export const itemGroupsApi = {
+  list: () => list(API.get('/inventory/item-groups/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/inventory/item-groups/', p)),
+}
+
+export const stockEntriesApi = {
+  list: (filters) => list(API.get('/inventory/stock-entries/', { params: { page_size: 200, ...filters } })),
+  create: (p) => data(API.post('/inventory/stock-entries/', p)),
+}
+
+// ════════ Core: company profiles, branches, warehouses ════════
+export const companyProfilesApi = {
+  list: () => list(API.get('/core/companies/', { params: { page_size: 100 } })),
+}
+
+export const branchesApi = {
+  list: () => list(API.get('/core/branches/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/core/branches/', p)),
+}
+
+export const warehousesApi = {
+  list: () => list(API.get('/core/warehouses/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/core/warehouses/', p)),
+}
+
+// ════════ Selling: customers + sales order cycle ════════
+export const customersApi = {
+  list: () => list(API.get('/selling/customers/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/selling/customers/', p)),
+}
+
+export const sellingApi = {
+  orders: (filters) => list(API.get('/selling/sales-orders/', { params: { page_size: 200, ...filters } })),
+  getOrder: (id) => data(API.get(`/selling/sales-orders/${id}/`)),
+  createOrder: (p) => data(API.post('/selling/sales-orders/', p)),
+  updateOrder: (id, p) => data(API.patch(`/selling/sales-orders/${id}/`, p)),
+  deleteOrder: (id) => API.delete(`/selling/sales-orders/${id}/`),
+  items: (soId) => list(API.get('/selling/sales-order-items/', { params: { sales_order: soId, page_size: 200 } })),
+  addItem: (p) => data(API.post('/selling/sales-order-items/', p)),
+  removeItem: (id) => API.delete(`/selling/sales-order-items/${id}/`),
+  taxCharges: (soId) => list(API.get('/selling/sales-tax-charges/', { params: { sales_order: soId } })),
+  addTaxCharge: (p) => data(API.post('/selling/sales-tax-charges/', p)),
+  removeTaxCharge: (id) => API.delete(`/selling/sales-tax-charges/${id}/`),
+  payments: (soId) => list(API.get('/selling/sales-payments/', { params: { sales_order: soId } })),
+  addPayment: (p) => data(API.post('/selling/sales-payments/', p)),
+}
+
+// ════════ Buying: suppliers + purchase order cycle ════════
+export const suppliersApi = {
+  list: () => list(API.get('/buying/suppliers/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/buying/suppliers/', p)),
+}
+
+export const buyingApi = {
+  orders: (filters) => list(API.get('/buying/purchase-orders/', { params: { page_size: 200, ...filters } })),
+  getOrder: (id) => data(API.get(`/buying/purchase-orders/${id}/`)),
+  createOrder: (p) => data(API.post('/buying/purchase-orders/', p)),
+  updateOrder: (id, p) => data(API.patch(`/buying/purchase-orders/${id}/`, p)),
+  deleteOrder: (id) => API.delete(`/buying/purchase-orders/${id}/`),
+  items: (poId) => list(API.get('/buying/purchase-order-items/', { params: { purchase_order: poId, page_size: 200 } })),
+  addItem: (p) => data(API.post('/buying/purchase-order-items/', p)),
+  removeItem: (id) => API.delete(`/buying/purchase-order-items/${id}/`),
+  taxCharges: (poId) => list(API.get('/buying/purchase-tax-charges/', { params: { purchase_order: poId } })),
+  addTaxCharge: (p) => data(API.post('/buying/purchase-tax-charges/', p)),
+  removeTaxCharge: (id) => API.delete(`/buying/purchase-tax-charges/${id}/`),
+  payments: (poId) => list(API.get('/buying/purchase-payments/', { params: { purchase_order: poId } })),
+  addPayment: (p) => data(API.post('/buying/purchase-payments/', p)),
+}
+
+// ════════ HR: employees, departments, leave, payroll ════════
+export const hrApi = {
+  employees: () => list(API.get('/hr/employees/', { params: { page_size: 200 } })),
+  createEmployee: (p) => data(API.post('/hr/employees/', p)),
+  departments: () => list(API.get('/hr/departments/', { params: { page_size: 100 } })),
+  createDepartment: (p) => data(API.post('/hr/departments/', p)),
+  leaveRequests: () => list(API.get('/hr/leave-requests/', { params: { page_size: 200 } })),
+  createLeaveRequest: (p) => data(API.post('/hr/leave-requests/', p)),
+  updateLeaveRequest: (id, p) => data(API.patch(`/hr/leave-requests/${id}/`, p)),
+  payrolls: () => list(API.get('/hr/payrolls/', { params: { page_size: 200 } })),
+  createPayroll: (p) => data(API.post('/hr/payrolls/', p)),
+  updatePayroll: (id, p) => data(API.patch(`/hr/payrolls/${id}/`, p)),
+}
+
+// ════════ Fixed Assets ════════
+export const assetsApi = {
+  list: () => list(API.get('/assets/assets/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/assets/assets/', p)),
+  update: (id, p) => data(API.patch(`/assets/assets/${id}/`, p)),
+  categories: () => list(API.get('/assets/asset-categories/', { params: { page_size: 100 } })),
+}
+
+// ════════ CRM: leads + opportunities ════════
+export const crmApi = {
+  leads: () => list(API.get('/crm/leads/', { params: { page_size: 200 } })),
+  createLead: (p) => data(API.post('/crm/leads/', p)),
+  updateLead: (id, p) => data(API.patch(`/crm/leads/${id}/`, p)),
+  opportunities: () => list(API.get('/crm/opportunities/', { params: { page_size: 200 } })),
+  createOpportunity: (p) => data(API.post('/crm/opportunities/', p)),
+  updateOpportunity: (id, p) => data(API.patch(`/crm/opportunities/${id}/`, p)),
+}

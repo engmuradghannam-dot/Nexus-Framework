@@ -11,7 +11,15 @@ import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
 import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
 import { exportToCsv } from '../../utils/exportCsv';
-import { accountingApi, invoicingApi, recordsApi, auditApi } from '../../services/api';
+import { accountingApi, invoicingApi, recordsApi, auditApi, projectApi, getTasks } from '../../services/api';
+
+const STATUS_LABELS_AR: Record<string, string> = {
+  planning: 'تخطيط', active: 'نشط', on_hold: 'متوقف', completed: 'مكتمل', cancelled: 'ملغى',
+};
+const STATUS_COLORS: Record<string, string> = {
+  planning: '#8a8886', active: '#0078d4', on_hold: '#ffc107', completed: '#107c10', cancelled: '#d83b01',
+};
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
 const defaultStats = [
   { title: 'إجمالي الإيرادات', value: '1,250,000 ر.س', trend: 'up' as const, trendValue: '+12.5%', icon: <DollarSign size={20} />, color: 'blue' as const },
@@ -39,6 +47,9 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState('month');
   const [stats, setStats] = useState<any[]>(defaultStats);
   const [activity, setActivity] = useState<any[]>(defaultActivity);
+  const [tasks, setTasks] = useState<any[]>(upcomingTasks);
+  const [monthlySales, setMonthlySales] = useState<number[]>([]);
+  const [projectsByStatus, setProjectsByStatus] = useState<{ status: string; count: number }[]>([]);
 
   useEffect(() => {
     const fmt = (n: any) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -72,7 +83,50 @@ export default function DashboardPage() {
         status: statusOf[l.action] || 'info',
       })));
     }).catch(() => {});
+
+    // Upcoming tasks: real open tasks from PMO, soonest due date first.
+    getTasks({ page_size: 200 }).then((res: any) => {
+      const rows = (res.data && res.data.results) || res.data || [];
+      const today = new Date();
+      const open = rows.filter((t: any) => t.status !== 'done' && t.status !== 'cancelled' && t.due_date);
+      open.sort((a: any, b: any) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+      setTasks(open.slice(0, 4).map((t: any) => {
+        const due = new Date(t.due_date);
+        const daysLeft = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+        const priority = daysLeft < 0 ? 'high' : daysLeft <= 3 ? 'medium' : 'low';
+        return { id: String(t.id), title: t.title, date: t.due_date, priority, completed: false };
+      }));
+    }).catch(() => {});
+
+    // Sales performance: sum of posted sales invoices per month, trailing 12 months.
+    invoicingApi.list().then((invoices: any[]) => {
+      const now = new Date();
+      const months: { key: string; label: string; total: number }[] = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: MONTHS_AR[d.getMonth()], total: 0 });
+      }
+      (invoices || []).filter((inv: any) => inv.invoice_type === 'sales').forEach((inv: any) => {
+        const d = new Date(inv.invoice_date);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        const bucket = months.find((m) => m.key === key);
+        if (bucket) bucket.total += Number(inv.total || 0);
+      });
+      const max = Math.max(1, ...months.map((m) => m.total));
+      setMonthlySales(months.map((m) => Math.round((m.total / max) * 100)));
+    }).catch(() => {});
+
+    // Project distribution: real breakdown by status (no "sector" field exists on Project).
+    projectApi.getAll().then((projects: any[]) => {
+      const counts: Record<string, number> = {};
+      (projects || []).forEach((p: any) => { counts[p.status] = (counts[p.status] || 0) + 1; });
+      setProjectsByStatus(Object.entries(counts).map(([status, count]) => ({ status, count })));
+    }).catch(() => {});
   }, []);
+
+  const totalProjects = projectsByStatus.reduce((a, s) => a + s.count, 0);
+  let dashOffset = 0;
+  const salesData = monthlySales.length ? monthlySales : [65, 45, 80, 55, 70, 90, 60, 75, 85, 50, 95, 70];
 
   const activityColumns = [
     { key: 'title', label: 'النشاط', render: (v: string, row: any) => (
@@ -144,7 +198,7 @@ export default function DashboardPage() {
           <div>
             <FluentCard title="المهام القادمة" subtitle="المهام المجدولة">
               <div className="space-y-3">
-                {upcomingTasks.map((task) => (
+                {tasks.map((task) => (
                   <div key={task.id} className="flex items-start gap-3 p-3 bg-[#faf9f8] rounded-sm border border-[#f3f2f1]">
                     <div className={`
                       w-2 h-2 rounded-full mt-2 shrink-0
@@ -175,51 +229,63 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <FluentCard title="أداء المبيعات" subtitle="الإيرادات الشهرية">
             <div className="h-64 flex items-end justify-around gap-2 pt-4">
-              {[65, 45, 80, 55, 70, 90, 60, 75, 85, 50, 95, 70].map((height, idx) => (
+              {salesData.map((height, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1 flex-1">
-                  <div 
+                  <div
                     className="w-full bg-[#0078d4] rounded-t-sm hover:bg-[#106ebe] transition-colors cursor-pointer relative group"
                     style={{ height: `${height}%` }}
                   >
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#323130] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {height}K ر.س
+                      {height}%
                     </div>
                   </div>
-                  <span className="text-xs text-[#605e5c]">{['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'][idx]}</span>
+                  <span className="text-xs text-[#605e5c]">{MONTHS_AR[(new Date().getMonth() - (11 - idx) + 12) % 12]}</span>
                 </div>
               ))}
             </div>
           </FluentCard>
 
-          <FluentCard title="توزيع المشاريع" subtitle="حسب القطاع">
+          <FluentCard title="توزيع المشاريع" subtitle="حسب الحالة">
             <div className="h-64 flex items-center justify-center">
               <div className="relative w-48 h-48">
                 <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                   <circle cx="50" cy="50" r="40" fill="none" stroke="#eff6fc" strokeWidth="20" />
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="#0078d4" strokeWidth="20" strokeDasharray="125.6 251.2" />
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="#107c10" strokeWidth="20" strokeDasharray="75.36 251.2" strokeDashoffset="-125.6" />
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="#d83b01" strokeWidth="20" strokeDasharray="50.24 251.2" strokeDashoffset="-200.96" />
+                  {totalProjects > 0 && projectsByStatus.map((s) => {
+                    const fraction = s.count / totalProjects;
+                    const dash = fraction * 251.2;
+                    const el = (
+                      <circle
+                        key={s.status}
+                        cx="50" cy="50" r="40" fill="none"
+                        stroke={STATUS_COLORS[s.status] || '#8a8886'}
+                        strokeWidth="20"
+                        strokeDasharray={`${dash} ${251.2 - dash}`}
+                        strokeDashoffset={-dashOffset}
+                      />
+                    );
+                    dashOffset += dash;
+                    return el;
+                  })}
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-[#323130]">24</p>
+                    <p className="text-2xl font-bold text-[#323130]">{totalProjects}</p>
                     <p className="text-xs text-[#605e5c]">مشروع</p>
                   </div>
                 </div>
               </div>
               <div className="mr-8 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-[#0078d4]" />
-                  <span className="text-sm text-[#323130]">تقنية (50%)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-[#107c10]" />
-                  <span className="text-sm text-[#323130]">صناعة (30%)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-[#d83b01]" />
-                  <span className="text-sm text-[#323130]">خدمات (20%)</span>
-                </div>
+                {totalProjects === 0 && (
+                  <span className="text-sm text-[#605e5c]">لا توجد مشاريع بعد</span>
+                )}
+                {projectsByStatus.map((s) => (
+                  <div key={s.status} className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: STATUS_COLORS[s.status] || '#8a8886' }} />
+                    <span className="text-sm text-[#323130]">
+                      {STATUS_LABELS_AR[s.status] || s.status} ({Math.round((s.count / totalProjects) * 100)}%)
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </FluentCard>

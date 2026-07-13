@@ -42,8 +42,8 @@ npm run dev
 Visit `/api/docs/` after running the backend.
 
 ## Superuser
-- Email: `eng.murad.ghannam@gmail.com`
-- Password: `ghannam2020`
+
+Set `NEXUS_SUPERUSER_EMAIL` and `NEXUS_SUPERUSER_PASSWORD` in your environment (see `backend/.env.example`) before deploying. The bootstrap step is skipped if either is unset — no default credentials are baked into the image.
 
 ## License
 MIT

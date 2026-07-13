@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.authtoken.models import Token
@@ -14,6 +16,49 @@ from .serializers import (
     UserSerializer,
     WarehouseSerializer,
 )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register_view(request):
+    """Self-service account creation: email + password (+ optional name).
+    Logs the new user in immediately, same response shape as login_view."""
+    email = (request.data.get("email") or "").strip()
+    password = request.data.get("password") or ""
+    first_name = (request.data.get("first_name") or "").strip()
+    last_name = (request.data.get("last_name") or "").strip()
+
+    if not email or not password:
+        return Response(
+            {"detail": "Email and password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        validate_email(email)
+    except DjangoValidationError:
+        return Response(
+            {"detail": "Enter a valid email address."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(password) < 8:
+        return Response(
+            {"detail": "Password must be at least 8 characters."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if User.objects.filter(email__iexact=email).exists():
+        return Response(
+            {"detail": "An account with this email already exists."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = User.objects.create_user(
+        email=email, password=password, first_name=first_name, last_name=last_name
+    )
+    token, _ = Token.objects.get_or_create(user=user)
+    return Response(
+        {"token": token.key, "user": UserSerializer(user).data},
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["POST"])
