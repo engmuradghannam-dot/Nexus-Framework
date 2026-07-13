@@ -19,6 +19,9 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class SalesOrderItemSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.item_name", read_only=True)
+    item_code = serializers.CharField(source="item.item_code", read_only=True)
+
     class Meta:
         model = SalesOrderItem
         fields = "__all__"
@@ -40,6 +43,8 @@ class SalesOrderSerializer(serializers.ModelSerializer):
     total_tax = serializers.ReadOnlyField()
     total_paid = serializers.ReadOnlyField()
     outstanding_amount = serializers.ReadOnlyField()
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True, default="")
 
     class Meta:
         model = SalesOrder

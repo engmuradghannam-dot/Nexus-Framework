@@ -25,6 +25,9 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.item_name", read_only=True)
+    item_code = serializers.CharField(source="item.item_code", read_only=True)
+
     class Meta:
         model = PurchaseOrderItem
         fields = "__all__"
@@ -46,6 +49,8 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
     total_tax = serializers.ReadOnlyField()
     total_paid = serializers.ReadOnlyField()
     outstanding_amount = serializers.ReadOnlyField()
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True, default="")
 
     class Meta:
         model = PurchaseOrder

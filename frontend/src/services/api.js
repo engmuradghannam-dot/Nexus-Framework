@@ -344,3 +344,52 @@ export const automationApi = {
   triggerWebhook: (id, payload) => data(API.post(`/automation/webhooks/${id}/trigger/`, { payload })),
   deliveries: () => list(API.get('/automation/deliveries/', { params: { page_size: 200 } })),
 }
+
+// ════════ Inventory items (for order line-item pickers) ════════
+export const itemsApi = {
+  list: () => list(API.get('/inventory/items/', { params: { page_size: 500 } })),
+}
+
+// ════════ Selling: customers + sales order cycle ════════
+export const customersApi = {
+  list: () => list(API.get('/selling/customers/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/selling/customers/', p)),
+}
+
+export const sellingApi = {
+  orders: (filters) => list(API.get('/selling/sales-orders/', { params: { page_size: 200, ...filters } })),
+  getOrder: (id) => data(API.get(`/selling/sales-orders/${id}/`)),
+  createOrder: (p) => data(API.post('/selling/sales-orders/', p)),
+  updateOrder: (id, p) => data(API.patch(`/selling/sales-orders/${id}/`, p)),
+  deleteOrder: (id) => API.delete(`/selling/sales-orders/${id}/`),
+  items: (soId) => list(API.get('/selling/sales-order-items/', { params: { sales_order: soId, page_size: 200 } })),
+  addItem: (p) => data(API.post('/selling/sales-order-items/', p)),
+  removeItem: (id) => API.delete(`/selling/sales-order-items/${id}/`),
+  taxCharges: (soId) => list(API.get('/selling/sales-tax-charges/', { params: { sales_order: soId } })),
+  addTaxCharge: (p) => data(API.post('/selling/sales-tax-charges/', p)),
+  removeTaxCharge: (id) => API.delete(`/selling/sales-tax-charges/${id}/`),
+  payments: (soId) => list(API.get('/selling/sales-payments/', { params: { sales_order: soId } })),
+  addPayment: (p) => data(API.post('/selling/sales-payments/', p)),
+}
+
+// ════════ Buying: suppliers + purchase order cycle ════════
+export const suppliersApi = {
+  list: () => list(API.get('/buying/suppliers/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/buying/suppliers/', p)),
+}
+
+export const buyingApi = {
+  orders: (filters) => list(API.get('/buying/purchase-orders/', { params: { page_size: 200, ...filters } })),
+  getOrder: (id) => data(API.get(`/buying/purchase-orders/${id}/`)),
+  createOrder: (p) => data(API.post('/buying/purchase-orders/', p)),
+  updateOrder: (id, p) => data(API.patch(`/buying/purchase-orders/${id}/`, p)),
+  deleteOrder: (id) => API.delete(`/buying/purchase-orders/${id}/`),
+  items: (poId) => list(API.get('/buying/purchase-order-items/', { params: { purchase_order: poId, page_size: 200 } })),
+  addItem: (p) => data(API.post('/buying/purchase-order-items/', p)),
+  removeItem: (id) => API.delete(`/buying/purchase-order-items/${id}/`),
+  taxCharges: (poId) => list(API.get('/buying/purchase-tax-charges/', { params: { purchase_order: poId } })),
+  addTaxCharge: (p) => data(API.post('/buying/purchase-tax-charges/', p)),
+  removeTaxCharge: (id) => API.delete(`/buying/purchase-tax-charges/${id}/`),
+  payments: (poId) => list(API.get('/buying/purchase-payments/', { params: { purchase_order: poId } })),
+  addPayment: (p) => data(API.post('/buying/purchase-payments/', p)),
+}

@@ -80,6 +80,13 @@ class TestPurchaseOrderTotals:
         # (600 - 100 discount) + 90 tax = 590
         assert purchase_order.grand_total == 590
 
+    def test_totals_recalculate_automatically_when_a_line_item_is_added(self, purchase_order, item):
+        # No manual recalculate_totals() call — this must happen via signal.
+        PurchaseOrderItem.objects.create(purchase_order=purchase_order, item=item, qty=3, rate=30)
+        purchase_order.refresh_from_db()
+        assert purchase_order.total_amount == 90
+        assert purchase_order.grand_total == 90
+
     def test_outstanding_amount_reflects_payments(self, purchase_order, item):
         PurchaseOrderItem.objects.create(purchase_order=purchase_order, item=item, qty=1, rate=200)
         purchase_order.recalculate_totals()

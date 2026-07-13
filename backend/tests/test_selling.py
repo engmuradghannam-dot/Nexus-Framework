@@ -79,6 +79,20 @@ class TestSalesOrderTotals:
         # (500 - 50 discount) + 75 tax = 525
         assert sales_order.grand_total == 525
 
+    def test_totals_recalculate_automatically_when_a_line_item_is_added(self, sales_order, item):
+        # No manual recalculate_totals() call — this must happen via signal.
+        SalesOrderItem.objects.create(sales_order=sales_order, item=item, qty=2, rate=100)
+        sales_order.refresh_from_db()
+        assert sales_order.total_amount == 200
+        assert sales_order.grand_total == 200
+
+    def test_totals_recalculate_automatically_when_a_line_item_is_removed(self, sales_order, item):
+        line = SalesOrderItem.objects.create(sales_order=sales_order, item=item, qty=2, rate=100)
+        line.delete()
+        sales_order.refresh_from_db()
+        assert sales_order.total_amount == 0
+        assert sales_order.grand_total == 0
+
     def test_outstanding_amount_reflects_payments(self, sales_order, item):
         SalesOrderItem.objects.create(sales_order=sales_order, item=item, qty=2, rate=100)
         sales_order.recalculate_totals()
@@ -179,3 +193,16 @@ class TestSalesOrderAPI:
     def test_unauthenticated_access_denied(self, api_client):
         response = api_client.get("/api/selling/sales-orders/")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_creating_order_without_company_auto_assigns_the_sole_company(self, auth_client, company, customer):
+        # Regression test: CompanyScopedMixin used to require `company` on
+        # every write (DRF's field-level validation fired before the
+        # auto-assign logic ever ran), so a UI that doesn't make users
+        # re-pick their company on every screen — like a real ERP — got a
+        # hard 400 even though exactly one company exists.
+        response = auth_client.post(
+            "/api/selling/sales-orders/",
+            {"customer": customer.id, "so_number": "SO-AUTO-1", "transaction_date": "2026-01-01"},
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert str(response.data["company"]) == str(company.id)
