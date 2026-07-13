@@ -52,10 +52,6 @@ mkdir -p /app/cache /app/media /app/staticfiles
 echo "📦 Collecting static files..."
 python manage.py collectstatic --noinput || echo "⚠️ Static collection had issues, continuing..."
 
-# Create migrations for new apps
-echo "📝 Creating migrations for new apps..."
-python manage.py makemigrations hr inventory manufacturing accounts assets buying selling crm --noinput || echo "⚠️ makemigrations had issues, continuing..."
-
 # Run migrations
 echo "🗄️  Running database migrations..."
 python manage.py migrate --noinput || {
@@ -78,19 +74,22 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nexus.settings.production')
 django.setup()
 from django.contrib.auth import get_user_model
 User = get_user_model()
-email = 'eng.murad.ghannam@gmail.com'
-password = 'Ghannam2020'
-user = User.objects.filter(email__iexact=email).first()
-if user is None:
-    user = User(email=email, username=email)
-user.email = email
-user.username = user.username or email
-user.is_staff = True
-user.is_superuser = True
-user.is_active = True
-user.set_password(password)
-user.save()
-print('Superuser ensured:', email)
+email = os.environ.get('NEXUS_SUPERUSER_EMAIL')
+password = os.environ.get('NEXUS_SUPERUSER_PASSWORD')
+if not email or not password:
+    print('NEXUS_SUPERUSER_EMAIL / NEXUS_SUPERUSER_PASSWORD not set, skipping superuser bootstrap')
+else:
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        user = User(email=email, username=email)
+    user.email = email
+    user.username = user.username or email
+    user.is_staff = True
+    user.is_superuser = True
+    user.is_active = True
+    user.set_password(password)
+    user.save()
+    print('Superuser ensured:', email)
 " || echo "Superuser step skipped"
 
 
