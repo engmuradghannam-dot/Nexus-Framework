@@ -10,6 +10,7 @@ import Layout from './components/Layout';
 
 // Pages loaded eagerly (first paint: login + the post-login landing page)
 import LoginPage from './pages/Auth/LoginPage';
+import RegisterPage from './pages/Auth/RegisterPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 
 // All other pages are code-split: each becomes its own chunk, fetched only
@@ -100,6 +101,7 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
               {/* Protected Routes */}
               <Route element={<AuthGuard />}>
