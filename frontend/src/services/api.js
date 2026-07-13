@@ -296,3 +296,12 @@ export const reportsApi = {
   run: (id) => data(API.get(`/reports/definitions/${id}/run/`)),
   preview: (payload) => data(API.post('/reports/definitions/preview/', payload)),
 }
+
+// ════════ Notifications (email/SMS) ════════
+export const notificationsApi = {
+  templates: () => list(API.get('/notifications/templates/', { params: { page_size: 100 } })),
+  createTemplate: (payload) => data(API.post('/notifications/templates/', payload)),
+  removeTemplate: (id) => API.delete(`/notifications/templates/${id}/`),
+  send: (id, payload) => data(API.post(`/notifications/templates/${id}/send/`, payload)),
+  log: () => list(API.get('/notifications/log/', { params: { page_size: 200 } })),
+}
