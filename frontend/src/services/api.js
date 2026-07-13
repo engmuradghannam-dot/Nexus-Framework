@@ -421,3 +421,13 @@ export const buyingApi = {
   payments: (poId) => list(API.get('/buying/purchase-payments/', { params: { purchase_order: poId } })),
   addPayment: (p) => data(API.post('/buying/purchase-payments/', p)),
 }
+
+// ════════ CRM: leads + opportunities ════════
+export const crmApi = {
+  leads: () => list(API.get('/crm/leads/', { params: { page_size: 200 } })),
+  createLead: (p) => data(API.post('/crm/leads/', p)),
+  updateLead: (id, p) => data(API.patch(`/crm/leads/${id}/`, p)),
+  opportunities: () => list(API.get('/crm/opportunities/', { params: { page_size: 200 } })),
+  createOpportunity: (p) => data(API.post('/crm/opportunities/', p)),
+  updateOpportunity: (id, p) => data(API.patch(`/crm/opportunities/${id}/`, p)),
+}
