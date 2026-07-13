@@ -1,6 +1,7 @@
 // pages/Auth/LoginPage.tsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { authApi } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -25,6 +26,17 @@ export default function LoginPage() {
       toast.error('بيانات الدخول غير صحيحة');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      const response = await authApi.googleLogin(credentialResponse.credential);
+      localStorage.setItem('token', response.token);
+      toast.success('تم تسجيل الدخول بنجاح');
+      navigate('/dashboard');
+    } catch (err) {
+      toast.error('فشل تسجيل الدخول باستخدام Google');
     }
   };
 
@@ -106,6 +118,26 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500">أو</span>
+            </div>
+          </div>
+
+          {/* Google Login */}
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error('فشل تسجيل الدخول باستخدام Google')}
+              text="signin_with"
+              locale="ar"
+            />
+          </div>
 
           <p className="text-center text-sm text-gray-600 mt-6">
             ليس لديك حساب؟{' '}

@@ -1,6 +1,7 @@
 // App.tsx
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
@@ -71,6 +72,8 @@ const queryClient = new QueryClient({
   },
 });
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '681700684231-ir8piq7o8aca3hgfuqle41pt124bhk77.apps.googleusercontent.com';
+
 function RouteLoading() {
   return (
     <div className="flex items-center justify-center h-64 text-[#605e5c] text-sm">
@@ -81,8 +84,9 @@ function RouteLoading() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
           <Toaster
             position="top-left"
             toastOptions={{
@@ -156,7 +160,8 @@ function App() {
             </Routes>
           </Suspense>
         </BrowserRouter>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </GoogleOAuthProvider>
   );
 }
 

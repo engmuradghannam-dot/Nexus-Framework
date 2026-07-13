@@ -118,6 +118,7 @@ const list = (p) => p.then((r) => (r.data && r.data.results) || r.data || [])
 export const authApi = {
   login: (email, password) => data(API.post('/core/auth/login/', { email, password })),
   register: (payload) => data(API.post('/core/auth/register/', payload)),
+  googleLogin: (token) => data(API.post('/core/auth/google/', { token })),
   getProfile: () => data(API.get('/core/users/me/')),
   updateProfile: (payload) => data(API.put('/core/users/me/', payload)),
 }
