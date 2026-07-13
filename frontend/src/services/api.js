@@ -422,6 +422,20 @@ export const buyingApi = {
   addPayment: (p) => data(API.post('/buying/purchase-payments/', p)),
 }
 
+// ════════ HR: employees, departments, leave, payroll ════════
+export const hrApi = {
+  employees: () => list(API.get('/hr/employees/', { params: { page_size: 200 } })),
+  createEmployee: (p) => data(API.post('/hr/employees/', p)),
+  departments: () => list(API.get('/hr/departments/', { params: { page_size: 100 } })),
+  createDepartment: (p) => data(API.post('/hr/departments/', p)),
+  leaveRequests: () => list(API.get('/hr/leave-requests/', { params: { page_size: 200 } })),
+  createLeaveRequest: (p) => data(API.post('/hr/leave-requests/', p)),
+  updateLeaveRequest: (id, p) => data(API.patch(`/hr/leave-requests/${id}/`, p)),
+  payrolls: () => list(API.get('/hr/payrolls/', { params: { page_size: 200 } })),
+  createPayroll: (p) => data(API.post('/hr/payrolls/', p)),
+  updatePayroll: (id, p) => data(API.patch(`/hr/payrolls/${id}/`, p)),
+}
+
 // ════════ CRM: leads + opportunities ════════
 export const crmApi = {
   leads: () => list(API.get('/crm/leads/', { params: { page_size: 200 } })),

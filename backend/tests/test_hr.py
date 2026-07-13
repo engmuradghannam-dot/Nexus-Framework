@@ -158,3 +158,29 @@ class TestHRAPI:
     def test_unauthenticated_access_denied(self, api_client):
         response = api_client.get("/api/hr/employees/")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_approving_leave_request_does_not_crash(self, auth_client, employee):
+        # Regression test: the serializer imported apps.hr.tasks, which
+        # didn't exist, so approving/rejecting a leave crashed with
+        # ModuleNotFoundError on every request.
+        leave = LeaveRequest.objects.create(
+            employee=employee, leave_type="Annual",
+            start_date=date(2026, 8, 1), end_date=date(2026, 8, 3),
+        )
+        response = auth_client.patch(
+            f"/api/hr/leave-requests/{leave.id}/", {"status": "Approved"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_marking_payroll_paid_does_not_crash(self, auth_client, employee):
+        payroll = Payroll.objects.create(
+            employee=employee,
+            pay_period_start=date(2026, 8, 1),
+            pay_period_end=date(2026, 8, 31),
+            basic_salary=4000,
+            status="Approved",
+        )
+        response = auth_client.patch(
+            f"/api/hr/payrolls/{payroll.id}/", {"status": "Paid"}
+        )
+        assert response.status_code == status.HTTP_200_OK

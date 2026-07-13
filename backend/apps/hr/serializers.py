@@ -26,9 +26,15 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(source="department.name", read_only=True, default="")
+    full_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Employee
         fields = "__all__"
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
 
 
 class TeamSerializer(serializers.ModelSerializer):
@@ -40,10 +46,14 @@ class TeamSerializer(serializers.ModelSerializer):
 class LeaveRequestSerializer(serializers.ModelSerializer):
     duration_days = serializers.ReadOnlyField()
     remaining_balance = serializers.ReadOnlyField()
+    employee_name = serializers.SerializerMethodField()
 
     class Meta:
         model = LeaveRequest
         fields = "__all__"
+
+    def get_employee_name(self, obj):
+        return f"{obj.employee.first_name} {obj.employee.last_name}".strip()
 
     def validate(self, data):
         start = data.get("start_date", getattr(self.instance, "start_date", None))
@@ -79,7 +89,7 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
         if old_status != new_status and new_status in ("Approved", "Rejected"):
             from .tasks import send_leave_decision_email
 
-            send_leave_decision_email.delay(instance.id, new_status)
+            send_leave_decision_email(instance.id, new_status)
         return instance
 
 
@@ -88,10 +98,14 @@ class PayrollSerializer(serializers.ModelSerializer):
     gross_salary = serializers.ReadOnlyField()
     total_deductions = serializers.ReadOnlyField()
     net_salary = serializers.ReadOnlyField()
+    employee_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Payroll
         fields = "__all__"
+
+    def get_employee_name(self, obj):
+        return f"{obj.employee.first_name} {obj.employee.last_name}".strip()
 
     def validate(self, data):
         employee = data.get("employee", getattr(self.instance, "employee", None))
@@ -130,5 +144,5 @@ class PayrollSerializer(serializers.ModelSerializer):
         if old_status != new_status and new_status == "Paid":
             from .tasks import send_payroll_paid_email
 
-            send_payroll_paid_email.delay(instance.id)
+            send_payroll_paid_email(instance.id)
         return instance
