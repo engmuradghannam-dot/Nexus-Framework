@@ -305,3 +305,20 @@ export const notificationsApi = {
   send: (id, payload) => data(API.post(`/notifications/templates/${id}/send/`, payload)),
   log: () => list(API.get('/notifications/log/', { params: { page_size: 200 } })),
 }
+
+// ════════ HR extras ════════
+export const hrExtrasApi = {
+  claims: () => list(API.get('/hr-extras/expense-claims/', { params: { page_size: 200 } })),
+  createClaim: (p) => data(API.post('/hr-extras/expense-claims/', p)),
+  claimStatus: (id, status) => data(API.post(`/hr-extras/expense-claims/${id}/set_status/`, { status })),
+  loans: () => list(API.get('/hr-extras/loans/', { params: { page_size: 200 } })),
+  createLoan: (p) => data(API.post('/hr-extras/loans/', p)),
+  payInstallment: (id) => data(API.post(`/hr-extras/loans/${id}/pay_installment/`)),
+  openings: () => list(API.get('/hr-extras/job-openings/', { params: { page_size: 100 } })),
+  createOpening: (p) => data(API.post('/hr-extras/job-openings/', p)),
+  applicants: (opening) => list(API.get('/hr-extras/applicants/', { params: { opening, page_size: 200 } })),
+  createApplicant: (p) => data(API.post('/hr-extras/applicants/', p)),
+  appraisals: () => list(API.get('/hr-extras/appraisals/', { params: { page_size: 200 } })),
+  createAppraisal: (p) => data(API.post('/hr-extras/appraisals/', p)),
+  eos: (params) => data(API.get('/hr-extras/end-of-service/', { params })),
+}

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderKanban, Building2, BrainCircuit, ShieldCheck, ClipboardCheck, Receipt, Languages, BadgeCheck,
   MapPin, Warehouse, Users, Settings, ChevronLeft, ChevronRight, Zap,
   ShoppingCart, Store, Factory, Boxes, Briefcase, HeartHandshake, Contact,
-  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle, Shield, Clock, ShieldCheck, Calculator, FileText, Wallet, ArrowLeftRight, TrendingDown, Building2, Building, Coins, SlidersHorizontal, Tag, Barcode as BarcodeIcon, ShoppingBag, FileBarChart, Mail
+  ChevronDown, BarChart3, X, Landmark, History, Receipt as ReceiptIcon, AlertTriangle, Shield, Clock, ShieldCheck, Calculator, FileText, Wallet, ArrowLeftRight, TrendingDown, Building2, Building, Coins, SlidersHorizontal, Tag, Barcode as BarcodeIcon, ShoppingBag, FileBarChart, Mail, UserCog
 } from 'lucide-react';
 
 interface NavGroup {
@@ -59,6 +59,7 @@ const navGroups: NavGroup[] = [
     label: 'الموارد البشرية',
     items: [
       { path: '/hr', icon: Users, label: 'الموارد البشرية' },
+      { path: '/hr-extras', icon: UserCog, label: 'شؤون الموظفين' },
       { path: '/attendance', icon: Clock, label: 'الحضور والوقت' },
       { path: '/branches', icon: MapPin, label: 'الفروع والمواقع' },
     ],
