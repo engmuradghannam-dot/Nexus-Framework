@@ -42,6 +42,7 @@ import PurchasingPage from './pages/Purchasing/PurchasingPage';
 import ReportsPage from './pages/Reports/ReportsPage';
 import NotificationsPage from './pages/Notifications/NotificationsPage';
 import HRExtrasPage from './pages/HRExtras/HRExtrasPage';
+import UOMPage from './pages/UOM/UOMPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -119,6 +120,7 @@ function App() {
                 <Route path="/depreciation" element={<DepreciationPage />} />
                 <Route path="/hr" element={<HRPage />} />
                 <Route path="/hr-extras" element={<HRExtrasPage />} />
+                <Route path="/uom" element={<UOMPage />} />
                 <Route path="/attendance" element={<AttendancePage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/barcode" element={<BarcodePage />} />

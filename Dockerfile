@@ -1,5 +1,5 @@
 # Multi-stage build for Nexus Framework
-ARG CACHE_BUST=49
+ARG CACHE_BUST=50
 
 # ── Frontend Build Stage ─────────────────────────
 FROM node:20-alpine AS frontend-build
@@ -12,7 +12,7 @@ RUN npm run build
 # ── Backend Stage ─────────────────────────────────
 FROM python:3.11
 
-ARG CACHE_BUST=49
+ARG CACHE_BUST=50
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=nexus.settings.production
@@ -99,6 +99,7 @@ echo "🌱 Seeding demo data..."
 python manage.py seed_languages || echo "⚠️ Languages seed skipped"
 python manage.py seed_currencies || echo "⚠️ Currencies seed skipped"
 python manage.py seed_pricing || echo "⚠️ Pricing seed skipped"
+python manage.py seed_uom || echo "⚠️ UOM seed skipped"
 python manage.py seed_purchasing || echo "⚠️ Purchasing seed skipped"
 python manage.py seed_notifications || echo "⚠️ Notifications seed skipped"
 python manage.py seed_hr_extras || echo "⚠️ HR extras seed skipped"

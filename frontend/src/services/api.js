@@ -322,3 +322,14 @@ export const hrExtrasApi = {
   createAppraisal: (p) => data(API.post('/hr-extras/appraisals/', p)),
   eos: (params) => data(API.get('/hr-extras/end-of-service/', { params })),
 }
+
+// ════════ UOM & variants ════════
+export const uomApi = {
+  units: () => data(API.get('/uom/units/')),
+  createUnit: (p) => data(API.post('/uom/units/', p)),
+  convert: (amount, from, to) => data(API.get('/uom/units/convert/', { params: { amount, from, to } })),
+  conversions: () => data(API.get('/uom/conversions/')),
+  createConversion: (p) => data(API.post('/uom/conversions/', p)),
+  variants: (template_code) => list(API.get('/uom/variants/', { params: { template_code, page_size: 500 } })),
+  generate: (p) => data(API.post('/uom/variants/generate/', p)),
+}

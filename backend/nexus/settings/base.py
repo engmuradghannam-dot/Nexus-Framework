@@ -124,6 +124,7 @@ LOCAL_APPS = [
     "apps.currencies",
     "apps.customfields",
     "apps.pricing",
+    "apps.uom",
     "apps.purchasing",
     "apps.reports",
     "apps.notifications",
