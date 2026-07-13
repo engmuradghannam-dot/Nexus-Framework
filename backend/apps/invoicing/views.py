@@ -18,6 +18,14 @@ class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     filterset_fields = ["invoice_type", "status"]
 
     @action(detail=True, methods=["post"])
+    def void(self, request, pk=None):
+        invoice = self.get_object()
+        ok, msg = invoice.void()
+        return Response({"success": ok, "message": msg,
+                         "invoice": self.get_serializer(invoice).data},
+                        status=200 if ok else 400)
+
+    @action(detail=True, methods=["post"])
     def post_to_ledger(self, request, pk=None):
         invoice = self.get_object()
         ok, msg = invoice.post_to_ledger()

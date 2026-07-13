@@ -132,6 +132,9 @@ class JournalEntry(models.Model):
         choices=[("Draft", "Draft"), ("Submitted", "Submitted")],
     )
     notes = models.TextField(blank=True)
+    is_reversed = models.BooleanField(default=False)
+    reversal_of = models.ForeignKey("self", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="reversals")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def post_to_ledger(self):
@@ -157,6 +160,32 @@ class JournalEntry(models.Model):
                 )
             self.debit_account.post(debit_amount=self.amount)
             self.credit_account.post(credit_amount=self.amount)
+
+    def reverse(self, posting_date=None, reference=None):
+        """Create a balanced mirror entry that undoes this one. Idempotent:
+        an already-reversed entry (or a reversal entry) cannot be reversed."""
+        from datetime import date as _date
+        if self.is_reversed:
+            return None, "القيد مُعكّس مسبقاً"
+        if self.reversal_of_id:
+            return None, "لا يمكن عكس قيد عكسي"
+        rev = JournalEntry.objects.create(
+            company=self.company, tenant=self.tenant,
+            entry_number=f"REV-{self.entry_number}",
+            posting_date=posting_date or _date.today(),
+            reference=reference or f"عكس القيد {self.entry_number}",
+            debit_account=self.credit_account, credit_account=self.debit_account,
+            amount=self.amount, total_debit=self.amount, total_credit=self.amount,
+            reversal_of=self,
+        )
+        # undo the original effect on account balances
+        if self.debit_account:
+            self.debit_account.post(credit_amount=self.amount)
+        if self.credit_account:
+            self.credit_account.post(debit_amount=self.amount)
+        self.is_reversed = True
+        self.save(update_fields=["is_reversed"])
+        return rev, "تم عكس القيد"
 
     def __str__(self):
         return self.entry_number

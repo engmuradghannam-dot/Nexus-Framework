@@ -119,6 +119,60 @@ class Invoice(models.Model):
         self.save(update_fields=["status"])
         return True, "تم الترحيل إلى دفتر الأستاذ"
 
+    def void(self):
+        """Cancel a posted invoice by reversing its ledger posting.
+
+        Guards: only a posted invoice; no recorded payments; no posted credit
+        notes (those must be handled first). Creates balanced reversing entries
+        and sets the invoice to cancelled.
+        """
+        from apps.accounts.models import Account, JournalEntry
+        from apps.core.models import Company
+
+        if self.status != "posted":
+            return False, "لا يمكن إلغاء إلا فاتورة مُرحّلة"
+        if Decimal(self.paid_amount or 0) > 0:
+            return False, "لا يمكن إلغاء فاتورة عليها دفعات مُسجّلة — عالج الدفعات أولاً"
+        if self.pk and self.credit_notes.filter(status="posted").exists():
+            return False, "لا يمكن إلغاء فاتورة لها إشعارات دائنة مُرحّلة"
+
+        company = self.company or Company.objects.order_by("id").first()
+        if company is None:
+            return False, "لا توجد شركة"
+
+        def acc(number):
+            return Account.objects.filter(company=company, account_number=number).first()
+
+        if self.invoice_type == "sales":
+            ar, rev, vat = acc("1300"), acc("4100"), acc("2200")
+            if not all([ar, rev, vat]):
+                return False, "حسابات المبيعات غير مهيأة"
+            legs = [(rev, ar, self.subtotal), (vat, ar, self.tax_amount)]
+        else:
+            invacc, ap, vat = acc("1400"), acc("2100"), acc("2200")
+            if not all([invacc, ap, vat]):
+                return False, "حسابات المشتريات غير مهيأة"
+            legs = [(ap, invacc, self.subtotal), (ap, vat, self.tax_amount)]
+
+        for i, (dr, cr, amt) in enumerate(legs):
+            amt = Decimal(amt or 0)
+            if amt <= 0:
+                continue
+            JournalEntry.objects.create(
+                company=company,
+                entry_number=f"VOID-{self.invoice_number}-{i+1}",
+                posting_date=self.invoice_date,
+                reference=f"Void {self.get_invoice_type_display()} Invoice {self.invoice_number}",
+                debit_account=dr, credit_account=cr, amount=amt,
+                total_debit=amt, total_credit=amt,
+            )
+            dr.post(debit_amount=amt)
+            cr.post(credit_amount=amt)
+
+        self.status = "cancelled"
+        self.save(update_fields=["status"])
+        return True, "تم إلغاء الفاتورة وعكس ترحيلها المحاسبي"
+
 
 class CreditNote(models.Model):
     """Credit note / return against a posted invoice.

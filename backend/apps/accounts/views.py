@@ -131,6 +131,17 @@ class AccountViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSe
 class JournalEntryViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = JournalEntry.objects.all()
     serializer_class = JournalEntrySerializer
+
+    @action(detail=True, methods=["post"])
+    def reverse(self, request, pk=None):
+        entry = self.get_object()
+        rev, msg = entry.reverse(
+            posting_date=request.data.get("posting_date"),
+            reference=request.data.get("reference"))
+        if rev is None:
+            return Response({"success": False, "message": msg}, status=400)
+        return Response({"success": True, "message": msg,
+                         "reversal": JournalEntrySerializer(rev).data}, status=201)
     company_field = "company"
 
 

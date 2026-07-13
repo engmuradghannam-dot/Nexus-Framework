@@ -1,6 +1,6 @@
 // pages/Invoicing/InvoicingPage.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { Receipt, Plus, RefreshCw, CheckCircle, Send, Printer } from 'lucide-react';
+import { Receipt, Plus, RefreshCw, CheckCircle, Send, Printer , Ban} from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
@@ -43,6 +43,11 @@ export default function InvoicingPage() {
   };
 
   const doPrint = async (id: number) => { try { const d = await invoicingApi.zatcaQr(id); await printInvoice(d); } catch { alert('تعذّرت الطباعة'); } };
+  const doVoid = async (id: number) => {
+    if (!confirm('إلغاء الفاتورة وعكس ترحيلها المحاسبي؟')) return;
+    try { const r = await invoicingApi.void(id); if (!r.success) alert(r.message); reload(); }
+    catch (e) { alert('تعذّر الإلغاء'); }
+  };
 
   const postLedger = async (id: number) => {
     try {
@@ -91,7 +96,9 @@ export default function InvoicingPage() {
                   <button onClick={(e) => { e.stopPropagation(); doPrint(row.id); }} title="طباعة / PDF" className="flex items-center gap-1 text-xs text-[#0078d4] border border-[#0078d4] px-2 py-1 rounded hover:bg-[#eff6fc]"><Printer size={12} /> طباعة</button>
                   {row.status === 'draft'
                     ? <button onClick={(e) => { e.stopPropagation(); postLedger(row.id); }} className="flex items-center gap-1 text-xs text-white bg-[#0078d4] px-2 py-1 rounded hover:bg-[#106ebe]"><Send size={12} /> ترحيل</button>
-                    : <span className="text-xs text-[#107c10]">✓ مُرحّلة</span>}
+                    : row.status === 'posted'
+                    ? <button onClick={(e) => { e.stopPropagation(); doVoid(row.id); }} title="إلغاء وعكس الترحيل" className="flex items-center gap-1 text-xs text-[#a4262c] border border-[#a4262c] px-2 py-1 rounded hover:bg-[#fdf3f4]"><Ban size={12} /> إلغاء</button>
+                    : <span className="text-xs text-[#a19f9d]">ملغاة</span>}
                 </div>
               )
             },

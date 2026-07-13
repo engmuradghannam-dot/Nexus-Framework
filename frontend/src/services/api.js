@@ -177,6 +177,7 @@ export const accountingApi = {
   trialBalance: () => data(API.get('/accounts/accounts/trial_balance/')),
   financialStatements: () => data(API.get('/accounts/accounts/financial_statements/')),
   journalEntries: () => list(API.get('/accounts/journal-entries/', { params: { page_size: 200 } })),
+  reverseEntry: (id) => data(API.post(`/accounts/journal-entries/${id}/reverse/`)),
   generalLedger: (id) => data(API.get(`/accounts/accounts/${id}/general_ledger/`)),
 }
 
@@ -193,6 +194,7 @@ export const invoicingApi = {
   aging: (type) => data(API.get("/invoicing/invoices/aging/", { params: { type } })),
   zatcaQr: (id) => data(API.get(`/invoicing/invoices/${id}/zatca_qr/`)),
   recordPayment: (id, amount) => data(API.post(`/invoicing/invoices/${id}/record_payment/`, { amount })),
+  void: (id) => data(API.post(`/invoicing/invoices/${id}/void/`)),
 }
 
 // ════════ Credit notes / returns ════════
