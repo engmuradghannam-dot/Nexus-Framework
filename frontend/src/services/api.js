@@ -280,3 +280,10 @@ export const pricingApi = {
   remove: (id) => API.delete(`/pricing/rules/${id}/`),
   quote: (params) => data(API.get('/pricing/rules/quote/', { params })),
 }
+
+// ════════ Purchasing cycle ════════
+export const purchasingApi = {
+  list: () => list(API.get('/purchasing/documents/', { params: { page_size: 200 } })),
+  create: (payload) => data(API.post('/purchasing/documents/', payload)),
+  process: (id) => data(API.post(`/purchasing/documents/${id}/process/`)),
+}
