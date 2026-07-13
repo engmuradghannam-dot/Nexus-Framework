@@ -16,12 +16,18 @@ SECRET_KEY = os.getenv(
 )
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = ["*"]
+# SECURITY: Restrict allowed hosts
+_allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
+
+# Add Railway domain if provided
+_railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "")
+if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_railway_domain)
 
 # ── SECURITY / CSRF / CORS ───────────────────────
 # EXACT domains only - NO wildcards in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
-    "https://web-production-38215.up.railway.app",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "http://localhost:3000",
@@ -29,7 +35,6 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # Add dynamic Railway domains from env
-_railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "")
 if _railway_domain:
     _full_url = f"https://{_railway_domain}"
     if _full_url not in CSRF_TRUSTED_ORIGINS:
@@ -37,7 +42,6 @@ if _railway_domain:
 
 _railway_static = os.getenv("RAILWAY_STATIC_URL", "")
 if _railway_static:
-    # Django 4.0 requires scheme - RAILWAY_STATIC_URL returns bare domain
     if not _railway_static.startswith(("http://", "https://")):
         _railway_static = "https://" + _railway_static
     if _railway_static not in CSRF_TRUSTED_ORIGINS:
@@ -50,8 +54,8 @@ if _csrf_env:
         if o and o not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(o)
 
+# CORS: Restricted origins only (NOT all origins)
 CORS_ALLOWED_ORIGINS = [
-    "https://web-production-38215.up.railway.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
@@ -61,19 +65,33 @@ if _railway_domain:
     if _full_url not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(_full_url)
 
-# Cookie settings for Railway HTTPS
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SAMESITE = "None"
+_cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if _cors_env:
+    for o in [o.strip() for o in _cors_env.split(",")]:
+        if o and o not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(o)
+
+CORS_ALLOW_ALL_ORIGINS = False  # SECURITY: Never True in production
+CORS_ALLOW_CREDENTIALS = True
+
+# Cookie settings - SECURE for production
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "False").lower() == "true"
+CSRF_COOKIE_HTTPONLY = True  # SECURITY: Prevent XSS access
+CSRF_COOKIE_SAMESITE = "Lax"  # SECURITY: Not None
 CSRF_COOKIE_DOMAIN = None
-SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "False").lower() == "true"
+SESSION_COOKIE_SAMESITE = "Lax"  # SECURITY: Not None
 SESSION_COOKIE_DOMAIN = None
 CSRF_USE_SESSIONS = False
 
 # Proxy settings for Railway
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Additional security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
 
 # ── APPS ───────────────────────────────────────
 DJANGO_APPS = [
@@ -137,14 +155,13 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 AUTH_USER_MODEL = "core.User"
 
 # ── MIDDLEWARE ───────────────────────────────────
-# Use RailwayCsrfMiddleware instead of Django's default CsrfViewMiddleware
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "apps.core.middleware.RailwayCsrfMiddleware",  # DISABLE ALL CSRF
+    "apps.core.middleware.RailwayCsrfMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -291,10 +308,6 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# ── CORS ─────────────────────────────────────────
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-
 # ── STATIC / MEDIA ───────────────────────────────
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -312,7 +325,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 NEXUS_SUPERUSER_EMAIL = os.getenv(
     "NEXUS_SUPERUSER_EMAIL", "eng.murad.ghannam@gmail.com"
 )
-NEXUS_SUPERUSER_PASSWORD = os.getenv("NEXUS_SUPERUSER_PASSWORD", "ghannam2020")
+# SECURITY: Password MUST come from environment variable
+NEXUS_SUPERUSER_PASSWORD = os.getenv("NEXUS_SUPERUSER_PASSWORD", "")
 
 # Whitenoise static files
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
