@@ -6,6 +6,16 @@ from django.db import models
 
 class Invoice(models.Model):
     tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
+    company = models.ForeignKey(
+        "core.CompanyProfile",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="invoices",
+        help_text="Which company this invoice belongs to. Nullable for backward "
+        "compatibility with rows created before this field existed; "
+        "post_to_ledger() falls back to the oldest company if unset.",
+    )
     TYPES = [("sales", "Sales"), ("purchase", "Purchase")]
     STATUS = [("draft", "Draft"), ("posted", "Posted"), ("cancelled", "Cancelled")]
 
@@ -62,7 +72,7 @@ class Invoice(models.Model):
         if self.status == "posted":
             return False, "الفاتورة مرحّلة مسبقاً"
 
-        company = Company.objects.order_by("id").first()
+        company = self.company or Company.objects.order_by("id").first()
         if company is None:
             return False, "لا توجد شركة"
 

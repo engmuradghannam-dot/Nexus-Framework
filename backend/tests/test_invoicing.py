@@ -176,6 +176,27 @@ class TestInvoicePostToLedger:
         assert ok is False
         assert "seed_accounting" in msg
 
+    def test_posts_against_its_own_company_not_the_first_company(self, company):
+        # A second, unrelated company with no chart of accounts must not be
+        # picked over the invoice's own company (regression test for the
+        # "always uses Company.objects.first()" bug found while testing).
+        CompanyProfile.objects.create(name="Other Co", code="OTHER-CO")
+        for number, name, root in [
+            ("1300", "AR", "Asset"), ("4100", "Sales", "Income"), ("2200", "VAT", "Liability"),
+        ]:
+            Account.objects.create(company=company, account_number=number, account_name=name,
+                                    account_type=root, root_type=root)
+        inv = Invoice.objects.create(
+            invoice_type="sales",
+            invoice_number="INV-S-004",
+            party_name="Client D",
+            invoice_date=date(2026, 1, 1),
+            subtotal=100,
+            company=company,
+        )
+        ok, msg = inv.post_to_ledger()
+        assert ok is True
+
 
 @pytest.mark.django_db
 class TestInvoiceAPI:
