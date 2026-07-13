@@ -66,6 +66,7 @@ urlpatterns = [
     path("api/customfields/", include("apps.customfields.urls")),
     path("api/pricing/", include("apps.pricing.urls")),
     path("api/purchasing/", include("apps.purchasing.urls")),
+    path("api/reports/", include("apps.reports.urls")),
 ]
 
 if settings.DEBUG:

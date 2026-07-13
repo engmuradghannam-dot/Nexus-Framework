@@ -287,3 +287,12 @@ export const purchasingApi = {
   create: (payload) => data(API.post('/purchasing/documents/', payload)),
   process: (id) => data(API.post(`/purchasing/documents/${id}/process/`)),
 }
+
+// ════════ Report builder ════════
+export const reportsApi = {
+  list: () => list(API.get('/reports/definitions/', { params: { page_size: 100 } })),
+  create: (payload) => data(API.post('/reports/definitions/', payload)),
+  remove: (id) => API.delete(`/reports/definitions/${id}/`),
+  run: (id) => data(API.get(`/reports/definitions/${id}/run/`)),
+  preview: (payload) => data(API.post('/reports/definitions/preview/', payload)),
+}

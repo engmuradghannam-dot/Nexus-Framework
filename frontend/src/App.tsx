@@ -39,6 +39,7 @@ import CustomFieldsPage from './pages/CustomFields/CustomFieldsPage';
 import PricingPage from './pages/Pricing/PricingPage';
 import BarcodePage from './pages/Barcode/BarcodePage';
 import PurchasingPage from './pages/Purchasing/PurchasingPage';
+import ReportsPage from './pages/Reports/ReportsPage';
 import ReorderPage from './pages/Reorder/ReorderPage';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import StockMovementsPage from './pages/StockMovements/StockMovementsPage';
@@ -109,6 +110,7 @@ function App() {
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/buying" element={<BuyingPage />} />
                 <Route path="/purchasing" element={<PurchasingPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/manufacturing" element={<ManufacturingPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/depreciation" element={<DepreciationPage />} />
