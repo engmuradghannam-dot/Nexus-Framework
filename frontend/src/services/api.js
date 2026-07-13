@@ -333,3 +333,14 @@ export const uomApi = {
   variants: (template_code) => list(API.get('/uom/variants/', { params: { template_code, page_size: 500 } })),
   generate: (p) => data(API.post('/uom/variants/generate/', p)),
 }
+
+// ════════ Automation (scheduled jobs + webhooks) ════════
+export const automationApi = {
+  jobs: () => list(API.get('/automation/jobs/', { params: { page_size: 200 } })),
+  createJob: (p) => data(API.post('/automation/jobs/', p)),
+  runJob: (id) => data(API.post(`/automation/jobs/${id}/run/`)),
+  webhooks: () => list(API.get('/automation/webhooks/', { params: { page_size: 200 } })),
+  createWebhook: (p) => data(API.post('/automation/webhooks/', p)),
+  triggerWebhook: (id, payload) => data(API.post(`/automation/webhooks/${id}/trigger/`, { payload })),
+  deliveries: () => list(API.get('/automation/deliveries/', { params: { page_size: 200 } })),
+}
