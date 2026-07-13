@@ -436,6 +436,14 @@ export const hrApi = {
   updatePayroll: (id, p) => data(API.patch(`/hr/payrolls/${id}/`, p)),
 }
 
+// ════════ Fixed Assets ════════
+export const assetsApi = {
+  list: () => list(API.get('/assets/assets/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/assets/assets/', p)),
+  update: (id, p) => data(API.patch(`/assets/assets/${id}/`, p)),
+  categories: () => list(API.get('/assets/asset-categories/', { params: { page_size: 100 } })),
+}
+
 // ════════ CRM: leads + opportunities ════════
 export const crmApi = {
   leads: () => list(API.get('/crm/leads/', { params: { page_size: 200 } })),

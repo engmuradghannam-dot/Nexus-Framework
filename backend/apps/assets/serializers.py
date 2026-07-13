@@ -21,6 +21,7 @@ class AssetCategorySerializer(serializers.ModelSerializer):
 class AssetSerializer(serializers.ModelSerializer):
     accumulated_depreciation = serializers.ReadOnlyField()
     book_value = serializers.ReadOnlyField()
+    category_name = serializers.CharField(source="category.name", read_only=True, default="")
 
     class Meta:
         model = Asset
