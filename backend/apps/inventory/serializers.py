@@ -27,6 +27,7 @@ class ItemGroupSerializer(serializers.ModelSerializer):
 
 class ItemSerializer(serializers.ModelSerializer):
     stock_quantity = serializers.ReadOnlyField()
+    item_group_name = serializers.CharField(source="item_group.name", read_only=True, default="")
 
     class Meta:
         model = Item
@@ -34,6 +35,10 @@ class ItemSerializer(serializers.ModelSerializer):
 
 
 class StockEntrySerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.item_name", read_only=True)
+    item_code = serializers.CharField(source="item.item_code", read_only=True)
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True, default="")
+
     class Meta:
         model = StockEntry
         fields = "__all__"

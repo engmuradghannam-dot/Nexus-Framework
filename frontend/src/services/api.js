@@ -345,9 +345,37 @@ export const automationApi = {
   deliveries: () => list(API.get('/automation/deliveries/', { params: { page_size: 200 } })),
 }
 
-// ════════ Inventory items (for order line-item pickers) ════════
+// ════════ Inventory: items, item groups, stock entries ════════
 export const itemsApi = {
   list: () => list(API.get('/inventory/items/', { params: { page_size: 500 } })),
+  create: (p) => data(API.post('/inventory/items/', p)),
+  update: (id, p) => data(API.patch(`/inventory/items/${id}/`, p)),
+  remove: (id) => API.delete(`/inventory/items/${id}/`),
+}
+
+export const itemGroupsApi = {
+  list: () => list(API.get('/inventory/item-groups/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/inventory/item-groups/', p)),
+}
+
+export const stockEntriesApi = {
+  list: (filters) => list(API.get('/inventory/stock-entries/', { params: { page_size: 200, ...filters } })),
+  create: (p) => data(API.post('/inventory/stock-entries/', p)),
+}
+
+// ════════ Core: company profiles, branches, warehouses ════════
+export const companyProfilesApi = {
+  list: () => list(API.get('/core/companies/', { params: { page_size: 100 } })),
+}
+
+export const branchesApi = {
+  list: () => list(API.get('/core/branches/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/core/branches/', p)),
+}
+
+export const warehousesApi = {
+  list: () => list(API.get('/core/warehouses/', { params: { page_size: 200 } })),
+  create: (p) => data(API.post('/core/warehouses/', p)),
 }
 
 // ════════ Selling: customers + sales order cycle ════════
