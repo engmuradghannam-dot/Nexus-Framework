@@ -36,6 +36,15 @@ def sa_profile():
 
 
 @pytest.fixture
+def regular_client(api_client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="regular_tax_user", email="regular@nexus.com", password="pw12345678"
+    )
+    api_client.force_authenticate(user=user)
+    return api_client
+
+
+@pytest.fixture
 def us_profile():
     return CountryTaxProfile.objects.create(
         country_code="US",
@@ -193,3 +202,23 @@ class TestTaxCalculationAPI:
         }
         response = auth_client.post("/api/taxes/calculations/", data)
         assert response.status_code == status.HTTP_201_CREATED
+
+
+@pytest.mark.django_db
+class TestTaxReferenceDataWriteLockdown:
+    def test_regular_user_can_read_but_not_write_country_profile(self, regular_client, sa_profile):
+        assert regular_client.get(reverse("tax-profile-list")).status_code == 200
+        res = regular_client.patch(
+            reverse("tax-profile-detail", args=[sa_profile.id]),
+            {"vat_standard_rate": 99.0},
+        )
+        assert res.status_code == status.HTTP_403_FORBIDDEN
+        sa_profile.refresh_from_db()
+        assert float(sa_profile.vat_standard_rate) == 15.00
+
+    def test_regular_user_cannot_create_tax_rate(self, regular_client, sa_profile):
+        res = regular_client.post("/api/taxes/rates/", {
+            "country": str(sa_profile.id), "name": "Rogue Rate",
+            "tax_type": "vat", "rate": "50.00",
+        })
+        assert res.status_code == status.HTTP_403_FORBIDDEN

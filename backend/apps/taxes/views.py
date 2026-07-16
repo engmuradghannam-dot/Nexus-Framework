@@ -4,8 +4,20 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+
+
+class ReadOpenWriteAdminMixin:
+    """Shared VAT/tax reference data (country profiles, rates, rules,
+    templates): any authenticated user may read it, but editing affects
+    every tenant using that country/template, so writes require a
+    superuser."""
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsAdminUser()]
+        return super().get_permissions()
 
 from .models import CountryTaxProfile, TaxCalculation, TaxRate, TaxRule
 from .serializers import (
@@ -27,7 +39,7 @@ from .serializers import (
     update=extend_schema(tags=["Taxes"], summary="Update country tax profile"),
     destroy=extend_schema(tags=["Taxes"], summary="Delete country tax profile"),
 )
-class CountryTaxProfileViewSet(viewsets.ModelViewSet):
+class CountryTaxProfileViewSet(ReadOpenWriteAdminMixin, viewsets.ModelViewSet):
     queryset = CountryTaxProfile.objects.all().prefetch_related("tax_rates", "tax_rules")
     permission_classes = [IsAuthenticated]
 
@@ -51,7 +63,7 @@ class CountryTaxProfileViewSet(viewsets.ModelViewSet):
     update=extend_schema(tags=["Taxes"], summary="Update tax rate"),
     destroy=extend_schema(tags=["Taxes"], summary="Delete tax rate"),
 )
-class TaxRateViewSet(viewsets.ModelViewSet):
+class TaxRateViewSet(ReadOpenWriteAdminMixin, viewsets.ModelViewSet):
     queryset = TaxRate.objects.all().select_related("country")
     serializer_class = TaxRateSerializer
     permission_classes = [IsAuthenticated]
@@ -66,7 +78,7 @@ class TaxRateViewSet(viewsets.ModelViewSet):
     update=extend_schema(tags=["Taxes"], summary="Update tax rule"),
     destroy=extend_schema(tags=["Taxes"], summary="Delete tax rule"),
 )
-class TaxRuleViewSet(viewsets.ModelViewSet):
+class TaxRuleViewSet(ReadOpenWriteAdminMixin, viewsets.ModelViewSet):
     queryset = TaxRule.objects.all().select_related("country")
     serializer_class = TaxRuleSerializer
     permission_classes = [IsAuthenticated]
@@ -143,7 +155,7 @@ from .models import TaxTemplate  # noqa: E402
 from .serializers import TaxTemplateSerializer  # noqa: E402
 
 
-class TaxTemplateViewSet(_viewsets.ModelViewSet):
+class TaxTemplateViewSet(ReadOpenWriteAdminMixin, _viewsets.ModelViewSet):
     queryset = TaxTemplate.objects.filter(is_active=True)
     serializer_class = TaxTemplateSerializer
     pagination_class = None
