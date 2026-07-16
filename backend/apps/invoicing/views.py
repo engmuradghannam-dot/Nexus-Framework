@@ -8,14 +8,16 @@ from rest_framework.response import Response
 
 from .models import CreditNote, Invoice, Payment
 from .serializers import CreditNoteSerializer, InvoiceSerializer, PaymentSerializer
+from apps.core.mixins import CompanyScopedMixin
 from apps.tenants.mixins import TenantScopedMixin
 
 
-class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
+class InvoiceViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["invoice_type", "status"]
+    company_field = "company"
 
     @action(detail=True, methods=["post"])
     def void(self, request, pk=None):
@@ -86,7 +88,9 @@ class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
         """A/R (sales) or A/P (purchase) aging by days overdue."""
         itype = request.query_params.get("type", "sales")
         today = date.today()
-        invoices = Invoice.objects.filter(invoice_type=itype).exclude(status="cancelled")
+        invoices = self.filter_queryset(self.get_queryset()).filter(
+            invoice_type=itype
+        ).exclude(status="cancelled")
         buckets = {"current": Decimal(0), "d1_30": Decimal(0), "d31_60": Decimal(0),
                    "d61_90": Decimal(0), "d90_plus": Decimal(0)}
         parties = {}
@@ -124,9 +128,10 @@ class InvoiceViewSet(TenantScopedMixin, viewsets.ModelViewSet):
         })
 
 
-class CreditNoteViewSet(TenantScopedMixin, viewsets.ModelViewSet):
+class CreditNoteViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = CreditNote.objects.all()
     serializer_class = CreditNoteSerializer
+    company_field = "company"
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -142,9 +147,10 @@ class CreditNoteViewSet(TenantScopedMixin, viewsets.ModelViewSet):
                         status=200 if ok else 400)
 
 
-class PaymentViewSet(TenantScopedMixin, viewsets.ReadOnlyModelViewSet):
+class PaymentViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+    company_field = "invoice__company"
 
     def get_queryset(self):
         qs = super().get_queryset()

@@ -11,8 +11,9 @@ class TenantScopedMixin:
 
     - Superusers see everything (cross-tenant admin).
     - Users WITH a tenant see only their tenant's rows.
-    - Users WITHOUT a tenant are grandfathered (see all) so legacy data and
-      the existing test suite keep working.
+    - Users WITHOUT a tenant get nothing (fail closed) — a tenant-less user
+      is the default state for a freshly self-registered account, so
+      granting them cross-tenant visibility would be a live data leak.
     On create, the row's tenant is set to the user's tenant automatically.
     """
 
@@ -27,7 +28,7 @@ class TenantScopedMixin:
             return qs
         tenant = self._user_tenant()
         if tenant is None:
-            return qs
+            return qs.none()
         return qs.filter(tenant=tenant)
 
     def perform_create(self, serializer):
