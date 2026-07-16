@@ -10,6 +10,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [needsOtp, setNeedsOtp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -18,12 +20,17 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await authApi.login(email, password);
+      const response = await authApi.login(email, password, needsOtp ? otpCode : undefined);
       localStorage.setItem('token', response.token);
       toast.success('تم تسجيل الدخول بنجاح');
       navigate('/dashboard');
-    } catch (err) {
-      toast.error('بيانات الدخول غير صحيحة');
+    } catch (err: any) {
+      if (err?.response?.data?.two_factor_required) {
+        setNeedsOtp(true);
+        toast.error(needsOtp ? 'رمز التحقق غير صحيح' : 'أدخل رمز المصادقة الثنائية');
+      } else {
+        toast.error('بيانات الدخول غير صحيحة');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -92,6 +99,23 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {needsOtp && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">رمز المصادقة الثنائية</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  required
+                  autoFocus
+                  maxLength={6}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 tracking-widest text-center"
+                  placeholder="000000"
+                />
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 text-gray-600">

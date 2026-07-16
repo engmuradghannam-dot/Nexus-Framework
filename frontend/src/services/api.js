@@ -116,7 +116,7 @@ const data = (p) => p.then((r) => r.data)
 const list = (p) => p.then((r) => (r.data && r.data.results) || r.data || [])
 
 export const authApi = {
-  login: (email, password) => data(API.post('/core/auth/login/', { email, password })),
+  login: (email, password, otpCode) => data(API.post('/core/auth/login/', { email, password, otp_code: otpCode })),
   register: (payload) => data(API.post('/core/auth/register/', payload)),
   googleLogin: (token) => data(API.post('/core/auth/google/', { token })),
   getProfile: () => data(API.get('/core/users/me/')),

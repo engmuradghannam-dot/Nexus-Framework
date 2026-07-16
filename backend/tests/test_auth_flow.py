@@ -1,6 +1,8 @@
 import pytest
 from rest_framework.test import APIClient
 from apps.core.models import User
+from apps.twofa import totp
+from apps.twofa.models import TwoFactor
 
 
 @pytest.mark.django_db
@@ -73,3 +75,40 @@ def test_register_rejects_missing_fields():
     client = APIClient()
     res = client.post('/api/core/auth/register/', {'email': 'nofields@test.com'}, format='json')
     assert res.status_code == 400
+
+
+@pytest.mark.django_db
+class TestTwoFactorLoginEnforcement:
+    def test_login_blocked_without_otp_when_2fa_enabled(self):
+        user = User.objects.create_user(email='has2fa@test.com', username='has2fa', password='pw12345678')
+        TwoFactor.objects.create(user=user, secret=totp.random_base32(), enabled=True)
+        client = APIClient()
+        res = client.post('/api/core/auth/login/', {'email': 'has2fa@test.com', 'password': 'pw12345678'}, format='json')
+        assert res.status_code == 401
+        assert res.data.get('two_factor_required') is True
+
+    def test_login_blocked_with_wrong_otp(self):
+        user = User.objects.create_user(email='has2fa2@test.com', username='has2fa2', password='pw12345678')
+        TwoFactor.objects.create(user=user, secret=totp.random_base32(), enabled=True)
+        client = APIClient()
+        res = client.post('/api/core/auth/login/', {
+            'email': 'has2fa2@test.com', 'password': 'pw12345678', 'otp_code': '000000',
+        }, format='json')
+        assert res.status_code == 401
+
+    def test_login_succeeds_with_correct_otp(self):
+        user = User.objects.create_user(email='has2fa3@test.com', username='has2fa3', password='pw12345678')
+        secret = totp.random_base32()
+        TwoFactor.objects.create(user=user, secret=secret, enabled=True)
+        client = APIClient()
+        res = client.post('/api/core/auth/login/', {
+            'email': 'has2fa3@test.com', 'password': 'pw12345678', 'otp_code': totp.now_totp(secret),
+        }, format='json')
+        assert res.status_code == 200
+        assert 'token' in res.data
+
+    def test_login_unaffected_when_2fa_not_enabled(self):
+        User.objects.create_user(email='no2fa@test.com', username='no2fa', password='pw12345678')
+        client = APIClient()
+        res = client.post('/api/core/auth/login/', {'email': 'no2fa@test.com', 'password': 'pw12345678'}, format='json')
+        assert res.status_code == 200

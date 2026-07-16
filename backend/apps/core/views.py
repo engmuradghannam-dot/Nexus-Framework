@@ -93,6 +93,19 @@ def login_view(request):
             {"detail": "Invalid credentials."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
+
+    from apps.twofa import totp
+    from apps.twofa.models import TwoFactor
+
+    two_factor = TwoFactor.objects.filter(user=user, enabled=True).first()
+    if two_factor is not None:
+        code = request.data.get("otp_code", "")
+        if not totp.verify(two_factor.secret, code):
+            return Response(
+                {"detail": "رمز التحقق الثنائي مطلوب.", "two_factor_required": True},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
     token, _ = Token.objects.get_or_create(user=user)
     return Response({"token": token.key, "user": UserSerializer(user).data})
 
