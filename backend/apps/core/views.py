@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.authtoken.models import Token
@@ -59,6 +60,14 @@ def register_view(request):
         {"token": token.key, "user": UserSerializer(user).data},
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@ensure_csrf_cookie
+def csrf_view(request):
+    """Issue the csrftoken cookie for session-authenticated (non-Token) API access."""
+    return Response({"detail": "CSRF cookie set."})
 
 
 @api_view(["POST"])

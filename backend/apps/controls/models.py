@@ -8,6 +8,7 @@ Loaded from the master control workbooks:
   * FormControl         <- All Controls Master
 """
 
+from django.conf import settings
 from django.db import models
 
 
@@ -165,6 +166,13 @@ class CompanySetup(models.Model):
     enabled_modules = models.JSONField(default=list, blank=True)
     departments = models.JSONField(default=list, blank=True)
     enabled_entities = models.JSONField(default=list, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="company_setups",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

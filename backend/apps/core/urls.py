@@ -6,6 +6,7 @@ from .views import (
     CompanyProfileViewSet,
     UserViewSet,
     WarehouseViewSet,
+    csrf_view,
     login_view,
     register_view,
 )
@@ -18,6 +19,7 @@ router.register(r"warehouses", WarehouseViewSet, basename="warehouse")
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("auth/csrf/", csrf_view, name="api_csrf"),
     path("auth/login/", login_view, name="api_login"),
     path("auth/register/", register_view, name="api_register"),
 ]

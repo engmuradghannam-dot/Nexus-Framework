@@ -72,3 +72,4 @@ class CompanySetupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanySetup
         fields = "__all__"
+        read_only_fields = ["created_by"]

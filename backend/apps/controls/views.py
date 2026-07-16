@@ -145,8 +145,21 @@ class SectorControlViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CompanySetupViewSet(viewsets.ModelViewSet):
+    """Setup-wizard submissions. Each user only sees their own (fail-closed);
+    superusers see everything."""
+
     queryset = CompanySetup.objects.all()
     serializer_class = CompanySetupSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["sector", "country"]
     search_fields = ["company_name", "company_code"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.is_superuser:
+            return qs
+        return qs.filter(created_by=user)
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
