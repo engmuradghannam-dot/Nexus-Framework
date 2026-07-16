@@ -6,8 +6,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser
 from rest_framework.response import Response
+
+from apps.core.mixins import CompanyScopedMixin
+from apps.tenants.mixins import TenantScopedMixin
 
 from .models import Branch, CompanyProfile, User, Warehouse
 from .serializers import (
@@ -94,12 +97,50 @@ def login_view(request):
     return Response({"token": token.key, "user": UserSerializer(user).data})
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class IsSelfOrSuperuser(BasePermission):
+    """Object-level guard: only a user themselves, or a superuser, may
+    retrieve/update/delete a specific User row."""
+
+    def has_object_permission(self, request, view, obj):
+        return bool(
+            getattr(request.user, "is_superuser", False) or obj.pk == request.user.pk
+        )
+
+
+class UserViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["is_active", "permissions_level", "department"]
     search_fields = ["email", "username", "first_name", "last_name"]
+
+    def get_permissions(self):
+        if self.action in ("retrieve", "update", "partial_update", "destroy"):
+            return [p() for p in self.permission_classes] + [IsSelfOrSuperuser()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        # A user can always see/edit their own row via this endpoint even
+        # when tenant-less (the default right after self-registration) —
+        # TenantScopedMixin would otherwise fail-close them out of it.
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "is_authenticated", False):
+            return qs | User.objects.filter(pk=user.pk)
+        return qs
+
+    def get_serializer(self, *args, **kwargs):
+        """permissions_level/is_active are role/account-state, not
+        self-service profile fields — only a superuser may change them, so
+        they're read-only for anyone else (blocks self-escalation and
+        deactivating other users)."""
+        serializer = super().get_serializer(*args, **kwargs)
+        if not getattr(self.request.user, "is_superuser", False):
+            for name in ("permissions_level", "is_active"):
+                field = serializer.fields.get(name)
+                if field is not None:
+                    field.read_only = True
+        return serializer
 
     @action(detail=False, methods=["get"])
     def me(self, request):
@@ -111,6 +152,14 @@ class UserViewSet(viewsets.ModelViewSet):
 class CompanyProfileViewSet(viewsets.ModelViewSet):
     """
     Company Profile - the ROOT entity controlled by Industry Vertical.
+
+    This is the model ``CompanyScopedMixin`` scopes every other company-owned
+    ViewSet *by* (via ``user.managed_companies``, the reverse of
+    ``super_admin``), so it can't use that mixin on itself. Instead: non-superusers
+    only see companies they already manage, and only superusers may create,
+    edit, or reassign ``super_admin`` on a company at all — otherwise any
+    authenticated user could PATCH themselves onto ``super_admin`` and
+    inherit full access to that company's data everywhere else in the app.
     """
 
     queryset = CompanyProfile.objects.select_related(
@@ -125,6 +174,18 @@ class CompanyProfileViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return CompanyProfileListSerializer
         return CompanyProfileSerializer
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsAdminUser()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return qs
+        return qs.filter(id__in=user.managed_companies.all())
 
     @action(detail=True, methods=["get"])
     def modules(self, request, pk=None):
@@ -154,7 +215,7 @@ class CompanyProfileViewSet(viewsets.ModelViewSet):
         )
 
 
-class BranchViewSet(viewsets.ModelViewSet):
+class BranchViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = Branch.objects.select_related("company", "manager").prefetch_related(
         "warehouses"
     )
@@ -162,9 +223,10 @@ class BranchViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["company", "is_active"]
     search_fields = ["name", "code", "address"]
+    company_field = "company"
 
 
-class WarehouseViewSet(viewsets.ModelViewSet):
+class WarehouseViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = Warehouse.objects.select_related(
         "branch", "parent_warehouse"
     ).prefetch_related("sub_warehouses")
@@ -172,3 +234,4 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["branch", "is_active"]
     search_fields = ["name", "code"]
+    company_field = "branch__company"
