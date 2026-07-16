@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from .models import ACTIONS, Role, RoleAssignment, user_can
@@ -17,8 +18,19 @@ MODULES = [
 
 
 class RoleViewSet(viewsets.ModelViewSet):
+    """Roles are a shared, global catalog (no per-company scoping concept
+    exists for RBAC). Any authenticated user may read them (needed to
+    render a permission matrix), but only a superuser may create/edit/
+    delete one — editing a Role's `permissions` JSON changes what every
+    user holding that role can do system-wide."""
+
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsAdminUser()]
+        return super().get_permissions()
 
     @action(detail=False, methods=["get"])
     def catalog(self, request):
@@ -43,6 +55,23 @@ class RoleViewSet(viewsets.ModelViewSet):
 
 
 class RoleAssignmentViewSet(viewsets.ModelViewSet):
+    """Who holds which role. A regular user may only ever see their own
+    assignments (use the `my_permissions` action on RoleViewSet for the
+    effective-permissions view); granting/revoking a role is a superuser-only
+    action, since there's no company-scoped notion of "admin" for RBAC."""
+
     queryset = RoleAssignment.objects.select_related("role", "user").all()
     serializer_class = RoleAssignmentSerializer
     filterset_fields = ["user", "role"]
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsAdminUser()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return qs
+        return qs.filter(user=user)
