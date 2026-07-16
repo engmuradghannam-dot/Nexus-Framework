@@ -42,6 +42,15 @@ def arabic_lang():
     )
 
 
+@pytest.fixture
+def regular_client(api_client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="regular_i18n_user", email="regular_i18n@nexus.com", password="pw12345678"
+    )
+    api_client.force_authenticate(user=user)
+    return api_client
+
+
 @pytest.mark.django_db
 class TestLanguageAPI:
     def test_list_languages(self, auth_client, english_lang, arabic_lang):
@@ -183,3 +192,23 @@ class TestSeedCommand:
         assert Language.objects.filter(code="en").exists()
         assert Language.objects.filter(code="ar").exists()
         assert Translation.objects.count() > 0
+
+
+@pytest.mark.django_db
+class TestI18nReferenceDataWriteLockdown:
+    def test_regular_user_can_read_but_not_write_language(self, regular_client, english_lang):
+        assert regular_client.get("/api/i18n/languages/").status_code == 200
+        res = regular_client.patch(
+            f"/api/i18n/languages/{english_lang.id}/", {"name": "Hacked"}
+        )
+        assert res.status_code == status.HTTP_403_FORBIDDEN
+        english_lang.refresh_from_db()
+        assert english_lang.name == "English"
+
+    def test_regular_user_cannot_bulk_edit_translations(self, regular_client, english_lang):
+        res = regular_client.post("/api/i18n/translations/bulk/", {
+            "language": str(english_lang.id),
+            "translations": [{"key": "hello", "value": "hacked"}],
+        }, format="json")
+        assert res.status_code == status.HTTP_403_FORBIDDEN
+        assert not Translation.objects.filter(key="hello").exists()

@@ -2,8 +2,19 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+
+
+class ReadOpenWriteAdminMixin:
+    """Languages/translations are a shared catalog every tenant's UI reads
+    from — reads stay open, but editing/deleting affects every tenant, so
+    it requires a superuser."""
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsAdminUser()]
+        return super().get_permissions()
 
 from .models import Language, Translation, TranslationImportJob
 from .serializers import (
@@ -23,7 +34,7 @@ from .serializers import (
     update=extend_schema(tags=["i18n"], summary="Update language"),
     destroy=extend_schema(tags=["i18n"], summary="Delete language"),
 )
-class LanguageViewSet(viewsets.ModelViewSet):
+class LanguageViewSet(ReadOpenWriteAdminMixin, viewsets.ModelViewSet):
     queryset = Language.objects.all()
     permission_classes = [IsAuthenticated]
     pagination_class = None  # languages are a bounded reference set — return all
@@ -57,12 +68,17 @@ class LanguageViewSet(viewsets.ModelViewSet):
     update=extend_schema(tags=["i18n"], summary="Update translation"),
     destroy=extend_schema(tags=["i18n"], summary="Delete translation"),
 )
-class TranslationViewSet(viewsets.ModelViewSet):
+class TranslationViewSet(ReadOpenWriteAdminMixin, viewsets.ModelViewSet):
     queryset = Translation.objects.all().select_related("language")
     serializer_class = TranslationSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["language", "context", "is_reviewed"]
     search_fields = ["key", "value"]
+
+    def get_permissions(self):
+        if self.action == "bulk":
+            return [IsAdminUser()]
+        return super().get_permissions()
 
     @extend_schema(
         tags=["i18n"],
