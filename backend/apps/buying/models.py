@@ -63,6 +63,19 @@ class Supplier(models.Model):
         return self.name
 
 
+# PRC-CTRL-005: approval authority is tiered by PO value. Each tuple is
+# (inclusive upper bound, role name); anything above the last bound needs the
+# highest role. Ranks are the list order, so a higher role can always approve a
+# lower tier.
+APPROVAL_TIERS = [
+    (Decimal("10000"), "Manager"),
+    (Decimal("50000"), "Director"),
+    (Decimal("100000"), "CFO"),
+    (None, "CEO"),
+]
+APPROVAL_LADDER = [role for _, role in APPROVAL_TIERS]
+
+
 class PurchaseOrder(models.Model):
     STATUS_CHOICES = [
         ("Draft", "Draft"),
@@ -124,6 +137,11 @@ class PurchaseOrder(models.Model):
         help_text="Sum of invoice totals generated from this order. Maintained by "
         "Invoice.create_from_purchase_order().",
     )
+    created_by = models.ForeignKey(
+        "core.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="created_purchase_orders",
+        help_text="Raiser of the PO. FIN-CTRL-002 forbids them approving it themselves.",
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -159,6 +177,98 @@ class PurchaseOrder(models.Model):
             total_amount=self.total_amount,
             grand_total=self.grand_total,
         )
+
+    @property
+    def required_approval_role(self):
+        """PRC-CTRL-005: the lowest role authorised to approve this PO's value."""
+        amount = Decimal(self.grand_total or 0)
+        for bound, role in APPROVAL_TIERS:
+            if bound is None or amount <= bound:
+                return role
+        return APPROVAL_LADDER[-1]
+
+    def check_approval(self):
+        """PRC-CTRL-005 (tiered authority) and FIN-CTRL-002 (segregation of
+        duties) — both must hold before a PO leaves Draft."""
+        from apps.rbac.models import RoleAssignment
+
+        if self.approved_by is None:
+            raise DjangoValidationError(
+                f"PO of {self.grand_total} requires approval by "
+                f"{self.required_approval_role}."
+            )
+        approver_user = self.approved_by.user
+        if approver_user is None:
+            raise DjangoValidationError(
+                f"Approver {self.approved_by} has no linked user account, so their "
+                f"approval authority can't be verified."
+            )
+        # FIN-CTRL-002: the creator can never sign off their own request, no
+        # matter how senior they are.
+        if self.created_by_id and approver_user.pk == self.created_by_id:
+            raise DjangoValidationError(
+                "Segregation of duties: the PO creator cannot approve their own order."
+            )
+        required_rank = APPROVAL_LADDER.index(self.required_approval_role)
+        held = [
+            a.role.name for a in
+            RoleAssignment.objects.filter(user=approver_user).select_related("role")
+        ]
+        best = max(
+            (APPROVAL_LADDER.index(r) for r in held if r in APPROVAL_LADDER),
+            default=-1,
+        )
+        if best < required_rank:
+            raise DjangoValidationError(
+                f"PO of {self.grand_total} requires {self.required_approval_role} "
+                f"approval; {self.approved_by} does not hold that authority."
+            )
+
+    def check_price_variance(self, threshold=Decimal("10")):
+        """PRC-RULE-004: flag lines whose unit price moved more than `threshold`
+        percent against the last submitted PO to this supplier for the same item.
+        Returns a list of human-readable findings (advisory — the spec marks this
+        as a flag, not a block)."""
+        findings = []
+        for line in self.items.select_related("item"):
+            previous = (
+                PurchaseOrderItem.objects
+                .filter(purchase_order__supplier=self.supplier, item=line.item)
+                .exclude(purchase_order=self)
+                .exclude(purchase_order__status__in=["Draft", "Cancelled"])
+                .order_by("-purchase_order__transaction_date", "-pk")
+                .first()
+            )
+            if previous is None or not previous.rate:
+                continue
+            change = (Decimal(line.rate) - Decimal(previous.rate)) / Decimal(previous.rate) * 100
+            if abs(change) > threshold:
+                findings.append(
+                    f"{line.item.item_code}: {previous.rate} -> {line.rate} "
+                    f"({change.quantize(Decimal('0.01'))}%)"
+                )
+        return findings
+
+    def three_way_match(self):
+        """PRC-CTRL-001: PO vs Goods Receipts vs Invoices must agree.
+
+        Returns (matched, discrepancies). Compares, per line, the ordered qty
+        against the qty actually accepted on submitted GRNs, and the PO's value
+        against what has been billed against it.
+        """
+        discrepancies = []
+        for line in self.items.select_related("item"):
+            accepted = line.accepted_qty
+            if accepted != line.qty:
+                discrepancies.append(
+                    f"{line.item.item_code}: ordered {line.qty}, received {accepted}"
+                )
+        billed = Decimal(self.billed_amount or 0)
+        if billed and billed != Decimal(self.grand_total or 0):
+            discrepancies.append(
+                f"invoiced {billed} against PO total {self.grand_total}"
+            )
+        return (not discrepancies), discrepancies
 
     def receive_stock(self):
         """Called when the PO transitions to 'Received'. Creates a Receipt
@@ -213,6 +323,20 @@ class PurchaseOrderItem(models.Model):
         max_digits=18, decimal_places=2, default=0, validators=[MinValueValidator(0)]
     )
 
+    @property
+    def accepted_qty(self):
+        """Quantity accepted across submitted goods receipts for this line.
+
+        received_qty is a denormalised copy kept for the existing UI; this is the
+        figure PRC-CTRL-001 matches against, derived from the GRNs themselves.
+        """
+        return sum(
+            (r.qty_accepted for r in self.receipt_lines.filter(
+                goods_receipt__status="Submitted"
+            )),
+            Decimal(0),
+        )
+
     def save(self, *args, **kwargs):
         self.amount = self.qty * self.rate
         super().save(*args, **kwargs)
@@ -250,3 +374,131 @@ class PurchasePayment(models.Model):
 
     def __str__(self):
         return f"{self.purchase_order.po_number} - {self.amount}"
+
+
+class GoodsReceipt(models.Model):
+    """A physical delivery against a Purchase Order (GRN).
+
+    Nothing recorded what actually arrived: PurchaseOrder.receive_stock() marked
+    every line fully received in one shot, so a short or rejected delivery had
+    nowhere to live and PRC-CTRL-001's three-way match had no middle document to
+    match against.
+    """
+
+    STATUS_CHOICES = [
+        ("Draft", "Draft"),
+        ("Submitted", "Submitted"),
+        ("Cancelled", "Cancelled"),
+    ]
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="goods_receipts")
+    purchase_order = models.ForeignKey(
+        PurchaseOrder, on_delete=models.CASCADE, related_name="goods_receipts"
+    )
+    grn_number = models.CharField(max_length=100, unique=True)
+    receipt_date = models.DateField()
+    warehouse = models.ForeignKey(
+        Warehouse, on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Where the goods landed. Defaults to the PO's warehouse.",
+    )
+    received_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="goods_receipts",
+    )
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Draft")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-receipt_date", "-id"]
+
+    def __str__(self):
+        return self.grn_number
+
+    def submit(self):
+        """INV-CTRL-003: validate the whole receipt against the PO before any of
+        it moves, then post accepted quantities into stock."""
+        from apps.inventory.models import StockEntry
+
+        if self.status != "Draft":
+            raise DjangoValidationError("Only a draft goods receipt can be submitted.")
+        if self.purchase_order.status not in ("Submitted", "Received"):
+            raise DjangoValidationError(
+                f"Cannot receive against a purchase order in status "
+                f"'{self.purchase_order.status}'."
+            )
+        lines = list(self.items.select_related("po_item__item"))
+        if not lines:
+            raise DjangoValidationError("Cannot submit a goods receipt with no lines.")
+
+        warehouse = self.warehouse or self.purchase_order.warehouse
+        if warehouse is None:
+            raise DjangoValidationError("Goods receipt has no warehouse to receive into.")
+
+        # Validate every line first — a receipt is all-or-nothing.
+        overages = []
+        for line in lines:
+            outstanding = line.po_item.qty - line.po_item.accepted_qty
+            if line.qty_received > outstanding:
+                overages.append(
+                    f"{line.po_item.item.item_code}: receiving {line.qty_received} "
+                    f"but only {outstanding} outstanding on the PO"
+                )
+        if overages:
+            raise DjangoValidationError(
+                f"Goods receipt exceeds the purchase order: {'; '.join(overages)}"
+            )
+
+        with transaction.atomic():
+            for line in lines:
+                if line.qty_accepted > 0:
+                    StockEntry.objects.create(
+                        company=self.company,
+                        branch=self.purchase_order.branch,
+                        warehouse=warehouse,
+                        item=line.po_item.item,
+                        entry_type="Receipt",
+                        quantity=line.qty_accepted,
+                        rate=line.po_item.rate,
+                        reference=f"GRN {self.grn_number} (PO {self.purchase_order.po_number})",
+                    )
+            self.status = "Submitted"
+            self.save(update_fields=["status"])
+            # Roll the PO's received_qty up from its receipts.
+            for po_line in self.purchase_order.items.all():
+                PurchaseOrderItem.objects.filter(pk=po_line.pk).update(
+                    received_qty=po_line.accepted_qty
+                )
+        return True, "تم استلام البضاعة / Goods received"
+
+
+class GoodsReceiptItem(models.Model):
+    goods_receipt = models.ForeignKey(
+        GoodsReceipt, on_delete=models.CASCADE, related_name="items"
+    )
+    po_item = models.ForeignKey(
+        PurchaseOrderItem, on_delete=models.CASCADE, related_name="receipt_lines"
+    )
+    qty_received = models.DecimalField(
+        max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    qty_rejected = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0, validators=[MinValueValidator(0)]
+    )
+    rejection_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    @property
+    def qty_accepted(self):
+        return (self.qty_received or Decimal(0)) - (self.qty_rejected or Decimal(0))
+
+    def clean(self):
+        if (self.qty_rejected or Decimal(0)) > (self.qty_received or Decimal(0)):
+            raise DjangoValidationError(
+                {"qty_rejected": "Rejected quantity cannot exceed the quantity received."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)

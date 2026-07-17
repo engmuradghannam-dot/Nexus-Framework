@@ -1,8 +1,11 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import (
+    GoodsReceipt,
+    GoodsReceiptItem,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchasePayment,
@@ -60,6 +63,16 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         new_status = data.get("status")
         if self.instance and new_status and new_status != self.instance.status:
             validate_transition(PO_TRANSITIONS, self.instance.status, new_status)
+            if new_status == "Submitted":
+                # PRC-CTRL-005 / FIN-CTRL-002 are preventive: a PO must not
+                # leave Draft without the right authority signing it off.
+                approver = data.get("approved_by", self.instance.approved_by)
+                probe = self.instance
+                probe.approved_by = approver
+                try:
+                    probe.check_approval()
+                except DjangoValidationError as exc:
+                    raise serializers.ValidationError(exc.messages[0])
         return data
 
     def update(self, instance, validated_data):
@@ -69,3 +82,22 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         if old_status != new_status and new_status == "Received":
             run_side_effect(instance.receive_stock)
         return instance
+
+
+class GoodsReceiptItemSerializer(serializers.ModelSerializer):
+    qty_accepted = serializers.ReadOnlyField()
+    item_code = serializers.CharField(source="po_item.item.item_code", read_only=True)
+
+    class Meta:
+        model = GoodsReceiptItem
+        fields = "__all__"
+
+
+class GoodsReceiptSerializer(serializers.ModelSerializer):
+    items = GoodsReceiptItemSerializer(many=True, read_only=True)
+    po_number = serializers.CharField(source="purchase_order.po_number", read_only=True)
+
+    class Meta:
+        model = GoodsReceipt
+        fields = "__all__"
+        read_only_fields = ["status", "created_at"]

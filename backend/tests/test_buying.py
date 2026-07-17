@@ -66,6 +66,26 @@ def purchase_order(company, supplier, branch, warehouse):
     )
 
 
+@pytest.fixture
+def approver(company, django_user_model):
+    """A Manager-level approver. PRC-CTRL-005 requires every PO to be signed off
+    by a role authorised for its value; the smallest tier is Manager."""
+    from apps.hr.models import Department, Employee
+    from apps.rbac.models import Role, RoleAssignment
+
+    user = django_user_model.objects.create_user(
+        email="po.manager@nexus.com", password="testpass123"
+    )
+    RoleAssignment.objects.create(
+        user=user, role=Role.objects.create(name="Manager", permissions={})
+    )
+    dept = Department.objects.create(company=company, name="Procurement")
+    return Employee.objects.create(
+        company=company, department=dept, employee_id="APR-1",
+        first_name="Po", last_name="Manager", date_of_joining=date(2025, 1, 1), user=user,
+    )
+
+
 @pytest.mark.django_db
 class TestPurchaseOrderTotals:
     def test_recalculate_totals_sums_items_minus_discount_plus_tax(self, purchase_order, item):
@@ -143,11 +163,15 @@ class TestReceiveStock:
 @pytest.mark.django_db
 class TestPurchaseOrderAPI:
     def test_submit_then_receive_via_status_transition(
-        self, auth_client, purchase_order, item, company, branch, warehouse
+        self, auth_client, purchase_order, item, company, branch, warehouse, approver
     ):
         PurchaseOrderItem.objects.create(purchase_order=purchase_order, item=item, qty=5, rate=30)
+        purchase_order.recalculate_totals()
 
-        r1 = auth_client.patch(f"/api/buying/purchase-orders/{purchase_order.id}/", {"status": "Submitted"})
+        r1 = auth_client.patch(
+            f"/api/buying/purchase-orders/{purchase_order.id}/",
+            {"status": "Submitted", "approved_by": approver.pk},
+        )
         assert r1.status_code == status.HTTP_200_OK
 
         r2 = auth_client.patch(f"/api/buying/purchase-orders/{purchase_order.id}/", {"status": "Received"})

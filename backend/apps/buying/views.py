@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from apps.core.mixins import CompanyScopedMixin, LockAfterSubmitMixin
 
 from .models import (
+    GoodsReceipt,
+    GoodsReceiptItem,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchasePayment,
@@ -15,6 +17,8 @@ from .models import (
     Supplier,
 )
 from .serializers import (
+    GoodsReceiptItemSerializer,
+    GoodsReceiptSerializer,
     PurchaseOrderItemSerializer,
     PurchaseOrderSerializer,
     PurchasePaymentSerializer,
@@ -39,6 +43,28 @@ class PurchaseOrderViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     search_fields = ["po_number", "supplier__name"]
     filterset_fields = ["status", "company", "supplier"]
     company_field = "company"
+
+    def perform_create(self, serializer):
+        # FIN-CTRL-002 needs to know who raised the PO.
+        user = self.request.user if self.request.user.is_authenticated else None
+        super().perform_create(serializer)
+        if user is not None and serializer.instance.created_by_id is None:
+            serializer.instance.created_by = user
+            serializer.instance.save(update_fields=["created_by"])
+
+    @action(detail=True, methods=["get"])
+    def three_way_match(self, request, pk=None):
+        """PRC-CTRL-001: does this PO agree with its receipts and invoices?"""
+        order = self.get_object()
+        matched, discrepancies = order.three_way_match()
+        return Response({"matched": matched, "discrepancies": discrepancies})
+
+    @action(detail=True, methods=["get"])
+    def price_variance(self, request, pk=None):
+        """PRC-RULE-004: lines priced more than 10% off the last PO."""
+        order = self.get_object()
+        findings = order.check_price_variance()
+        return Response({"flagged": bool(findings), "findings": findings})
     @action(detail=True, methods=["post"])
     def create_invoice(self, request, pk=None):
         """Generate a draft Purchase Invoice from this order, carrying every line
@@ -95,3 +121,30 @@ class PurchasePaymentViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     serializer_class = PurchasePaymentSerializer
     filterset_fields = ["purchase_order"]
     company_field = "purchase_order__company"
+
+
+class GoodsReceiptViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = GoodsReceipt.objects.all()
+    serializer_class = GoodsReceiptSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ["grn_number", "purchase_order__po_number"]
+    filterset_fields = ["status", "company", "purchase_order"]
+    company_field = "company"
+
+    @action(detail=True, methods=["post"])
+    def submit(self, request, pk=None):
+        """INV-CTRL-003: validate against the PO, then post accepted qty to stock."""
+        grn = self.get_object()
+        try:
+            ok, message = grn.submit()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"success": ok, "message": message,
+                         "goods_receipt": self.get_serializer(grn).data})
+
+
+class GoodsReceiptItemViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = GoodsReceiptItem.objects.all()
+    serializer_class = GoodsReceiptItemSerializer
+    filterset_fields = ["goods_receipt", "po_item"]
+    company_field = "goods_receipt__company"
