@@ -8,6 +8,10 @@ class Attendance(models.Model):
     tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     STATUS = [("present", "Present"), ("late", "Late"), ("absent", "Absent"), ("leave", "On Leave")]
 
+    employee = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True, related_name="attendance_records",
+        help_text="Nullable for backward compatibility with rows recorded before this field existed.",
+    )
     employee_no = models.CharField(max_length=50, blank=True)
     employee_name = models.CharField(max_length=200)
     date = models.DateField(db_index=True)
@@ -38,8 +42,18 @@ class Attendance(models.Model):
 
 class Timesheet(models.Model):
     tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
+    employee = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True, related_name="timesheets",
+        help_text="Nullable for backward compatibility with rows recorded before this field existed.",
+    )
     employee_name = models.CharField(max_length=200)
     date = models.DateField(db_index=True)
+    project_link = models.ForeignKey(
+        "pmo.Project", on_delete=models.SET_NULL, null=True, blank=True, related_name="timesheets",
+    )
+    task_link = models.ForeignKey(
+        "pmo.Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="timesheets",
+    )
     project = models.CharField(max_length=200, blank=True)
     task = models.CharField(max_length=200, blank=True)
     hours = models.DecimalField(max_digits=5, decimal_places=2, default=0)

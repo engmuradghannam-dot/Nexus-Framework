@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.core.workflow import validate_transition
+from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import Department, Employee, LeaveRequest, Payroll, Team
 
@@ -103,6 +103,7 @@ class PayrollSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payroll
         fields = "__all__"
+        read_only_fields = ["posted_to_ledger"]
 
     def get_employee_name(self, obj):
         return f"{obj.employee.first_name} {obj.employee.last_name}".strip()
@@ -142,6 +143,8 @@ class PayrollSerializer(serializers.ModelSerializer):
         new_status = validated_data.get("status", old_status)
         instance = super().update(instance, validated_data)
         if old_status != new_status and new_status == "Paid":
+            run_side_effect(instance.post_to_ledger)
+
             from .tasks import send_payroll_paid_email
 
             send_payroll_paid_email(instance.id)

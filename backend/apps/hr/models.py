@@ -246,6 +246,9 @@ class Payroll(models.Model):
     payment_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Draft")
     currency = models.CharField(max_length=10, default="SAR")
+    posted_to_ledger = models.BooleanField(
+        default=False, help_text="Whether this payroll's salary expense has been posted to the GL."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
@@ -278,6 +281,67 @@ class Payroll(models.Model):
     @property
     def net_salary(self):
         return self.gross_salary - self.total_deductions
+
+    def post_to_ledger(self):
+        """Post this payroll's salary expense to the GL, mirroring
+        Invoice.post_to_ledger(): Dr Salaries Expense (5200) for the full
+        gross salary, split across Cr Bank (1200, the net cash paid out)
+        and Cr Accounts Payable (2100, standing in for GOSI/tax/loan
+        liabilities withheld) so the entry balances by construction
+        (gross_salary == net_salary + total_deductions).
+        """
+        from django.db import transaction
+
+        from apps.accounts.models import Account, AccountingPeriod, JournalEntry
+
+        if self.posted_to_ledger:
+            return False, "تم ترحيل هذا الراتب مسبقاً"
+        if self.status != "Paid":
+            return False, "لا يمكن الترحيل إلا لراتب مدفوع"
+
+        company = self.employee.company
+        if company is None:
+            return False, "لا توجد شركة"
+
+        post_date = self.payment_date or self.pay_period_end
+        if AccountingPeriod.is_locked(company, post_date):
+            return False, "الفترة المحاسبية مقفلة لهذا التاريخ"
+
+        def acc(number):
+            return Account.objects.filter(company=company, account_number=number).first()
+
+        expense, bank, payable = acc("5200"), acc("1200"), acc("2100")
+        if not all([expense, bank]):
+            return False, "حسابات الرواتب غير مهيأة — شغّل seed_accounting"
+
+        legs = [(expense, bank, self.net_salary)]
+        if self.total_deductions > 0:
+            if not payable:
+                return False, "حساب الالتزامات غير مهيأ — شغّل seed_accounting"
+            legs.append((expense, payable, self.total_deductions))
+
+        # Both legs and the posted flag move together: if the deductions leg
+        # fails after the net-pay leg is already written, the GL would be left
+        # permanently unbalanced with no way to retry (posted_to_ledger unset,
+        # but half the entries already there).
+        with transaction.atomic():
+            for i, (dr, cr, amt) in enumerate(legs):
+                if amt <= 0:
+                    continue
+                JournalEntry.objects.create(
+                    company=company,
+                    entry_number=f"PAYROLL-{self.pk}-{i+1}",
+                    posting_date=post_date,
+                    reference=f"Payroll {self.employee} ({self.pay_period_start} to {self.pay_period_end})",
+                    debit_account=dr, credit_account=cr, amount=amt,
+                    total_debit=amt, total_credit=amt, status="Submitted",
+                )
+                dr.post(debit_amount=amt)
+                cr.post(credit_amount=amt)
+
+            self.posted_to_ledger = True
+            self.save(update_fields=["posted_to_ledger"])
+        return True, "تم ترحيل الراتب إلى دفتر الأستاذ"
 
     def __str__(self):
         return f"{self.employee} - {self.pay_period_start} to {self.pay_period_end}"
