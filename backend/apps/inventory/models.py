@@ -228,6 +228,25 @@ class ItemBatch(models.Model):
     def __str__(self):
         return f"{self.item.item_code} - {self.batch_no}"
 
+    @property
+    def days_to_expiry(self):
+        from datetime import date
+
+        if not self.expiry_date:
+            return None
+        return (self.expiry_date - date.today()).days
+
+    @property
+    def is_expiring_soon(self):
+        """INV-RULE-005: within 30 days of expiry (or already past it)."""
+        d = self.days_to_expiry
+        return d is not None and d <= 30
+
+    @property
+    def is_expired(self):
+        d = self.days_to_expiry
+        return d is not None and d < 0
+
 
 class StockEntry(models.Model):
     ENTRY_TYPES = [("Receipt", "Receipt"), ("Issue", "Issue"), ("Transfer", "Transfer")]

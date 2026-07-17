@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
@@ -62,6 +63,21 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
 
         if start and end and end < start:
             raise serializers.ValidationError("End date cannot be before start date.")
+
+        new_status = data.get("status", getattr(self.instance, "status", None))
+        if new_status == "Approved":
+            # HR-CTRL-003 is preventive: refuse the approval, don't just report
+            # a negative balance afterwards.
+            probe = self.instance or LeaveRequest(**{
+                k: v for k, v in data.items() if k != "status"
+            })
+            for k, v in data.items():
+                if k != "status":
+                    setattr(probe, k, v)
+            try:
+                probe.check_balance()
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.messages[0])
 
         if employee and start and end:
             overlapping = LeaveRequest.objects.filter(

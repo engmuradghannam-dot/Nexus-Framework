@@ -13,10 +13,40 @@ SO_TRANSITIONS = {
 }
 
 
-class CustomerSerializer(serializers.ModelSerializer):
+class _DuplicatePartyMixin:
+    """CRM-CTRL-002: flag potential duplicates by email/phone within a company.
+
+    Email/phone are not unique columns (blank is common and legitimate), so
+    this checks only values that are actually supplied.
+    """
+
+    def _check_duplicates(self, data, model):
+        company = data.get("company", getattr(self.instance, "company", None))
+        if company is None:
+            return
+        for field in ("email", "phone", "mobile"):
+            value = data.get(field, getattr(self.instance, field, "") if self.instance else "")
+            if not value:
+                continue
+            clash = model.objects.filter(company=company, **{f"{field}__iexact": value})
+            if self.instance:
+                clash = clash.exclude(pk=self.instance.pk)
+            existing = clash.first()
+            if existing:
+                raise serializers.ValidationError({
+                    field: f"عميل موجود بنفس البيانات / Possible duplicate: "
+                           f"'{existing.name}' already uses this {field}."
+                })
+
+
+class CustomerSerializer(_DuplicatePartyMixin, serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = "__all__"
+
+    def validate(self, data):
+        self._check_duplicates(data, Customer)
+        return data
 
 
 class SalesOrderItemSerializer(serializers.ModelSerializer):

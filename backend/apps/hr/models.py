@@ -168,6 +168,32 @@ class LeaveRequest(models.Model):
             return (self.end_date - self.start_date).days + 1
         return 0
 
+    def check_balance(self):
+        """HR-CTRL-003: an employee cannot take annual leave they haven't got.
+
+        remaining_balance() already computed the figure; nothing ever refused a
+        request that blew through it. Only Annual leave carries a balance —
+        Sick/Unpaid/Maternity are governed separately and are not capped here.
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        if self.leave_type != "Annual" or not self.year:
+            return
+        ANNUAL_ALLOWANCE = 21
+        taken = sum(
+            (lr.duration_days for lr in LeaveRequest.objects.filter(
+                employee=self.employee, leave_type="Annual",
+                year=self.year, status="Approved",
+            ).exclude(id=self.id)),
+            0,
+        )
+        if taken + self.duration_days > ANNUAL_ALLOWANCE:
+            raise DjangoValidationError(
+                f"رصيد الإجازات غير كافٍ / Insufficient leave balance: "
+                f"{ANNUAL_ALLOWANCE - taken} day(s) remaining, "
+                f"{self.duration_days} requested."
+            )
+
     @property
     def remaining_balance(self):
         """Simple annual-leave balance tracker: assumes a 21-day standard

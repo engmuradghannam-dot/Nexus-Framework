@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 
 from apps.core.models import Company
@@ -56,6 +58,12 @@ class Account(models.Model):
 
     def __str__(self):
         return f"{self.account_number} - {self.account_name}"
+
+
+# FIN-CTRL-001: entries above this value need two distinct approvers
+# (Finance Manager + CFO), on top of the creator.
+DUAL_AUTH_THRESHOLD = Decimal("50000")
+DUAL_AUTH_ROLES = ["Finance Manager", "CFO"]
 
 
 class JournalEntry(models.Model):
@@ -125,6 +133,16 @@ class JournalEntry(models.Model):
         blank=True,
         related_name="posted_journal_entries",
     )
+    approved_by = models.ForeignKey(
+        "core.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="journal_entries_approved",
+        help_text="First approver. FIN-CTRL-001 requires one above 50,000 SAR.",
+    )
+    second_approved_by = models.ForeignKey(
+        "core.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="journal_entries_second_approved",
+        help_text="Second, distinct approver required above 50,000 SAR.",
+    )
     description = models.TextField(blank=True)
     status = models.CharField(
         max_length=50,
@@ -136,6 +154,60 @@ class JournalEntry(models.Model):
     reversal_of = models.ForeignKey("self", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="reversals")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def needs_dual_authorization(self):
+        """FIN-CTRL-001: value above the threshold."""
+        return Decimal(self.amount or 0) > DUAL_AUTH_THRESHOLD
+
+    def check_authorization(self):
+        """FIN-CTRL-001 (dual authorization) and FIN-CTRL-002 (segregation of
+        duties). Both are preventive: they run before the entry posts.
+
+        Below the threshold a single approver distinct from the creator is
+        enough; above it two distinct approvers holding Finance Manager and CFO
+        authority are required.
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from apps.rbac.models import RoleAssignment
+
+        approvers = [a for a in (self.approved_by, self.second_approved_by) if a]
+        # FIN-CTRL-002: whoever raised the entry can never be one of its approvers.
+        if self.posted_by_id and any(a.pk == self.posted_by_id for a in approvers):
+            raise DjangoValidationError(
+                "Segregation of duties: the entry's creator cannot approve it."
+            )
+        if not self.needs_dual_authorization:
+            return
+        if len(approvers) < 2:
+            raise DjangoValidationError(
+                f"Entries above {DUAL_AUTH_THRESHOLD} require dual authorization "
+                f"({' + '.join(DUAL_AUTH_ROLES)})."
+            )
+        if approvers[0].pk == approvers[1].pk:
+            raise DjangoValidationError(
+                "Dual authorization requires two different approvers."
+            )
+        held = {
+            r: [
+                a for a in approvers
+                if RoleAssignment.objects.filter(user=a, role__name=r).exists()
+            ]
+            for r in DUAL_AUTH_ROLES
+        }
+        missing = [r for r, users in held.items() if not users]
+        if missing:
+            raise DjangoValidationError(
+                f"Dual authorization is missing {' and '.join(missing)} approval."
+            )
+        # One person holding both roles cannot stand in for two people.
+        if all(len(u) == 1 for u in held.values()) and \
+                held[DUAL_AUTH_ROLES[0]][0].pk == held[DUAL_AUTH_ROLES[1]][0].pk:
+            raise DjangoValidationError(
+                "Dual authorization requires two different approvers; one user "
+                "holding both roles is not sufficient."
+            )
 
     def post_to_ledger(self):
         """Applies this entry's amounts to the real account balances.

@@ -39,6 +39,49 @@ class ModuleRecordViewSet(TenantScopedMixin, viewsets.ModelViewSet):
             return items
         return items.filter(company__in=user.managed_companies.all())
 
+    @action(detail=False, methods=["get"])
+    def expiring_batches(self, request):
+        """INV-RULE-005: batches within 30 days of expiry, so the warehouse can
+        discount or move them before they are written off."""
+        from datetime import date, timedelta
+
+        from apps.inventory.models import ItemBatch
+
+        horizon = date.today() + timedelta(days=int(request.query_params.get("days", 30)))
+        batches = ItemBatch.objects.filter(
+            item__in=self._all_scoped_items(),
+            quantity__gt=0,
+            expiry_date__isnull=False,
+            expiry_date__lte=horizon,
+        ).select_related("item", "warehouse").order_by("expiry_date")
+        return Response({"alerts": [
+            {
+                "item_code": b.item.item_code,
+                "item_name": b.item.item_name,
+                "batch_no": b.batch_no,
+                "warehouse": b.warehouse.name if b.warehouse else None,
+                "quantity": str(b.quantity),
+                "expiry_date": b.expiry_date,
+                "days_to_expiry": b.days_to_expiry,
+                "expired": b.is_expired,
+            }
+            for b in batches
+        ]})
+
+    def _all_scoped_items(self):
+        """Every Item the caller may see — the low-stock variant additionally
+        filters to items with a reorder level set, which expiry doesn't care
+        about."""
+        from apps.inventory.models import Item
+
+        items = Item.objects.filter(is_stock_item=True, is_active=True)
+        user = getattr(self.request, "user", None)
+        if user is None or not user.is_authenticated:
+            return items.none()
+        if user.is_superuser:
+            return items
+        return items.filter(company__in=user.managed_companies.all())
+
     def _enforce(self, module_action, module):
         """RBAC on writes. Superusers bypass; users with NO roles are
         grandfathered (not locked out); users WITH roles are enforced."""

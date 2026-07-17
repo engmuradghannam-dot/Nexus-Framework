@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
@@ -69,6 +70,17 @@ class JournalEntrySerializer(serializers.ModelSerializer):
 
         if self.instance and status and status != self.instance.status:
             validate_transition(JOURNAL_TRANSITIONS, self.instance.status, status)
+            if status == "Submitted":
+                # FIN-CTRL-001 / FIN-CTRL-002 are preventive controls: they must
+                # block the posting, not report on it afterwards.
+                probe = self.instance
+                for field in ("approved_by", "second_approved_by", "amount"):
+                    if field in data:
+                        setattr(probe, field, data[field])
+                try:
+                    probe.check_authorization()
+                except DjangoValidationError as exc:
+                    raise serializers.ValidationError(exc.messages[0])
         return data
 
     def update(self, instance, validated_data):
