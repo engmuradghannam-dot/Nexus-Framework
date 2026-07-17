@@ -19,13 +19,60 @@ class BOM(models.Model):
     labor_cost = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="approved_boms",
+        help_text="MFG-CTRL-001: a BOM must be approved before production releases against it.",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
     description = models.TextField(blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def raw_materials_cost(self):
+        """Material cost for one full BOM batch (i.e. for `quantity` units)."""
         return sum((i.qty * i.rate for i in self.items.all()), 0)
+
+    @property
+    def is_approved(self):
+        return self.approved_by_id is not None and self.approved_at is not None
+
+    def approve(self, employee):
+        from django.utils import timezone
+
+        self.approved_by = employee
+        self.approved_at = timezone.now()
+        self.save(update_fields=["approved_by", "approved_at"])
+
+    def requirements_for(self, output_qty):
+        """MFG-RULE-001 (MRP): raw material needed to produce `output_qty` units.
+
+        BOM.quantity is the batch size the recipe yields — a BOM that makes 10
+        units from 5kg needs 50kg for 100 units, not 500. complete_production()
+        multiplied the line qty by the output directly, silently assuming every
+        BOM was a per-unit recipe.
+        """
+        from decimal import Decimal
+
+        batch = Decimal(self.quantity or 1)
+        if batch <= 0:
+            batch = Decimal(1)
+        factor = Decimal(output_qty) / batch
+        return [
+            (line, (Decimal(line.qty) * factor).quantize(Decimal("0.01")))
+            for line in self.items.select_related("item")
+        ]
+
+    @property
+    def cost_per_unit(self):
+        """Batch cost spread over the units the batch yields."""
+        from decimal import Decimal
+
+        batch = Decimal(self.quantity or 1)
+        if batch <= 0:
+            return Decimal(0)
+        return (Decimal(self.total_cost) / batch).quantize(Decimal("0.0001"))
 
     @property
     def total_cost(self):
@@ -68,6 +115,11 @@ class WorkOrder(models.Model):
     item_to_manufacture = models.ForeignKey(Item, on_delete=models.CASCADE)
     qty_to_produce = models.DecimalField(max_digits=18, decimal_places=2)
     produced_qty = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    scrap_qty = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="MFG-RULE-005: units lost in production. Their cost is absorbed "
+        "by the good units, raising the effective unit cost.",
+    )
     uom = models.CharField(max_length=50, default="Unit")
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Draft")
     priority = models.CharField(
@@ -93,6 +145,98 @@ class WorkOrder(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def material_requirements(self):
+        """MFG-RULE-001: explode the BOM for this work order's output quantity.
+
+        Returns [(BOMItem, qty_required), ...].
+        """
+        if not self.bom:
+            raise DjangoValidationError("Cannot run MRP without a BOM.")
+        return self.bom.requirements_for(self.qty_to_produce)
+
+    def check_material_availability(self):
+        """MFG-CTRL-003: every raw material must be on hand *at this work
+        order's warehouse* before the order releases or completes.
+
+        This used to compare against item.stock_quantity — the company-wide
+        total — so a work order could consume materials sitting in a warehouse
+        it has no access to.
+        """
+        if not self.warehouse:
+            raise DjangoValidationError(
+                "Cannot check material availability without a warehouse."
+            )
+        shortages = []
+        for line, required in self.material_requirements():
+            available = line.item.stock_in_warehouse(self.warehouse)
+            reserved = line.item.reserved_qty(self.warehouse, exclude_work_order=self)
+            free = available - reserved
+            if free < required:
+                shortages.append(
+                    f"{line.item.item_code} (free {free} at {self.warehouse.name}, "
+                    f"need {required})"
+                )
+        if shortages:
+            raise DjangoValidationError(
+                f"Insufficient raw materials: {', '.join(shortages)}"
+            )
+
+    def release(self, ignore_bom_approval=False):
+        """MFG-CTRL-001 + MFG-CTRL-003 + MFG-RULE-002: approve, check, reserve.
+
+        Releasing is the point of no return for planning — it tells the shop
+        floor the materials are theirs. So the BOM must be approved and the
+        materials must exist before any reservation is written.
+        """
+        if not self.bom:
+            raise DjangoValidationError("Cannot release a work order without a BOM.")
+        if not ignore_bom_approval and not self.bom.is_approved:
+            raise DjangoValidationError(
+                f"BOM '{self.bom.bom_name}' is not approved; it cannot be released "
+                f"to production."
+            )
+        self.check_material_availability()
+        with transaction.atomic():
+            self.reservations.all().delete()
+            for line, required in self.material_requirements():
+                MaterialReservation.objects.create(
+                    work_order=self, item=line.item, warehouse=self.warehouse,
+                    qty=required,
+                )
+            self.status = "In Progress"
+            self.save(update_fields=["status"])
+        return True, "تم إطلاق أمر الإنتاج وحجز المواد / Released and materials reserved"
+
+    @property
+    def yield_percent(self):
+        """MFG-RULE-003: (actual / planned) * 100."""
+        from decimal import Decimal
+
+        if not self.qty_to_produce:
+            return None
+        return (
+            Decimal(self.produced_qty) / Decimal(self.qty_to_produce) * 100
+        ).quantize(Decimal("0.01"))
+
+    @property
+    def yield_variance_exceeded(self):
+        """MFG-CTRL-004: alert when yield is more than 5% off plan."""
+        from decimal import Decimal
+
+        y = self.yield_percent
+        return y is not None and abs(Decimal(100) - y) > Decimal(5)
+
+    @property
+    def effective_unit_cost(self):
+        """MFG-RULE-005: scrap cost is absorbed by the units that survived, so
+        the good output carries the true cost of the run."""
+        from decimal import Decimal
+
+        good = Decimal(self.produced_qty or 0)
+        if good <= 0:
+            return Decimal(0)
+        return (Decimal(self.actual_cost or 0) / good).quantize(Decimal("0.0001"))
+
     def complete_production(self):
         """Called when the WorkOrder transitions to 'Completed'. Validates
         raw-material availability for the full BOM FIRST (all-or-nothing),
@@ -103,24 +247,10 @@ class WorkOrder(models.Model):
             raise DjangoValidationError(
                 "Cannot complete a work order without a warehouse."
             )
-        bom_items = list(self.bom.items.all())
-        if not bom_items:
+        requirements = self.material_requirements()
+        if not requirements:
             raise DjangoValidationError("The linked BOM has no raw materials defined.")
-
-        shortages = []
-        requirements = []
-        for bom_item in bom_items:
-            required = bom_item.qty * self.qty_to_produce
-            available = bom_item.item.stock_quantity
-            requirements.append((bom_item, required))
-            if available < required:
-                shortages.append(
-                    f"{bom_item.item.item_code} (available {available}, need {required})"
-                )
-        if shortages:
-            raise DjangoValidationError(
-                f"Insufficient raw materials to complete production: {', '.join(shortages)}"
-            )
+        self.check_material_availability()
 
         with transaction.atomic():
             for bom_item, required in requirements:
@@ -134,23 +264,34 @@ class WorkOrder(models.Model):
                     rate=bom_item.rate,
                     reference=f"WO {self.wo_number} consumption",
                 )
-            StockEntry.objects.create(
-                company=self.company,
-                branch=self.branch,
-                warehouse=self.warehouse,
-                item=self.item_to_manufacture,
-                entry_type="Receipt",
-                quantity=self.qty_to_produce,
-                rate=(
-                    (self.actual_cost / self.qty_to_produce)
-                    if self.qty_to_produce
-                    else 0
-                ),
-                reference=f"WO {self.wo_number} production",
-            )
-            WorkOrder.objects.filter(pk=self.pk).update(
-                produced_qty=self.qty_to_produce
-            )
+            # MFG-RULE-005: only the units that survived reach inventory, and
+            # they carry the whole run's cost — scrap doesn't vanish, it makes
+            # the good units more expensive.
+            good_qty = Decimal(self.qty_to_produce) - Decimal(self.scrap_qty or 0)
+            if good_qty < 0:
+                raise DjangoValidationError(
+                    f"Scrap ({self.scrap_qty}) cannot exceed the planned quantity "
+                    f"({self.qty_to_produce})."
+                )
+            run_cost = Decimal(self.actual_cost or 0)
+            if run_cost <= 0:
+                run_cost = Decimal(self.bom.cost_per_unit) * Decimal(self.qty_to_produce)
+            unit_rate = (run_cost / good_qty).quantize(Decimal("0.0001")) if good_qty else Decimal(0)
+            if good_qty > 0:
+                StockEntry.objects.create(
+                    company=self.company,
+                    branch=self.branch,
+                    warehouse=self.warehouse,
+                    item=self.item_to_manufacture,
+                    entry_type="Receipt",
+                    quantity=good_qty,
+                    rate=unit_rate,
+                    reference=f"WO {self.wo_number} production",
+                )
+            # The materials have physically moved, so the promise is spent.
+            self.reservations.all().delete()
+            WorkOrder.objects.filter(pk=self.pk).update(produced_qty=good_qty)
+            self.produced_qty = good_qty
 
     def __str__(self):
         return self.wo_number
@@ -298,3 +439,28 @@ class QualityInspectionParameter(models.Model):
 
     def __str__(self):
         return f"{self.parameter}: {self.reading_value} ({self.status})"
+
+
+class MaterialReservation(models.Model):
+    """MFG-RULE-002: raw material committed to a released work order.
+
+    Without this, two work orders could both see the same stock as available and
+    both release — the shortage only surfaced when the second one tried to
+    complete, by which point the shop floor had already started.
+    """
+
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="reservations"
+    )
+    item = models.ForeignKey("inventory.Item", on_delete=models.CASCADE, related_name="reservations")
+    warehouse = models.ForeignKey(
+        "core.Warehouse", on_delete=models.CASCADE, related_name="material_reservations"
+    )
+    qty = models.DecimalField(max_digits=18, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.item.item_code} x{self.qty} for {self.work_order.wo_number}"

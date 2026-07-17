@@ -1,5 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -7,7 +8,15 @@ from rest_framework.exceptions import PermissionDenied
 
 from apps.core.mixins import CompanyScopedMixin
 
-from .models import BOM, BOMItem, JobCard, QualityInspection, QualityInspectionParameter, WorkOrder
+from .models import (
+    BOM,
+    BOMItem,
+    JobCard,
+    MaterialReservation,
+    QualityInspection,
+    QualityInspectionParameter,
+    WorkOrder,
+)
 from .serializers import (
     BOMItemSerializer,
     BOMSerializer,
@@ -34,6 +43,57 @@ class WorkOrderViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     company_field = "company"
 
 
+    @action(detail=True, methods=["get"])
+    def material_requirements(self, request, pk=None):
+        """MFG-RULE-001: explode the BOM for this order's quantity."""
+        wo = self.get_object()
+        try:
+            reqs = wo.material_requirements()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        rows = []
+        for line, required in reqs:
+            available = (
+                line.item.stock_in_warehouse(wo.warehouse) if wo.warehouse else None
+            )
+            reserved = (
+                line.item.reserved_qty(wo.warehouse, exclude_work_order=wo)
+                if wo.warehouse else None
+            )
+            rows.append({
+                "item_code": line.item.item_code,
+                "item_name": line.item.item_name,
+                "required": str(required),
+                "available": str(available) if available is not None else None,
+                "reserved_elsewhere": str(reserved) if reserved is not None else None,
+                "short": (available - reserved < required) if available is not None else None,
+            })
+        return Response({"work_order": wo.wo_number, "requirements": rows})
+
+    @action(detail=True, methods=["post"])
+    def release(self, request, pk=None):
+        """MFG-CTRL-001 + MFG-CTRL-003 + MFG-RULE-002."""
+        wo = self.get_object()
+        try:
+            ok, message = wo.release()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"success": ok, "message": message,
+                         "reserved": wo.reservations.count()})
+
+    @action(detail=True, methods=["get"])
+    def yield_report(self, request, pk=None):
+        """MFG-RULE-003 + MFG-CTRL-004."""
+        wo = self.get_object()
+        return Response({
+            "planned": str(wo.qty_to_produce),
+            "produced": str(wo.produced_qty),
+            "scrap": str(wo.scrap_qty),
+            "yield_percent": str(wo.yield_percent) if wo.yield_percent is not None else None,
+            "variance_exceeded": wo.yield_variance_exceeded,
+            "effective_unit_cost": str(wo.effective_unit_cost),
+        })
+
 class BOMViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = BOM.objects.all()
     serializer_class = BOMSerializer
@@ -41,6 +101,20 @@ class BOMViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     filterset_fields = ["item", "is_active", "company"]
     company_field = "company"
 
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """MFG-CTRL-001: sign off a BOM so production can release against it."""
+        from apps.hr.models import Employee
+
+        bom = self.get_object()
+        try:
+            employee = Employee.objects.get(pk=request.data.get("employee"))
+        except (Employee.DoesNotExist, TypeError, ValueError):
+            return Response({"detail": "A valid employee is required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        bom.approve(employee)
+        return Response({"approved": True, "approved_at": bom.approved_at})
 
 class BOMItemViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = BOMItem.objects.all()

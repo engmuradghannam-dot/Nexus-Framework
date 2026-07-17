@@ -163,6 +163,21 @@ class Item(models.Model):
         """INV-RULE-003: cost of goods sold for `qty` units."""
         return (Decimal(qty) * self.valuation_rate(warehouse)).quantize(Decimal("0.01"))
 
+    def reserved_qty(self, warehouse, exclude_work_order=None):
+        """MFG-RULE-002: units committed to released work orders at a warehouse.
+
+        Stock that is physically present but already promised to a work order
+        isn't available to promise again.
+        """
+        from django.db.models import Sum
+
+        qs = self.reservations.filter(
+            warehouse=warehouse, work_order__status="In Progress"
+        )
+        if exclude_work_order is not None and exclude_work_order.pk:
+            qs = qs.exclude(work_order=exclude_work_order)
+        return qs.aggregate(q=Sum("qty"))["q"] or Decimal(0)
+
     def stock_in_warehouse(self, warehouse):
         """On-hand quantity of this item at one warehouse.
 
