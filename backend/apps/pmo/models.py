@@ -1,6 +1,9 @@
 """PMO Models - Project Management Office"""
 
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models
 
 User = get_user_model()
@@ -154,6 +157,146 @@ class Project(models.Model):
             return date.today() > self.end_date
         return False
 
+    def calculate_critical_path(self):
+        """PRJ-RULE-003: forward/backward pass over the task network (CPM).
+
+        Day numbers are relative to project start (day 0), so the result stays
+        valid regardless of calendar dates — which are frequently missing on
+        these tasks. Cancelled tasks are excluded: they can't hold up anything.
+
+        Returns the list of critical tasks (slack == 0). Writes early/late
+        start/finish, slack and is_critical to every task in the network.
+        """
+        tasks = list(
+            self.tasks.exclude(status="Cancelled").prefetch_related("predecessors")
+        )
+        if not tasks:
+            return []
+        by_id = {t.pk: t for t in tasks}
+        preds = {
+            t.pk: [p.pk for p in t.predecessors.all() if p.pk in by_id] for t in tasks
+        }
+
+        # Topological order. A cycle would loop forever, so detect it instead.
+        order, visiting, done = [], set(), set()
+
+        def visit(pk):
+            if pk in done:
+                return
+            if pk in visiting:
+                raise DjangoValidationError(
+                    f"Task dependencies contain a cycle involving "
+                    f"'{by_id[pk].title}'; the critical path is undefined."
+                )
+            visiting.add(pk)
+            for dep in preds[pk]:
+                visit(dep)
+            visiting.discard(pk)
+            done.add(pk)
+            order.append(pk)
+
+        for pk in by_id:
+            visit(pk)
+
+        # Forward pass
+        es, ef = {}, {}
+        for pk in order:
+            t = by_id[pk]
+            es[pk] = max((ef[d] for d in preds[pk]), default=0)
+            ef[pk] = es[pk] + max(int(t.duration_days or 0), 0)
+
+        project_finish = max(ef.values())
+
+        # Backward pass
+        succs = {pk: [] for pk in by_id}
+        for pk, deps in preds.items():
+            for d in deps:
+                succs[d].append(pk)
+        lf, ls = {}, {}
+        for pk in reversed(order):
+            t = by_id[pk]
+            lf[pk] = min((ls[s_] for s_ in succs[pk]), default=project_finish)
+            ls[pk] = lf[pk] - max(int(t.duration_days or 0), 0)
+
+        critical = []
+        for pk, t in by_id.items():
+            t.early_start, t.early_finish = es[pk], ef[pk]
+            t.late_start, t.late_finish = ls[pk], lf[pk]
+            t.slack = ls[pk] - es[pk]
+            t.is_critical = t.slack == 0
+            if t.is_critical:
+                critical.append(t)
+        Task.objects.bulk_update(
+            tasks,
+            ["early_start", "early_finish", "late_start", "late_finish",
+             "slack", "is_critical"],
+        )
+        return sorted(critical, key=lambda t: (t.early_start, t.pk))
+
+    @property
+    def critical_path_length(self):
+        """Project duration in days along the longest dependent chain."""
+        from django.db.models import Max
+
+        return self.tasks.exclude(status="Cancelled").aggregate(
+            m=Max("early_finish")
+        )["m"]
+
+    @property
+    def burn_rate(self):
+        """PRJ-RULE-002: budget consumed per elapsed day.
+
+        Returns None before the project starts or if it has no start date —
+        dividing by zero elapsed days would report an infinite burn on day one.
+        """
+        from datetime import date
+
+        start = self.actual_start_date or self.start_date
+        if not start:
+            return None
+        elapsed = (date.today() - start).days
+        if elapsed <= 0:
+            return None
+        return (Decimal(self.spent or 0) / Decimal(elapsed)).quantize(Decimal("0.01"))
+
+    def check_milestone_gate(self, task):
+        """PRJ-CTRL-002: a task can't start while the milestone gating it is
+        still open.
+
+        Milestone acts as the phase gate: work assigned to a later milestone
+        must wait for the earlier ones to be signed off. Tasks with no milestone
+        are ungated.
+        """
+        if task.milestone_id is None:
+            return
+        gate = task.milestone
+        if gate.target_date is None:
+            return
+        earlier_open = self.milestones.filter(
+            target_date__lt=gate.target_date, achieved_date__isnull=True
+        ).exclude(pk=gate.pk)
+        if earlier_open.exists():
+            names = ", ".join(m.name for m in earlier_open)
+            raise DjangoValidationError(
+                f"Cannot start '{task.title}': earlier milestone(s) not yet "
+                f"approved — {names}."
+            )
+
+    def closure_blockers(self):
+        """PRJ-RULE-005: what still stands between this project and Completed."""
+        blockers = []
+        open_tasks = self.tasks.exclude(status__in=["Done", "Cancelled"]).count()
+        if open_tasks:
+            blockers.append(f"{open_tasks} task(s) still open")
+        unmet = self.milestones.filter(achieved_date__isnull=True).count()
+        if unmet:
+            blockers.append(f"{unmet} milestone(s) not achieved")
+        if self.budget and Decimal(self.spent or 0) > Decimal(self.budget):
+            blockers.append(
+                f"budget overrun: spent {self.spent} against budget {self.budget}"
+            )
+        return blockers
+
     def recalculate_progress(self):
         """Recompute progress % from task completion (done / non-cancelled tasks).
 
@@ -228,6 +371,20 @@ class Task(models.Model):
     estimated_hours = models.DecimalField(
         max_digits=8, decimal_places=2, default=0, verbose_name="Estimated Hours"
     )
+    duration_days = models.PositiveIntegerField(
+        default=1,
+        help_text="PRJ-RULE-003: working span used by the critical path calculation.",
+    )
+    predecessors = models.ManyToManyField(
+        "self", symmetrical=False, blank=True, related_name="successors",
+        help_text="Tasks that must finish before this one starts (finish-to-start).",
+    )
+    early_start = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    early_finish = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    late_start = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    late_finish = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    slack = models.IntegerField(null=True, blank=True, editable=False)
+    is_critical = models.BooleanField(default=False, editable=False)
     actual_hours = models.DecimalField(
         max_digits=8, decimal_places=2, default=0, verbose_name="Actual Hours"
     )
@@ -241,6 +398,43 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+
+
+def check_resource_allocation(assignee, task, capacity_hours_per_day=8):
+    """PRJ-CTRL-003: nobody is allocated beyond 100% of their capacity.
+
+    Compares the assignee's committed hours per day across every overlapping,
+    non-finished task against a working-day capacity. Tasks without both dates
+    or without estimated hours can't be scheduled against capacity, so they are
+    skipped rather than guessed at.
+    """
+    from decimal import Decimal
+
+    if assignee is None or not task.start_date or not task.due_date:
+        return
+    if not task.estimated_hours:
+        return
+
+    def load(t):
+        span = max((t.due_date - t.start_date).days + 1, 1)
+        return Decimal(t.estimated_hours) / Decimal(span)
+
+    overlapping = Task.objects.filter(
+        assignee=assignee,
+        start_date__lte=task.due_date,
+        due_date__gte=task.start_date,
+    ).exclude(status__in=["Done", "Cancelled"]).exclude(pk=task.pk)
+    committed = sum(
+        (load(t) for t in overlapping if t.start_date and t.due_date and t.estimated_hours),
+        Decimal(0),
+    )
+    total = committed + load(task)
+    if total > Decimal(capacity_hours_per_day):
+        raise DjangoValidationError(
+            f"Resource over-allocated: {assignee} would be committed to "
+            f"{total.quantize(Decimal('0.01'))}h/day against a capacity of "
+            f"{capacity_hours_per_day}h."
+        )
 
 
 class Milestone(models.Model):

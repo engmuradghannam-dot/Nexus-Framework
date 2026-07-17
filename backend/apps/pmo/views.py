@@ -1,5 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -70,6 +71,41 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer = MilestoneSerializer(milestones, many=True)
         return Response(serializer.data)
 
+
+    @action(detail=True, methods=["get"])
+    def critical_path(self, request, pk=None):
+        """PRJ-RULE-003."""
+        project = self.get_object()
+        try:
+            critical = project.calculate_critical_path()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "project": project.name,
+            "duration_days": project.critical_path_length,
+            "critical_path": [
+                {
+                    "id": t.pk, "title": t.title,
+                    "early_start": t.early_start, "early_finish": t.early_finish,
+                    "duration_days": t.duration_days,
+                }
+                for t in critical
+            ],
+        })
+
+    @action(detail=True, methods=["get"])
+    def health(self, request, pk=None):
+        """PRJ-RULE-002 + PRJ-CTRL-001 + PRJ-RULE-005 in one view."""
+        project = self.get_object()
+        return Response({
+            "budget": str(project.budget or 0),
+            "spent": str(project.spent or 0),
+            "budget_utilization": project.budget_utilization,
+            "burn_rate_per_day": str(project.burn_rate) if project.burn_rate else None,
+            "progress": project.progress,
+            "is_overdue": project.is_overdue,
+            "closure_blockers": project.closure_blockers(),
+        })
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.select_related("project", "assignee")

@@ -1,5 +1,8 @@
 from rest_framework import serializers
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+from .models import check_resource_allocation  # noqa: F401
 from .models import Milestone, Portfolio, Project, Task
 
 
@@ -51,8 +54,44 @@ class TaskSerializer(serializers.ModelSerializer):
             "due_date",
             "estimated_hours",
             "actual_hours",
+            "duration_days",
+            "predecessors",
+            "early_start",
+            "early_finish",
+            "late_start",
+            "late_finish",
+            "slack",
+            "is_critical",
             "created_at",
         ]
+        read_only_fields = [
+            "early_start", "early_finish", "late_start", "late_finish",
+            "slack", "is_critical",
+        ]
+
+    def validate(self, data):
+        """PRJ-CTRL-002 (milestone gate) and PRJ-CTRL-003 (resource capacity)
+        are preventive: they must block the save, not report afterwards."""
+        probe = self.instance or Task(**{
+            k: v for k, v in data.items() if k != "predecessors"
+        })
+        for k, v in data.items():
+            if k != "predecessors":
+                setattr(probe, k, v)
+
+        new_status = data.get("status", getattr(self.instance, "status", None))
+        old_status = getattr(self.instance, "status", None)
+        if new_status == "In Progress" and old_status != "In Progress" and probe.project_id:
+            try:
+                probe.project.check_milestone_gate(probe)
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.messages[0])
+
+        try:
+            check_resource_allocation(probe.assignee, probe)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages[0])
+        return data
 
 
 class MilestoneSerializer(serializers.ModelSerializer):
