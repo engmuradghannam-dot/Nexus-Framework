@@ -42,15 +42,49 @@ def test_branch_creation():
 
 @pytest.mark.django_db
 def test_warehouse_occupancy():
-    branch = Branch.objects.create(name="HQ", code="HQ-001", address="Main St")
+    """occupancy_rate derives from the stock ledger.
+
+    It used to divide the hand-entered `current_occupancy` field by capacity.
+    Nothing in the system ever wrote that field, so the rate reported whatever
+    someone last typed — and WHS-CTRL-002's 90% alert was built on it.
+    """
+    from apps.core.models import CompanyProfile
+    from apps.inventory.models import Item, StockEntry
+
+    company = CompanyProfile.objects.create(name="Occ Co", code="OCC-CO")
+    branch = Branch.objects.create(company=company, name="HQ", code="HQ-001", address="Main St")
     wh = Warehouse.objects.create(
-        name="Main WH",
-        code="WH-001",
-        branch=branch,
-        capacity=1000,
-        current_occupancy=750,
+        name="Main WH", code="WH-001", branch=branch, capacity=1000,
+    )
+    item = Item.objects.create(company=company, item_code="OCC-1", item_name="Box")
+
+    assert wh.occupancy_rate == 0
+    StockEntry.objects.create(
+        company=company, warehouse=wh, item=item, entry_type="Receipt", quantity=750, rate=1
     )
     assert wh.occupancy_rate == 75.00
+    assert wh.is_near_capacity is False
+
+    StockEntry.objects.create(
+        company=company, warehouse=wh, item=item, entry_type="Receipt", quantity=200, rate=1
+    )
+    assert wh.occupancy_rate == 95.00
+    assert wh.is_near_capacity is True  # WHS-CTRL-002
+
+
+@pytest.mark.django_db
+def test_warehouse_occupancy_ignores_the_legacy_manual_field():
+    """current_occupancy is retained for API/admin backward compatibility but no
+    longer drives the rate — otherwise a stale hand-typed number silences the
+    capacity alert."""
+    from apps.core.models import CompanyProfile
+
+    company = CompanyProfile.objects.create(name="Legacy Co", code="LEG-CO")
+    branch = Branch.objects.create(company=company, name="HQ", code="HQ-L", address="Main St")
+    wh = Warehouse.objects.create(
+        name="Legacy WH", code="WH-L", branch=branch, capacity=1000, current_occupancy=750,
+    )
+    assert wh.occupancy_rate == 0
 
 
 @pytest.mark.django_db

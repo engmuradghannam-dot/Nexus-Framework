@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
@@ -47,8 +48,20 @@ class StockEntrySerializer(serializers.ModelSerializer):
         entry_type = data.get("entry_type", getattr(self.instance, "entry_type", None))
         item = data.get("item", getattr(self.instance, "item", None))
         quantity = data.get("quantity", getattr(self.instance, "quantity", None))
+        warehouse = data.get("warehouse", getattr(self.instance, "warehouse", None))
+        if entry_type == "Receipt" and warehouse and quantity:
+            # WHS-RULE-004: check the destination can hold it before accepting.
+            incoming = quantity
+            if self.instance and self.instance.entry_type == "Receipt":
+                incoming -= self.instance.quantity
+            try:
+                warehouse.check_capacity(incoming)
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.messages[0])
         if entry_type == "Issue" and item and quantity:
-            available = item.stock_quantity
+            available = (
+                item.stock_in_warehouse(warehouse) if warehouse else item.stock_quantity
+            )
             if self.instance and self.instance.entry_type == "Issue":
                 # editing an existing Issue: the quantity it already consumed
                 # is still "available" from the item's point of view

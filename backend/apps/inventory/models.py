@@ -102,6 +102,67 @@ class Item(models.Model):
                 total -= entry.quantity
         return total
 
+    def fefo_batches(self, warehouse, qty):
+        """WHS-RULE-005: allocate `qty` across batches, nearest expiry first.
+
+        Returns [(ItemBatch, qty_from_that_batch), ...]. Batches with no expiry
+        date are used last — an undated batch shouldn't jump ahead of one that
+        is about to expire. Raises if the warehouse can't cover the quantity.
+        """
+        from django.core.exceptions import ValidationError
+        from django.db.models import F
+
+        batches = list(
+            self.batches.filter(warehouse=warehouse, quantity__gt=0)
+            .order_by(F("expiry_date").asc(nulls_last=True), "id")
+        )
+        remaining = Decimal(qty)
+        plan = []
+        for batch in batches:
+            if remaining <= 0:
+                break
+            take = min(Decimal(batch.quantity), remaining)
+            plan.append((batch, take))
+            remaining -= take
+        if remaining > 0:
+            available = sum((Decimal(b.quantity) for b in batches), Decimal(0))
+            raise ValidationError(
+                f"Insufficient batch stock for {self.item_code} at {warehouse.name}: "
+                f"need {qty}, batched {available}."
+            )
+        return plan
+
+    def valuation_rate(self, warehouse=None):
+        """INV-RULE-003: unit cost used for COGS, per this item's valuation_method.
+
+        The spec sheet is self-contradictory here — 'Modules Overview' says
+        FIFO/FEFO while INV-RULE-003 says weighted average — so this defers to
+        Item.valuation_method, which already exists per item and lets both hold.
+        Returns Decimal(0) when there is nothing on hand to value.
+        """
+        entries = self.stockentry_set.filter(entry_type="Receipt")
+        if warehouse is not None:
+            entries = entries.filter(warehouse=warehouse)
+        entries = list(entries.order_by("posting_date", "id"))
+        if not entries:
+            return Decimal(0)
+
+        method = self.valuation_method
+        if method == "FIFO":
+            return Decimal(entries[0].rate)
+        if method == "LIFO":
+            return Decimal(entries[-1].rate)
+        # Moving Average (and anything unrecognised): total cost / total qty.
+        qty = sum((Decimal(e.quantity) for e in entries), Decimal(0))
+        if qty <= 0:
+            return Decimal(0)
+        cost = sum((Decimal(e.quantity) * Decimal(e.rate) for e in entries), Decimal(0))
+        return (cost / qty).quantize(Decimal("0.0001"))
+
+    def cogs_for(self, qty, warehouse=None):
+        """INV-RULE-003: cost of goods sold for `qty` units."""
+        return (Decimal(qty) * self.valuation_rate(warehouse)).quantize(Decimal("0.01"))
+
     def stock_in_warehouse(self, warehouse):
         """On-hand quantity of this item at one warehouse.
 

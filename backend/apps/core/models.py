@@ -312,9 +312,60 @@ class Warehouse(models.Model):
 
     @property
     def occupancy_rate(self):
-        if self.capacity == 0:
+        """Percentage of capacity actually consumed by stock on hand.
+
+        This used to divide by ``current_occupancy`` — a hand-entered field that
+        nothing in the system ever wrote to, so the rate (and every alert built
+        on it) reported whatever someone last typed. It now derives from stock
+        entries, which is what WHS-RULE-004 and WHS-CTRL-002 need to mean
+        anything.
+        """
+        if not self.capacity:
             return 0
-        return round((self.current_occupancy / self.capacity) * 100, 2)
+        return round((float(self.stock_units) / self.capacity) * 100, 2)
+
+    @property
+    def stock_units(self):
+        """Units on hand in this warehouse, from the stock ledger."""
+        from decimal import Decimal
+
+        from django.db.models import Case, DecimalField, F, Sum, When
+
+        agg = self.stockentry_set.aggregate(
+            qty=Sum(
+                Case(
+                    When(entry_type="Receipt", then="quantity"),
+                    When(entry_type="Issue", then=-F("quantity")),
+                    default=Decimal(0),
+                    output_field=DecimalField(max_digits=18, decimal_places=2),
+                )
+            )
+        )
+        return agg["qty"] or Decimal(0)
+
+    @property
+    def is_near_capacity(self):
+        """WHS-CTRL-002: warehouse has reached 90% of capacity."""
+        return bool(self.capacity) and self.occupancy_rate >= 90
+
+    def check_capacity(self, additional_units):
+        """WHS-RULE-004: refuse a movement that would overfill the warehouse.
+
+        A capacity of 0 means "not configured" and is not enforced, so
+        warehouses that predate this rule keep working until a capacity is set.
+        """
+        from decimal import Decimal
+
+        from django.core.exceptions import ValidationError
+
+        if not self.capacity:
+            return
+        projected = self.stock_units + Decimal(additional_units or 0)
+        if projected > self.capacity:
+            raise ValidationError(
+                f"Zone capacity exceeded for {self.name}: {projected} units would "
+                f"exceed capacity {self.capacity}."
+            )
 
 
 # Alias for backward compatibility
