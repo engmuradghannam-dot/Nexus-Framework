@@ -18,6 +18,27 @@ class ModuleRecordViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["module"]
 
+    def _scoped_items(self):
+        """Low-stock Items visible to the requesting user, scoped fail-closed.
+
+        These actions reach straight into apps.inventory.Item rather than the
+        ViewSet's own (tenant-scoped) ModuleRecord queryset, so none of the
+        surrounding scoping applies to them automatically. Without this an
+        authenticated user of company A could read — and, via
+        create_purchase_orders, write POs against — every other company in the
+        installation. Mirrors CompanyScopedMixin: superusers bypass, anonymous
+        or company-less users get nothing.
+        """
+        from apps.inventory.models import Item
+
+        items = Item.objects.filter(is_stock_item=True, is_active=True, reorder_level__gt=0)
+        user = getattr(self.request, "user", None)
+        if user is None or not user.is_authenticated:
+            return items.none()
+        if user.is_superuser:
+            return items
+        return items.filter(company__in=user.managed_companies.all())
+
     def _enforce(self, module_action, module):
         """RBAC on writes. Superusers bypass; users with NO roles are
         grandfathered (not locked out); users WITH roles are enforced."""
@@ -31,28 +52,93 @@ class ModuleRecordViewSet(TenantScopedMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def low_stock(self, request):
-        """Inventory items at or below their reorder level (auto-reorder alert)."""
-        items = ModuleRecord.objects.filter(module="inventory")
+        """Real stock items at or below their reorder level (auto-reorder alert).
+
+        Was previously reading from ModuleRecord (a generic freeform-JSON
+        store unrelated to real inventory) instead of apps.inventory.Item,
+        so it never reflected actual stock movements from Buying/Selling/
+        Manufacturing -- this alert list was permanently stale/disconnected
+        from the real system.
+        """
+        items = self._scoped_items()
+        if request.query_params.get("company"):
+            items = items.filter(company_id=request.query_params["company"])
+
         alerts = []
-        for r in items:
-            d = r.data or {}
-            try:
-                current = float(d.get("current_stock") or 0)
-                reorder = float(d.get("reorder_level") or 0)
-            except (TypeError, ValueError):
+        for item in items:
+            current = item.stock_quantity
+            if current > item.reorder_level:
                 continue
-            if reorder > 0 and current <= reorder:
-                max_stock = float(d.get("max_stock") or reorder)
-                alerts.append({
-                    "id": r.id,
-                    "item_code": d.get("item_code", ""),
-                    "name": d.get("arabic_name") or d.get("english_name", ""),
-                    "warehouse": d.get("warehouse", ""),
-                    "current_stock": current,
-                    "reorder_level": reorder,
-                    "suggested_order_qty": max(max_stock - current, 0),
-                })
+            suggested = item.reorder_qty if item.reorder_qty > 0 else max(item.reorder_level - current, 0)
+            alerts.append({
+                "id": item.id,
+                "item_code": item.item_code,
+                "name": item.item_name,
+                "supplier": item.supplier_id,
+                "supplier_name": getattr(item.supplier, "name", ""),
+                "current_stock": float(current),
+                "reorder_level": float(item.reorder_level),
+                "suggested_order_qty": float(suggested),
+            })
         return Response({"count": len(alerts), "alerts": alerts})
+
+    @action(detail=False, methods=["post"])
+    def create_purchase_orders(self, request):
+        """Auto-generate draft Purchase Orders from low-stock items, one PO
+        per supplier (items with no supplier set are skipped and reported).
+        Pass {"item_ids": [...]} to restrict to a subset of low-stock items;
+        omit to act on every item currently below its reorder level."""
+        from datetime import date
+
+        from django.db import transaction
+
+        from apps.buying.models import PurchaseOrder, PurchaseOrderItem
+
+        item_ids = request.data.get("item_ids")
+        items = self._scoped_items()
+        if item_ids:
+            items = items.filter(pk__in=item_ids)
+
+        by_supplier = {}
+        skipped = []
+        for item in items:
+            current = item.stock_quantity
+            if current > item.reorder_level:
+                continue
+            if not item.supplier_id:
+                skipped.append(item.item_code)
+                continue
+            by_supplier.setdefault(item.supplier_id, []).append(item)
+
+        def next_po_number():
+            # po_number is globally unique, so a per-company counter collides as
+            # soon as two companies reach the same PO count in the same month.
+            prefix = f"PO-AUTO-{date.today():%Y%m}-"
+            seq = PurchaseOrder.objects.filter(po_number__startswith=prefix).count() + 1
+            while PurchaseOrder.objects.filter(po_number=f"{prefix}{seq:04d}").exists():
+                seq += 1
+            return f"{prefix}{seq:04d}"
+
+        created = []
+        for supplier_id, supplier_items in by_supplier.items():
+            company = supplier_items[0].company
+            with transaction.atomic():
+                po = PurchaseOrder.objects.create(
+                    company=company, supplier_id=supplier_id,
+                    po_number=next_po_number(),
+                    transaction_date=date.today(),
+                    notes="تم الإنشاء تلقائياً من تنبيهات إعادة الطلب / Auto-generated from reorder alerts",
+                )
+                for item in supplier_items:
+                    qty = item.reorder_qty if item.reorder_qty > 0 else max(item.reorder_level - item.stock_quantity, 0)
+                    if qty <= 0:
+                        continue
+                    PurchaseOrderItem.objects.create(
+                        purchase_order=po, item=item, qty=qty, rate=item.standard_rate,
+                    )
+            created.append(po.po_number)
+
+        return Response({"created": created, "skipped_no_supplier": skipped})
 
     def perform_create(self, serializer):
         module = serializer.validated_data.get("module", "")

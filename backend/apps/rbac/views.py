@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
@@ -19,10 +20,16 @@ MODULES = [
 
 class RoleViewSet(viewsets.ModelViewSet):
     """Roles are a shared, global catalog (no per-company scoping concept
-    exists for RBAC). Any authenticated user may read them (needed to
-    render a permission matrix), but only a superuser may create/edit/
-    delete one — editing a Role's `permissions` JSON changes what every
-    user holding that role can do system-wide."""
+    exists for RBAC). Any authenticated user may read them (needed to render a
+    permission matrix), but only a superuser may create/edit/delete one —
+    editing a Role's `permissions` JSON changes what every user holding that
+    role can do system-wide.
+
+    Role.is_system additionally marks built-in roles (e.g. "Admin") that must
+    survive even a superuser mismanaging the role list from the UI: name and
+    permissions can still be tuned, but the role can't be deleted or renamed,
+    and can't be demoted out of is_system once set.
+    """
 
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
@@ -31,6 +38,20 @@ class RoleViewSet(viewsets.ModelViewSet):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsAdminUser()]
         return super().get_permissions()
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        if instance.is_system:
+            if "name" in serializer.validated_data and serializer.validated_data["name"] != instance.name:
+                raise PermissionDenied("لا يمكن إعادة تسمية دور نظامي")
+            if serializer.validated_data.get("is_system") is False:
+                raise PermissionDenied("لا يمكن إلغاء صفة (نظامي) عن هذا الدور")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.is_system:
+            raise PermissionDenied("لا يمكن حذف دور نظامي")
+        instance.delete()
 
     @action(detail=False, methods=["get"])
     def catalog(self, request):
