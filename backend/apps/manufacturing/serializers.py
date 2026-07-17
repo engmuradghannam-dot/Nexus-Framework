@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
 
-from .models import BOM, BOMItem, WorkOrder
+from .models import BOM, BOMItem, JobCard, QualityInspection, QualityInspectionParameter, WorkOrder
 
 WO_TRANSITIONS = {
     "Draft": {"In Progress", "Cancelled"},
@@ -47,3 +47,34 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             run_side_effect(instance.complete_production)
             instance.refresh_from_db()
         return instance
+
+
+class JobCardSerializer(serializers.ModelSerializer):
+    time_in_mins = serializers.ReadOnlyField()
+    employee_name = serializers.SerializerMethodField()
+    work_order_number = serializers.CharField(source="work_order.wo_number", read_only=True)
+
+    class Meta:
+        model = JobCard
+        fields = "__all__"
+        read_only_fields = ["actual_operating_cost", "started_time", "ended_time", "status"]
+
+    def get_employee_name(self, obj):
+        return f"{obj.employee.first_name} {obj.employee.last_name}".strip() if obj.employee else ""
+
+
+class QualityInspectionParameterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QualityInspectionParameter
+        fields = "__all__"
+        read_only_fields = ["status"]
+
+
+class QualityInspectionSerializer(serializers.ModelSerializer):
+    parameters = QualityInspectionParameterSerializer(many=True, read_only=True)
+    item_name = serializers.CharField(source="item.item_name", read_only=True)
+
+    class Meta:
+        model = QualityInspection
+        fields = "__all__"
+        read_only_fields = ["status"]
