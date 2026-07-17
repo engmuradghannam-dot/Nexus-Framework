@@ -276,6 +276,37 @@ class PurchaseOrder(models.Model):
                 f"approval; {self.approved_by} does not hold that authority."
             )
 
+    def check_budget(self):
+        """PRC-CTRL-002: block a PO that would spend past its cost center's
+        remaining budget.
+
+        A PO with no cost center is unbudgeted and passes, as does a cost center
+        with no budget defined for the period — otherwise this rule would block
+        every existing PO the moment it shipped.
+        """
+        from apps.accounts.models import Budget
+
+        if self.cost_center_id is None:
+            return
+        budget = Budget.objects.filter(
+            cost_center=self.cost_center,
+            start_date__lte=self.transaction_date,
+            end_date__gte=self.transaction_date,
+        ).exclude(status="Cancelled").first()
+        if budget is None:
+            return
+        # Exclude ourselves: re-submitting an already-counted PO must not
+        # double-count against its own budget.
+        available = budget.available_amount
+        if self.status == "Submitted":
+            available += Decimal(self.grand_total or 0)
+        if Decimal(self.grand_total or 0) > available:
+            raise DjangoValidationError(
+                f"Budget exceeded for {self.cost_center}: PO of "
+                f"{self.grand_total} against {available} remaining on "
+                f"'{budget.name}'."
+            )
+
     def check_price_variance(self, threshold=Decimal("10")):
         """PRC-RULE-004: flag lines whose unit price moved more than `threshold`
         percent against the last submitted PO to this supplier for the same item.
@@ -465,6 +496,42 @@ class GoodsReceipt(models.Model):
 
     def __str__(self):
         return self.grn_number
+
+    def cross_dock_candidates(self):
+        """WHS-RULE-003: inbound lines already spoken for by an open sales order.
+
+        These can go straight to shipping instead of being put away and picked
+        again. Returns [(GoodsReceiptItem, SalesOrder, qty), ...] — matching on
+        item and warehouse against orders that are confirmed but not yet
+        delivered, oldest first so the earliest promise is filled first.
+        """
+        from apps.selling.models import SalesOrderItem
+
+        warehouse = self.warehouse or self.purchase_order.warehouse
+        matches = []
+        for line in self.items.select_related("po_item__item"):
+            item = line.po_item.item
+            remaining = line.qty_accepted
+            if remaining <= 0:
+                continue
+            demand = (
+                SalesOrderItem.objects
+                .filter(item=item, sales_order__warehouse=warehouse,
+                        sales_order__status="Submitted")
+                .exclude(delivered_qty__gte=models.F("qty"))
+                .select_related("sales_order")
+                .order_by("sales_order__transaction_date", "sales_order_id")
+            )
+            for so_line in demand:
+                if remaining <= 0:
+                    break
+                outstanding = Decimal(so_line.qty) - Decimal(so_line.delivered_qty or 0)
+                if outstanding <= 0:
+                    continue
+                take = min(outstanding, remaining)
+                matches.append((line, so_line.sales_order, take))
+                remaining -= take
+        return matches
 
     def submit(self):
         """INV-CTRL-003: validate the whole receipt against the PO before any of

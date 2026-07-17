@@ -71,10 +71,11 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
                 approver = data.get("approved_by", self.instance.approved_by)
                 probe = self.instance
                 probe.approved_by = approver
-                try:
-                    probe.check_approval()
-                except DjangoValidationError as exc:
-                    raise serializers.ValidationError(exc.messages[0])
+                for check in (probe.check_approval, probe.check_budget):
+                    try:
+                        check()
+                    except DjangoValidationError as exc:
+                        raise serializers.ValidationError(exc.messages[0])
         return data
 
     def update(self, instance, validated_data):

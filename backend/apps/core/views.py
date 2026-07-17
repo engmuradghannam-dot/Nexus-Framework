@@ -12,9 +12,11 @@ from rest_framework.response import Response
 from apps.core.mixins import CompanyScopedMixin
 from apps.tenants.mixins import TenantScopedMixin
 
-from .models import BinLocation, Branch, CompanyProfile, User, Warehouse
+from .models import CycleCount, CycleCountLine, BinLocation, Branch, CompanyProfile, User, Warehouse
 from .serializers import (
     BinLocationSerializer,
+    CycleCountLineSerializer,
+    CycleCountSerializer,
     BranchSerializer,
     CompanyProfileListSerializer,
     CompanyProfileSerializer,
@@ -332,3 +334,52 @@ class InterBranchTransferAuditViewSet(viewsets.ViewSet):
                 "reference": e.reference,
             })
         return Response({"count": len(rows), "transfers": rows})
+
+
+class CycleCountViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """WHS-CTRL-003."""
+
+    queryset = CycleCount.objects.select_related("warehouse").prefetch_related("lines")
+    serializer_class = CycleCountSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["warehouse", "zone", "status"]
+    company_field = "warehouse__branch__company"
+
+    @action(detail=False, methods=["post"])
+    def generate(self, request):
+        """Draw a random sample of items from a zone."""
+        from datetime import date
+
+        from .models import Warehouse as WH
+
+        try:
+            warehouse = WH.objects.get(pk=request.data.get("warehouse"))
+        except (WH.DoesNotExist, TypeError, ValueError):
+            return Response({"detail": "A valid warehouse is required."}, status=400)
+        try:
+            count = CycleCount.generate(
+                warehouse,
+                zone=request.data.get("zone", ""),
+                scheduled_date=request.data.get("scheduled_date") or date.today(),
+                sample_size=int(request.data.get("sample_size", 5)),
+            )
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=400)
+        return Response(self.get_serializer(count).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    def reconcile(self, request, pk=None):
+        count = self.get_object()
+        try:
+            ok, message = count.reconcile()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=400)
+        return Response({"success": ok, "message": message,
+                         "variance": str(count.total_variance)})
+
+
+class CycleCountLineViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = CycleCountLine.objects.select_related("item")
+    serializer_class = CycleCountLineSerializer
+    filterset_fields = ["cycle_count"]
+    company_field = "cycle_count__warehouse__branch__company"

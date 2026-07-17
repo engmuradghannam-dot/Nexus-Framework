@@ -135,6 +135,21 @@ class GoodsReceiptViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     filterset_fields = ["status", "company", "purchase_order"]
     company_field = "company"
 
+    @action(detail=True, methods=["get"])
+    def cross_dock(self, request, pk=None):
+        """WHS-RULE-003: which inbound lines can skip storage."""
+        grn = self.get_object()
+        matches = grn.cross_dock_candidates()
+        return Response({"candidates": [
+            {
+                "item_code": line.po_item.item.item_code,
+                "sales_order": so.so_number,
+                "customer": so.customer.name,
+                "qty": str(qty),
+            }
+            for line, so, qty in matches
+        ]})
+
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
         """INV-CTRL-003: validate against the PO, then post accepted qty to stock."""

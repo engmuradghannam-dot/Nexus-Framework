@@ -3,6 +3,8 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     BinLocationViewSet,
+    CycleCountLineViewSet,
+    CycleCountViewSet,
     InterBranchTransferAuditViewSet,
     BranchViewSet,
     CompanyProfileViewSet,
@@ -19,6 +21,8 @@ router.register(r"companies", CompanyProfileViewSet, basename="company")
 router.register(r"branches", BranchViewSet, basename="branch")
 router.register(r"warehouses", WarehouseViewSet, basename="warehouse")
 router.register(r"bin-locations", BinLocationViewSet, basename="bin-location")
+router.register(r"cycle-counts", CycleCountViewSet, basename="cycle-count")
+router.register(r"cycle-count-lines", CycleCountLineViewSet, basename="cycle-count-line")
 router.register(r"inter-branch-transfers", InterBranchTransferAuditViewSet, basename="inter-branch-transfers")
 
 urlpatterns = [

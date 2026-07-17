@@ -1,6 +1,14 @@
 from rest_framework import serializers
 
-from .models import BinLocation, Branch, CompanyProfile, User, Warehouse
+from .models import (
+    BinLocation,
+    Branch,
+    CompanyProfile,
+    CycleCount,
+    CycleCountLine,
+    User,
+    Warehouse,
+)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -146,3 +154,24 @@ class BinLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = BinLocation
         fields = "__all__"
+
+
+class CycleCountLineSerializer(serializers.ModelSerializer):
+    variance = serializers.ReadOnlyField()
+    item_code = serializers.CharField(source="item.item_code", read_only=True)
+
+    class Meta:
+        model = CycleCountLine
+        fields = "__all__"
+        read_only_fields = ["system_qty"]
+
+
+class CycleCountSerializer(serializers.ModelSerializer):
+    lines = CycleCountLineSerializer(many=True, read_only=True)
+    total_variance = serializers.ReadOnlyField()
+    has_discrepancy = serializers.ReadOnlyField()
+
+    class Meta:
+        model = CycleCount
+        fields = "__all__"
+        read_only_fields = ["status", "created_at"]

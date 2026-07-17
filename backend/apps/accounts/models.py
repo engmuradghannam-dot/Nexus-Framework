@@ -315,6 +315,40 @@ class Budget(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
+    def committed_amount(self):
+        """Value of submitted-but-unbilled POs against this budget's cost center.
+
+        actual_amount is a hand-entered figure that nothing in the system ever
+        wrote to, so a budget check that only looked at it would pass every PO
+        no matter how much was already committed.
+        """
+        from decimal import Decimal
+
+        from django.db.models import Sum
+
+        from apps.buying.models import PurchaseOrder
+
+        if self.cost_center_id is None:
+            return Decimal(0)
+        qs = PurchaseOrder.objects.filter(
+            cost_center=self.cost_center, status="Submitted",
+        )
+        if self.start_date and self.end_date:
+            qs = qs.filter(transaction_date__range=(self.start_date, self.end_date))
+        return qs.aggregate(t=Sum("grand_total"))["t"] or Decimal(0)
+
+    @property
+    def available_amount(self):
+        """PRC-CTRL-002: what's left to spend."""
+        from decimal import Decimal
+
+        return (
+            Decimal(self.budget_amount or 0)
+            - Decimal(self.actual_amount or 0)
+            - self.committed_amount
+        )
+
+    @property
     def variance(self):
         return self.actual_amount - self.budget_amount
 

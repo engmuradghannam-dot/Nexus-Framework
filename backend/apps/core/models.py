@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 import uuid
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
@@ -508,3 +509,137 @@ class BinLocation(models.Model):
 
         free = self.free_capacity
         return free is None or free >= Decimal(qty)
+
+
+class CycleCount(models.Model):
+    """WHS-CTRL-003: a monthly spot-check of one zone.
+
+    Distinct from StockReconciliation, which is a full count of a warehouse.
+    A cycle count samples a zone so discrepancies surface between full counts
+    instead of at year end.
+    """
+
+    STATUS_CHOICES = [
+        ("Scheduled", "Scheduled"),
+        ("Counted", "Counted"),
+        ("Reconciled", "Reconciled"),
+        ("Cancelled", "Cancelled"),
+    ]
+    warehouse = models.ForeignKey(
+        "Warehouse", on_delete=models.CASCADE, related_name="cycle_counts"
+    )
+    zone = models.CharField(max_length=50, blank=True)
+    scheduled_date = models.DateField()
+    counted_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="cycle_counts",
+    )
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Scheduled")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "core_cycle_counts"
+        ordering = ["-scheduled_date", "-id"]
+
+    def __str__(self):
+        return f"Cycle count {self.warehouse.code}/{self.zone or 'all'} {self.scheduled_date}"
+
+    @classmethod
+    def generate(cls, warehouse, zone, scheduled_date, sample_size=5):
+        """Draw a random sample of items held in a zone.
+
+        Random per the spec: a fixed list would let anyone with something to
+        hide learn which items are never checked.
+        """
+        import random
+
+        from apps.inventory.models import Item, StockEntry
+
+        entries = StockEntry.objects.filter(warehouse=warehouse)
+        if zone:
+            entries = entries.filter(bin_location__zone=zone)
+        item_ids = list(entries.values_list("item_id", flat=True).distinct())
+        if not item_ids:
+            raise ValidationError(
+                f"No stock recorded in zone '{zone or 'all'}' of {warehouse.name}."
+            )
+        chosen = random.sample(item_ids, min(sample_size, len(item_ids)))
+        count = cls.objects.create(
+            warehouse=warehouse, zone=zone, scheduled_date=scheduled_date
+        )
+        for item in Item.objects.filter(pk__in=chosen):
+            CycleCountLine.objects.create(
+                cycle_count=count, item=item,
+                system_qty=item.stock_in_warehouse(warehouse),
+            )
+        return count
+
+    @property
+    def total_variance(self):
+        from decimal import Decimal
+
+        return sum((line.variance for line in self.lines.all()), Decimal(0))
+
+    @property
+    def has_discrepancy(self):
+        return any(line.variance != 0 for line in self.lines.all())
+
+    def reconcile(self):
+        """Post the difference so the ledger matches what was actually counted."""
+        from decimal import Decimal
+
+        from django.db import transaction as db_transaction
+
+        from apps.inventory.models import StockEntry
+
+        if self.status != "Counted":
+            raise ValidationError(
+                f"Only a counted cycle count can be reconciled (this one is "
+                f"'{self.status}')."
+            )
+        lines = list(self.lines.select_related("item"))
+        with db_transaction.atomic():
+            for line in lines:
+                if line.counted_qty is None or line.variance == 0:
+                    continue
+                StockEntry.objects.create(
+                    company=self.warehouse.branch.company,
+                    branch=self.warehouse.branch,
+                    warehouse=self.warehouse,
+                    item=line.item,
+                    entry_type="Receipt" if line.variance > 0 else "Issue",
+                    quantity=abs(line.variance),
+                    rate=line.item.valuation_rate(self.warehouse) or Decimal(0),
+                    reference=f"Cycle count {self.pk} adjustment",
+                )
+            self.status = "Reconciled"
+            self.save(update_fields=["status"])
+        return True, "تمت تسوية الجرد / Cycle count reconciled"
+
+
+class CycleCountLine(models.Model):
+    cycle_count = models.ForeignKey(
+        CycleCount, on_delete=models.CASCADE, related_name="lines"
+    )
+    item = models.ForeignKey("inventory.Item", on_delete=models.CASCADE)
+    system_qty = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="What the system believed at the moment the count was drawn.",
+    )
+    counted_qty = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True,
+        help_text="Null until someone actually counts it.",
+    )
+
+    class Meta:
+        db_table = "core_cycle_count_lines"
+        ordering = ["id"]
+
+    @property
+    def variance(self):
+        from decimal import Decimal
+
+        if self.counted_qty is None:
+            return Decimal(0)
+        return Decimal(self.counted_qty) - Decimal(self.system_qty)
