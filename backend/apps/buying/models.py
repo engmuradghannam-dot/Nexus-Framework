@@ -55,12 +55,38 @@ class Supplier(models.Model):
     rating = models.PositiveSmallIntegerField(
         null=True, blank=True, choices=[(i, str(i)) for i in range(1, 6)]
     )
+    contract_start = models.DateField(null=True, blank=True)
+    contract_end = models.DateField(
+        null=True, blank=True,
+        help_text="PRC-RULE-005: alerted for renewal 60 days before this date.",
+    )
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    CONTRACT_RENEWAL_WINDOW_DAYS = 60
+
     def __str__(self):
         return self.name
+
+    @property
+    def days_to_contract_end(self):
+        from datetime import date
+
+        if not self.contract_end:
+            return None
+        return (self.contract_end - date.today()).days
+
+    @property
+    def contract_expires_soon(self):
+        """PRC-RULE-005: within 60 days of contract expiry (or already past)."""
+        d = self.days_to_contract_end
+        return d is not None and d <= self.CONTRACT_RENEWAL_WINDOW_DAYS
+
+    @property
+    def contract_expired(self):
+        d = self.days_to_contract_end
+        return d is not None and d < 0
 
 
 # PRC-CTRL-005: approval authority is tiered by PO value. Each tuple is
@@ -177,6 +203,32 @@ class PurchaseOrder(models.Model):
             total_amount=self.total_amount,
             grand_total=self.grand_total,
         )
+
+    DELIVERY_ALERT_DAYS = 3
+
+    @property
+    def days_to_required_by(self):
+        from datetime import date
+
+        if not self.required_by:
+            return None
+        return (self.required_by - date.today()).days
+
+    @property
+    def delivery_due_soon(self):
+        """PRC-RULE-002: required_by is within 3 days and the order is still
+        open. A received or cancelled PO can't be late."""
+        if self.status not in ("Submitted",):
+            return False
+        d = self.days_to_required_by
+        return d is not None and d <= self.DELIVERY_ALERT_DAYS
+
+    @property
+    def delivery_overdue(self):
+        if self.status not in ("Submitted",):
+            return False
+        d = self.days_to_required_by
+        return d is not None and d < 0
 
     @property
     def required_approval_role(self):
@@ -502,3 +554,134 @@ class GoodsReceiptItem(models.Model):
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+
+
+class PurchaseRequisition(models.Model):
+    """An internal request to buy something, ahead of any supplier commitment.
+
+    PRC-RULE-001 requires an approved requisition to raise a PO automatically.
+    There was no requisition at all: buying started at the PO, so the request
+    and its approval lived outside the system.
+    """
+
+    STATUS_CHOICES = [
+        ("Draft", "Draft"),
+        ("Submitted", "Submitted"),
+        ("Approved", "Approved"),
+        ("Ordered", "Ordered"),
+        ("Rejected", "Rejected"),
+        ("Cancelled", "Cancelled"),
+    ]
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="requisitions")
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.SET_NULL, null=True, blank=True)
+    pr_number = models.CharField(max_length=100, unique=True)
+    transaction_date = models.DateField()
+    required_by = models.DateField(null=True, blank=True)
+    requested_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="requisitions_raised",
+    )
+    approved_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="requisitions_approved",
+    )
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Draft")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-transaction_date", "-id"]
+
+    def __str__(self):
+        return self.pr_number
+
+    def generate_purchase_orders(self):
+        """PRC-RULE-001: raise a draft PO per preferred supplier.
+
+        Item.supplier is the preferred supplier. Lines whose item has none are
+        reported back rather than silently dropped — somebody has to source
+        them by hand, and a silent skip is how a requisition quietly goes
+        half-ordered.
+
+        The generated POs are Drafts: PRC-CTRL-005 still requires an approver
+        with the right authority before they can be submitted. Requisition
+        approval buys the request, not the commitment.
+        """
+        if self.status != "Approved":
+            raise DjangoValidationError(
+                f"Only an approved requisition can raise purchase orders "
+                f"(this one is '{self.status}')."
+            )
+        lines = list(self.items.select_related("item__supplier"))
+        if not lines:
+            raise DjangoValidationError("Requisition has no lines.")
+
+        by_supplier, unsourced = {}, []
+        for line in lines:
+            supplier = line.item.supplier
+            if supplier is None:
+                unsourced.append(line.item.item_code)
+                continue
+            by_supplier.setdefault(supplier, []).append(line)
+
+        created = []
+        with transaction.atomic():
+            for supplier, supplier_lines in by_supplier.items():
+                po = PurchaseOrder.objects.create(
+                    company=self.company, supplier=supplier, branch=self.branch,
+                    warehouse=self.warehouse,
+                    po_number=self._next_po_number(),
+                    transaction_date=self.transaction_date,
+                    required_by=self.required_by,
+                    notes=f"تم الإنشاء من طلب الشراء {self.pr_number} / "
+                          f"Generated from requisition {self.pr_number}",
+                )
+                for line in supplier_lines:
+                    PurchaseOrderItem.objects.create(
+                        purchase_order=po, item=line.item, qty=line.qty,
+                        rate=line.rate or line.item.standard_rate or 0,
+                    )
+                    PurchaseRequisitionItem.objects.filter(pk=line.pk).update(
+                        purchase_order=po
+                    )
+                created.append(po)
+            if created and not unsourced:
+                self.status = "Ordered"
+                self.save(update_fields=["status"])
+        return created, unsourced
+
+    @staticmethod
+    def _next_po_number():
+        from datetime import date
+
+        prefix = f"PO-PR-{date.today():%Y%m}-"
+        seq = PurchaseOrder.objects.filter(po_number__startswith=prefix).count() + 1
+        while PurchaseOrder.objects.filter(po_number=f"{prefix}{seq:04d}").exists():
+            seq += 1
+        return f"{prefix}{seq:04d}"
+
+
+class PurchaseRequisitionItem(models.Model):
+    requisition = models.ForeignKey(
+        PurchaseRequisition, on_delete=models.CASCADE, related_name="items"
+    )
+    item = models.ForeignKey("inventory.Item", on_delete=models.PROTECT, related_name="requisition_lines")
+    qty = models.DecimalField(
+        max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    rate = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True,
+        help_text="Estimated unit price. Falls back to the item's standard rate.",
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="requisition_lines",
+        help_text="Set once this line has been carried onto a PO.",
+    )
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.item.item_code} x{self.qty}"

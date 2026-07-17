@@ -9,6 +9,8 @@ from apps.core.mixins import CompanyScopedMixin, LockAfterSubmitMixin
 
 from .models import (
     GoodsReceipt,
+    PurchaseRequisition,
+    PurchaseRequisitionItem,
     GoodsReceiptItem,
     PurchaseOrder,
     PurchaseOrderItem,
@@ -18,6 +20,8 @@ from .models import (
 )
 from .serializers import (
     GoodsReceiptItemSerializer,
+    PurchaseRequisitionItemSerializer,
+    PurchaseRequisitionSerializer,
     GoodsReceiptSerializer,
     PurchaseOrderItemSerializer,
     PurchaseOrderSerializer,
@@ -148,3 +152,73 @@ class GoodsReceiptItemViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     serializer_class = GoodsReceiptItemSerializer
     filterset_fields = ["goods_receipt", "po_item"]
     company_field = "goods_receipt__company"
+
+
+class PurchaseRequisitionViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = PurchaseRequisition.objects.select_related("company", "branch")
+    serializer_class = PurchaseRequisitionSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ["pr_number"]
+    filterset_fields = ["status", "company"]
+    company_field = "company"
+
+    @action(detail=True, methods=["post"])
+    def generate_purchase_orders(self, request, pk=None):
+        """PRC-RULE-001."""
+        pr = self.get_object()
+        try:
+            created, unsourced = pr.generate_purchase_orders()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "created": [po.po_number for po in created],
+            "unsourced_items": unsourced,
+            "status": pr.status,
+        })
+
+
+class PurchaseRequisitionItemViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = PurchaseRequisitionItem.objects.select_related("item")
+    serializer_class = PurchaseRequisitionItemSerializer
+    filterset_fields = ["requisition"]
+    company_field = "requisition__company"
+
+
+class ProcurementAlertViewSet(viewsets.ViewSet):
+    """PRC-RULE-002 and PRC-RULE-005 in one place for the procurement desk."""
+
+    def _scope(self, model):
+        user = self.request.user
+        if not user.is_authenticated:
+            return model.objects.none()
+        if user.is_superuser:
+            return model.objects.all()
+        return model.objects.filter(company__in=user.managed_companies.all())
+
+    def list(self, request):
+        deliveries = [
+            {
+                "po_number": po.po_number,
+                "supplier": po.supplier.name,
+                "required_by": po.required_by,
+                "days_remaining": po.days_to_required_by,
+                "overdue": po.delivery_overdue,
+            }
+            for po in self._scope(PurchaseOrder).filter(status="Submitted")
+            .select_related("supplier")
+            if po.delivery_due_soon
+        ]
+        contracts = [
+            {
+                "supplier": s.name,
+                "contract_end": s.contract_end,
+                "days_remaining": s.days_to_contract_end,
+                "expired": s.contract_expired,
+            }
+            for s in self._scope(Supplier).filter(is_active=True)
+            if s.contract_expires_soon
+        ]
+        return Response({
+            "deliveries_due": deliveries,
+            "contracts_expiring": contracts,
+        })

@@ -5,6 +5,8 @@ from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import (
     GoodsReceipt,
+    PurchaseRequisition,
+    PurchaseRequisitionItem,
     GoodsReceiptItem,
     PurchaseOrder,
     PurchaseOrderItem,
@@ -101,3 +103,20 @@ class GoodsReceiptSerializer(serializers.ModelSerializer):
         model = GoodsReceipt
         fields = "__all__"
         read_only_fields = ["status", "created_at"]
+
+
+class PurchaseRequisitionItemSerializer(serializers.ModelSerializer):
+    item_code = serializers.CharField(source="item.item_code", read_only=True)
+    preferred_supplier = serializers.CharField(source="item.supplier.name", read_only=True)
+
+    class Meta:
+        model = PurchaseRequisitionItem
+        fields = "__all__"
+
+
+class PurchaseRequisitionSerializer(serializers.ModelSerializer):
+    items = PurchaseRequisitionItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PurchaseRequisition
+        fields = "__all__"
