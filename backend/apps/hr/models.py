@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
@@ -70,6 +72,11 @@ class Employee(models.Model):
     )
     date_of_birth = models.DateField(null=True, blank=True)
     date_of_joining = models.DateField(null=True, blank=True)
+    probation_reviewed_at = models.DateField(
+        null=True, blank=True,
+        help_text="HR-RULE-002: set when the probation review is completed. "
+        "While null and the 90-day window has passed, the employee is flagged.",
+    )
     designation = models.CharField(max_length=255, blank=True)
     job_title = models.CharField(max_length=255, blank=True)
     salary = models.DecimalField(max_digits=18, decimal_places=2, default=0)
@@ -101,6 +108,43 @@ class Employee(models.Model):
     )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    PROBATION_DAYS = 90
+
+    @property
+    def probation_end_date(self):
+        """HR-RULE-002: hire date + 90 days."""
+        from datetime import timedelta
+
+        if not self.date_of_joining:
+            return None
+        return self.date_of_joining + timedelta(days=self.PROBATION_DAYS)
+
+    @property
+    def probation_review_due(self):
+        """HR-RULE-002: the probation window has closed and no review is on
+        record yet.
+
+        Probation is tracked by its own review date rather than by
+        employment_type — the type choices are Full-time/Part-time/Contract/
+        Intern, none of which say anything about probation, so keying off them
+        would have made this permanently False.
+        """
+        from datetime import date
+
+        if self.probation_reviewed_at is not None:
+            return False
+        if self.status and self.status != "Active":
+            return False
+        end = self.probation_end_date
+        return end is not None and date.today() >= end
+
+    @property
+    def days_to_probation_end(self):
+        from datetime import date
+
+        end = self.probation_end_date
+        return None if end is None else (end - date.today()).days
 
     def __str__(self):
         return f"{self.employee_id} - {self.first_name} {self.last_name}"
@@ -221,6 +265,11 @@ class LeaveRequest(models.Model):
         return f"{self.employee} - {self.leave_type} ({self.start_date} to {self.end_date})"
 
 
+# HR-RULE-004: multipliers stated in ERP_Complete_System.xlsx.
+OVERTIME_WEEKDAY_MULTIPLIER = Decimal("1.5")
+OVERTIME_HOLIDAY_MULTIPLIER = Decimal("2")
+
+
 class Payroll(models.Model):
     PAYMENT_METHODS = [
         ("Bank Transfer", "Bank Transfer"),
@@ -246,8 +295,28 @@ class Payroll(models.Model):
     )
     food_allowance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     other_allowances = models.DecimalField(max_digits=18, decimal_places=2, default=0)
-    overtime_hours = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    overtime_rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    overtime_hours = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Legacy flat-rate overtime hours, paid at overtime_rate with no "
+        "multiplier. Superseded by the weekday/holiday split below.",
+    )
+    overtime_rate = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="Legacy flat overtime rate per hour.",
+    )
+    base_hourly_rate = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="HR-RULE-004: ordinary hourly wage. Overtime multipliers apply "
+        "on top of this, so it must be the plain rate, not a pre-multiplied one.",
+    )
+    overtime_weekday_hours = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="HR-RULE-004: paid at 1.5x base_hourly_rate.",
+    )
+    overtime_holiday_hours = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="HR-RULE-004: weekend/holiday overtime, paid at 2x base_hourly_rate.",
+    )
     bonuses = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     social_insurance = models.DecimalField(
         max_digits=18,
@@ -279,7 +348,21 @@ class Payroll(models.Model):
 
     @property
     def overtime_amount(self):
-        return (self.overtime_hours or 0) * (self.overtime_rate or 0)
+        """HR-RULE-004: 1.5x on weekdays, 2x on weekends/holidays.
+
+        The legacy fields (overtime_hours x overtime_rate, flat, no multiplier)
+        are kept and still honoured, because it was never defined whether
+        overtime_rate held the ordinary hourly wage or an already-multiplied
+        one. Silently applying 1.5x to existing rows could have doubled real
+        salaries, so the multiplier only applies to the new, explicitly-named
+        fields; the legacy path is untouched. Both are summed, so a payroll can
+        migrate one period at a time.
+        """
+        legacy = (self.overtime_hours or Decimal(0)) * (self.overtime_rate or Decimal(0))
+        base = self.base_hourly_rate or Decimal(0)
+        weekday = (self.overtime_weekday_hours or Decimal(0)) * base * OVERTIME_WEEKDAY_MULTIPLIER
+        holiday = (self.overtime_holiday_hours or Decimal(0)) * base * OVERTIME_HOLIDAY_MULTIPLIER
+        return (legacy + weekday + holiday).quantize(Decimal("0.01"))
 
     @property
     def gross_salary(self):
