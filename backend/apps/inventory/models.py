@@ -163,20 +163,36 @@ class Item(models.Model):
         """INV-RULE-003: cost of goods sold for `qty` units."""
         return (Decimal(qty) * self.valuation_rate(warehouse)).quantize(Decimal("0.01"))
 
-    def reserved_qty(self, warehouse, exclude_work_order=None):
-        """MFG-RULE-002: units committed to released work orders at a warehouse.
+    def reserved_qty(self, warehouse, exclude_work_order=None, exclude_sales_order=None):
+        """Units at a warehouse already promised to someone.
 
-        Stock that is physically present but already promised to a work order
-        isn't available to promise again.
+        Covers BOTH production (MFG-RULE-002) and sales (SAL-RULE-002). They
+        must be counted together: stock promised to a work order is not
+        available to promise to a customer, and vice versa. Netting only one of
+        them would let the two sides commit the same units twice — which is the
+        exact failure reservations exist to prevent.
         """
         from django.db.models import Sum
 
-        qs = self.reservations.filter(
+        mfg = self.reservations.filter(
             warehouse=warehouse, work_order__status="In Progress"
         )
         if exclude_work_order is not None and exclude_work_order.pk:
-            qs = qs.exclude(work_order=exclude_work_order)
-        return qs.aggregate(q=Sum("qty"))["q"] or Decimal(0)
+            mfg = mfg.exclude(work_order=exclude_work_order)
+        mfg_total = mfg.aggregate(q=Sum("qty"))["q"] or Decimal(0)
+
+        sales = self.sales_reservations.filter(
+            warehouse=warehouse, sales_order__status="Submitted"
+        )
+        if exclude_sales_order is not None and exclude_sales_order.pk:
+            sales = sales.exclude(sales_order=exclude_sales_order)
+        sales_total = sales.aggregate(q=Sum("qty"))["q"] or Decimal(0)
+
+        return mfg_total + sales_total
+
+    def available_qty(self, warehouse, **exclusions):
+        """On hand minus everything already promised."""
+        return self.stock_in_warehouse(warehouse) - self.reserved_qty(warehouse, **exclusions)
 
     def stock_in_warehouse(self, warehouse):
         """On-hand quantity of this item at one warehouse.

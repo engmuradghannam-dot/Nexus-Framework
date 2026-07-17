@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
 
+from .models import StockReservation  # noqa: F401
 from .models import Customer, SalesOrder, SalesOrderItem, SalesPayment, SalesTaxCharge
 
 SO_TRANSITIONS = {
@@ -103,6 +104,19 @@ class SalesOrderSerializer(serializers.ModelSerializer):
         old_status = instance.status
         new_status = validated_data.get("status", old_status)
         instance = super().update(instance, validated_data)
+        if old_status != new_status and new_status == "Submitted":
+            # SAL-RULE-002 / SAL-RULE-004: confirmation commits the stock that
+            # exists and backorders whatever doesn't.
+            run_side_effect(instance.reserve_stock)
         if old_status != new_status and new_status == "Delivered":
             run_side_effect(instance.deliver_stock)
         return instance
+
+
+class StockReservationSerializer(serializers.ModelSerializer):
+    item_code = serializers.CharField(source="item.item_code", read_only=True)
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+
+    class Meta:
+        model = StockReservation
+        fields = "__all__"

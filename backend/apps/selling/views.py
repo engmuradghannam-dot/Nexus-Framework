@@ -5,7 +5,9 @@ from rest_framework.response import Response
 
 from apps.core.mixins import CompanyScopedMixin, LockAfterSubmitMixin
 
+from .models import StockReservation  # noqa: F401
 from .models import Customer, SalesOrder, SalesOrderItem, SalesPayment, SalesTaxCharge
+from .serializers import StockReservationSerializer  # noqa: F401
 from .serializers import (
     CustomerSerializer,
     SalesOrderItemSerializer,
@@ -25,6 +27,29 @@ class SalesOrderViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = SalesOrder.objects.all()
     serializer_class = SalesOrderSerializer
     company_field = "company"
+    @action(detail=True, methods=["get"])
+    def availability(self, request, pk=None):
+        """SAL-RULE-002/004: what this order can commit and what must wait."""
+        order = self.get_object()
+        rows = []
+        for line in order.items.select_related("item"):
+            available = (
+                line.item.available_qty(order.warehouse, exclude_sales_order=order)
+                if order.warehouse else None
+            )
+            rows.append({
+                "item_code": line.item.item_code,
+                "ordered": str(line.qty),
+                "available": str(available) if available is not None else None,
+                "backordered": str(line.backordered_qty),
+            })
+        return Response({
+            "so_number": order.so_number,
+            "lines": rows,
+            "reservations": order.reservations.count(),
+            "backorders": [b.so_number for b in order.backorders.all()],
+        })
+
     @action(detail=True, methods=["post"])
     def create_invoice(self, request, pk=None):
         """Generate a draft Sales Invoice from this order, carrying every line

@@ -111,6 +111,12 @@ class SalesOrder(models.Model):
         help_text="Sum of invoice totals generated from this order. Maintained by "
         "Invoice.create_from_sales_order().",
     )
+    backorder_of = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="backorders",
+        help_text="SAL-RULE-004: set when this order carries quantities that the "
+        "original order could not fulfil.",
+    )
     discount_approved_by = models.ForeignKey(
         "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="approved_sales_discounts",
@@ -192,6 +198,75 @@ class SalesOrder(models.Model):
                 f"manager approval."
             )
 
+    def reserve_stock(self):
+        """SAL-RULE-002 + SAL-RULE-004: commit what's available, backorder the rest.
+
+        Called on Draft -> Submitted. Unlike deliver_stock() this does not
+        refuse when stock is short: the spec's answer to a shortage is a
+        backorder, not a rejection — the customer's order is real either way,
+        and refusing it loses the demand signal.
+
+        Returns (reservations_created, backorder or None).
+        """
+        if not self.warehouse:
+            raise DjangoValidationError("Cannot reserve stock without a warehouse.")
+        lines = list(self.items.select_related("item"))
+        if not lines:
+            raise DjangoValidationError("Cannot confirm an order with no line items.")
+
+        shortfalls = []
+        with transaction.atomic():
+            self.reservations.all().delete()
+            reserved = 0
+            for line in lines:
+                available = line.item.available_qty(
+                    self.warehouse, exclude_sales_order=self
+                )
+                take = min(max(available, Decimal(0)), Decimal(line.qty))
+                short = Decimal(line.qty) - take
+                if take > 0:
+                    StockReservation.objects.create(
+                        sales_order=self, item=line.item,
+                        warehouse=self.warehouse, qty=take,
+                    )
+                    reserved += 1
+                if short > 0:
+                    shortfalls.append((line, short))
+                    SalesOrderItem.objects.filter(pk=line.pk).update(backordered_qty=short)
+
+            backorder = self._create_backorder(shortfalls) if shortfalls else None
+        return reserved, backorder
+
+    def _create_backorder(self, shortfalls):
+        """SAL-RULE-004: a Draft order holding only the unfulfillable quantities.
+
+        It stays Draft rather than confirming itself — confirming would try to
+        reserve stock that by definition isn't there, and would loop.
+        """
+        backorder = SalesOrder.objects.create(
+            company=self.company, customer=self.customer,
+            so_number=self._next_backorder_number(),
+            transaction_date=self.transaction_date,
+            delivery_date=self.delivery_date,
+            branch=self.branch, warehouse=self.warehouse,
+            currency=self.currency, status="Draft",
+            backorder_of=self,
+            notes=f"طلب مؤجل من {self.so_number} / Backorder from {self.so_number}",
+        )
+        for line, short in shortfalls:
+            SalesOrderItem.objects.create(
+                sales_order=backorder, item=line.item, qty=short, rate=line.rate,
+            )
+        backorder.recalculate_totals()
+        return backorder
+
+    def _next_backorder_number(self):
+        base = f"{self.so_number}-BO"
+        n = 1
+        while SalesOrder.objects.filter(so_number=f"{base}{n}").exists():
+            n += 1
+        return f"{base}{n}"
+
     def deliver_stock(self):
         """Called when the SO transitions to 'Delivered'. Validates enough
         stock exists for every line BEFORE issuing anything (all-or-nothing),
@@ -236,6 +311,8 @@ class SalesOrder(models.Model):
                     reference=f"SO {self.so_number}",
                 )
                 SalesOrderItem.objects.filter(pk=line.pk).update(delivered_qty=line.qty)
+            # The goods have physically left, so the promise is spent.
+            self.reservations.all().delete()
 
     def __str__(self):
         return self.so_number
@@ -257,6 +334,12 @@ class SalesOrderItem(models.Model):
     )
     delivered_qty = models.DecimalField(
         max_digits=18, decimal_places=2, default=0, validators=[MinValueValidator(0)]
+    )
+
+    backordered_qty = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="SAL-RULE-004: quantity moved onto a backorder because stock "
+        "was short at confirmation.",
     )
 
     def save(self, *args, **kwargs):
@@ -296,3 +379,30 @@ class SalesPayment(models.Model):
 
     def __str__(self):
         return f"{self.sales_order.so_number} - {self.amount}"
+
+
+class StockReservation(models.Model):
+    """SAL-RULE-002: stock committed to a confirmed sales order.
+
+    Item.reserved_qty() nets these against production reservations, so a
+    confirmed customer order and a released work order can't both claim the
+    same units.
+    """
+
+    sales_order = models.ForeignKey(
+        SalesOrder, on_delete=models.CASCADE, related_name="reservations"
+    )
+    item = models.ForeignKey(
+        "inventory.Item", on_delete=models.CASCADE, related_name="sales_reservations"
+    )
+    warehouse = models.ForeignKey(
+        "core.Warehouse", on_delete=models.CASCADE, related_name="sales_reservations"
+    )
+    qty = models.DecimalField(max_digits=18, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.item.item_code} x{self.qty} for {self.sales_order.so_number}"
