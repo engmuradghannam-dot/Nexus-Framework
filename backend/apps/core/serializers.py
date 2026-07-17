@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Branch, CompanyProfile, User, Warehouse
+from .models import BinLocation, Branch, CompanyProfile, User, Warehouse
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -136,3 +136,13 @@ class WarehouseSerializer(serializers.ModelSerializer):
             "is_active",
             "created_at",
         ]
+
+
+class BinLocationSerializer(serializers.ModelSerializer):
+    stock_units = serializers.ReadOnlyField()
+    free_capacity = serializers.ReadOnlyField()
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+
+    class Meta:
+        model = BinLocation
+        fields = "__all__"

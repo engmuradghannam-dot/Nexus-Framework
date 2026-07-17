@@ -239,6 +239,11 @@ class StockEntry(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
+    bin_location = models.ForeignKey(
+        "core.BinLocation", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="stock_entries",
+        help_text="WHS-CTRL-001: required once the warehouse has bins defined.",
+    )
     source_warehouse = models.ForeignKey(
         Warehouse, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )

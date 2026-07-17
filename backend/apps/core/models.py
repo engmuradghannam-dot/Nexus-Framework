@@ -348,6 +348,60 @@ class Warehouse(models.Model):
         """WHS-CTRL-002: warehouse has reached 90% of capacity."""
         return bool(self.capacity) and self.occupancy_rate >= 90
 
+    @property
+    def uses_bins(self):
+        """WHS-CTRL-001 only bites for warehouses that have defined bins, so
+        existing single-location warehouses are unaffected."""
+        return self.bins.filter(is_active=True).exists()
+
+    def suggest_putaway_bin(self, item, qty):
+        """WHS-RULE-001: pick the best bin for an incoming quantity.
+
+        Preference order, per the spec's "product category and turnover":
+        1. an active bin dedicated to the item's group that can hold the qty,
+           closest to the front of the pick route (fast-moving stock should not
+           be at the back of the walk);
+        2. otherwise any general-purpose bin that can hold it.
+        Returns None when the warehouse has no bins or none can take the qty.
+        """
+        candidates = self.bins.filter(is_active=True).order_by("pick_sequence", "code")
+        dedicated = [
+            b for b in candidates if b.item_group_id and b.item_group_id == item.item_group_id
+        ]
+        general = [b for b in candidates if not b.item_group_id]
+        for bucket in (dedicated, general):
+            for b in bucket:
+                if b.can_hold(qty):
+                    return b
+        return None
+
+    def pick_route(self, lines):
+        """WHS-RULE-002: order pick lines by zone proximity (wave picking).
+
+        `lines` is an iterable of (item, qty). Returns a list of
+        (bin, item, qty) sorted by the bins' pick_sequence so the picker walks
+        the warehouse once instead of criss-crossing it. Items with no stock in
+        any bin come back with bin=None rather than being silently dropped —
+        the picker still needs to know they were asked for.
+        """
+        route = []
+        for item, qty in lines:
+            entries = (
+                item.stockentry_set.filter(warehouse=self, bin_location__isnull=False)
+                .select_related("bin_location")
+                .order_by("bin_location__pick_sequence")
+            )
+            chosen = None
+            for e in entries:
+                if e.bin_location.stock_units > 0:
+                    chosen = e.bin_location
+                    break
+            route.append((chosen, item, qty))
+        return sorted(
+            route,
+            key=lambda r: (r[0] is None, r[0].pick_sequence if r[0] else 0),
+        )
+
     def check_capacity(self, additional_units):
         """WHS-RULE-004: refuse a movement that would overfill the warehouse.
 
@@ -370,3 +424,79 @@ class Warehouse(models.Model):
 
 # Alias for backward compatibility
 Company = CompanyProfile
+
+
+class BinLocation(models.Model):
+    """A storage position inside a warehouse — zone / aisle / rack / bin.
+
+    WHS-CTRL-001 requires every item to have a bin/rack location, and
+    WHS-RULE-001 (putaway) and WHS-RULE-002 (pick sequence) both need somewhere
+    to route to and a traversal order to route by. Warehouses without any bins
+    keep working exactly as before: bins are opt-in per warehouse.
+    """
+
+    warehouse = models.ForeignKey(
+        "Warehouse", on_delete=models.CASCADE, related_name="bins"
+    )
+    code = models.CharField(max_length=50)
+    zone = models.CharField(max_length=50, blank=True)
+    aisle = models.CharField(max_length=50, blank=True)
+    rack = models.CharField(max_length=50, blank=True)
+    item_group = models.ForeignKey(
+        "inventory.ItemGroup", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="bins",
+        help_text="WHS-RULE-001: putaway prefers a bin dedicated to the item's group.",
+    )
+    capacity = models.PositiveIntegerField(
+        default=0, help_text="Units this bin holds. 0 means unconstrained."
+    )
+    pick_sequence = models.PositiveIntegerField(
+        default=0,
+        help_text="WHS-RULE-002: traversal order for wave picking — lower is "
+        "reached first on the walk route.",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "core_bin_locations"
+        ordering = ["warehouse", "pick_sequence", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["warehouse", "code"], name="unique_bin_code_per_warehouse"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.warehouse.code}/{self.code}"
+
+    @property
+    def stock_units(self):
+        from decimal import Decimal
+
+        from django.db.models import Case, DecimalField, F, Sum, When
+
+        agg = self.stock_entries.aggregate(
+            qty=Sum(
+                Case(
+                    When(entry_type="Receipt", then="quantity"),
+                    When(entry_type="Issue", then=-F("quantity")),
+                    default=Decimal(0),
+                    output_field=DecimalField(max_digits=18, decimal_places=2),
+                )
+            )
+        )
+        return agg["qty"] or Decimal(0)
+
+    @property
+    def free_capacity(self):
+        from decimal import Decimal
+
+        if not self.capacity:
+            return None  # unconstrained
+        return Decimal(self.capacity) - self.stock_units
+
+    def can_hold(self, qty):
+        from decimal import Decimal
+
+        free = self.free_capacity
+        return free is None or free >= Decimal(qty)

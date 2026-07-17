@@ -12,8 +12,9 @@ from rest_framework.response import Response
 from apps.core.mixins import CompanyScopedMixin
 from apps.tenants.mixins import TenantScopedMixin
 
-from .models import Branch, CompanyProfile, User, Warehouse
+from .models import BinLocation, Branch, CompanyProfile, User, Warehouse
 from .serializers import (
+    BinLocationSerializer,
     BranchSerializer,
     CompanyProfileListSerializer,
     CompanyProfileSerializer,
@@ -248,3 +249,52 @@ class WarehouseViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     filterset_fields = ["branch", "is_active"]
     search_fields = ["name", "code"]
     company_field = "branch__company"
+
+    @action(detail=True, methods=["post"])
+    def suggest_putaway(self, request, pk=None):
+        """WHS-RULE-001: where should an incoming quantity go?"""
+        from apps.inventory.models import Item
+
+        warehouse = self.get_object()
+        try:
+            item = Item.objects.get(pk=request.data.get("item"))
+        except (Item.DoesNotExist, TypeError, ValueError):
+            return Response({"detail": "A valid item is required."}, status=400)
+        qty = request.data.get("qty") or 0
+        bin_location = warehouse.suggest_putaway_bin(item, qty)
+        if bin_location is None:
+            return Response({"bin": None, "detail": "No bin can take this quantity."})
+        return Response({"bin": BinLocationSerializer(bin_location).data})
+
+    @action(detail=True, methods=["post"])
+    def pick_route(self, request, pk=None):
+        """WHS-RULE-002: order pick lines by walk sequence."""
+        from apps.inventory.models import Item
+
+        warehouse = self.get_object()
+        lines = []
+        for row in request.data.get("lines", []):
+            try:
+                lines.append((Item.objects.get(pk=row["item"]), row.get("qty", 0)))
+            except (Item.DoesNotExist, KeyError, TypeError, ValueError):
+                return Response({"detail": f"Invalid line: {row}"}, status=400)
+        route = warehouse.pick_route(lines)
+        return Response({"route": [
+            {
+                "bin": b.code if b else None,
+                "zone": b.zone if b else None,
+                "pick_sequence": b.pick_sequence if b else None,
+                "item": i.item_code,
+                "qty": str(q),
+            }
+            for b, i, q in route
+        ]})
+
+
+class BinLocationViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = BinLocation.objects.select_related("warehouse", "item_group")
+    serializer_class = BinLocationSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["warehouse", "zone", "is_active"]
+    search_fields = ["code", "zone", "aisle", "rack"]
+    company_field = "warehouse__branch__company"

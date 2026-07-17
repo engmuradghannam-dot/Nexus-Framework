@@ -49,6 +49,23 @@ class StockEntrySerializer(serializers.ModelSerializer):
         item = data.get("item", getattr(self.instance, "item", None))
         quantity = data.get("quantity", getattr(self.instance, "quantity", None))
         warehouse = data.get("warehouse", getattr(self.instance, "warehouse", None))
+        bin_location = data.get("bin_location", getattr(self.instance, "bin_location", None))
+        if warehouse and warehouse.uses_bins and bin_location is None:
+            # WHS-CTRL-001: once a warehouse is binned, stock must land somewhere
+            # findable. Warehouses with no bins defined are unaffected.
+            raise serializers.ValidationError(
+                {"bin_location": f"{warehouse.name} uses bin locations; a bin is required."}
+            )
+        if bin_location and warehouse and bin_location.warehouse_id != warehouse.pk:
+            raise serializers.ValidationError(
+                {"bin_location": "Bin does not belong to the selected warehouse."}
+            )
+        if entry_type == "Receipt" and bin_location and quantity:
+            if not bin_location.can_hold(quantity):
+                raise serializers.ValidationError(
+                    {"bin_location": f"Bin {bin_location.code} cannot hold {quantity} units "
+                                     f"(free {bin_location.free_capacity})."}
+                )
         if entry_type == "Receipt" and warehouse and quantity:
             # WHS-RULE-004: check the destination can hold it before accepting.
             incoming = quantity
