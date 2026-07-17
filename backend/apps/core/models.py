@@ -174,6 +174,13 @@ class CompanyProfile(models.Model):
 
 
 class Branch(models.Model):
+    BRANCH_TYPES = [
+        ("Head Office", "Head Office"),
+        ("Branch", "Branch"),
+        ("Warehouse", "Warehouse"),
+        ("Showroom", "Showroom"),
+    ]
+
     """Company branches with Google Maps location."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -201,6 +208,17 @@ class Branch(models.Model):
         blank=True,
         related_name="managed_branches",
     )
+    branch_type = models.CharField(
+        max_length=50, choices=BRANCH_TYPES, default="Branch",
+        help_text="BRN-RULE-002: only one Head Office is allowed per company.",
+    )
+    open_time = models.TimeField(null=True, blank=True)
+    close_time = models.TimeField(null=True, blank=True)
+    license_number = models.CharField(max_length=100, blank=True)
+    license_expiry = models.DateField(
+        null=True, blank=True,
+        help_text="BRN-CTRL-005: commercial license expiry, alerted on 60 days ahead.",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -210,6 +228,58 @@ class Branch(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        """BRN-RULE-002 (one Head Office per company) and BRN-RULE-005
+        (close time must be after open time)."""
+        from django.core.exceptions import ValidationError
+
+        if self.branch_type == "Head Office":
+            clash = Branch.objects.filter(
+                company=self.company, branch_type="Head Office"
+            ).exclude(pk=self.pk)
+            if clash.exists():
+                raise ValidationError(
+                    {"branch_type": "هذه الشركة لديها مقر رئيسي بالفعل / "
+                                    "Head Office already exists for this company"}
+                )
+        if self.open_time and self.close_time and self.close_time <= self.open_time:
+            raise ValidationError(
+                {"close_time": "وقت الإغلاق يجب أن يكون بعد وقت الفتح / "
+                               "Close time must be after open time"}
+            )
+
+    def save(self, *args, **kwargs):
+        # Only the two Branch business rules — not full_clean(), which would
+        # also re-run every field/uniqueness validator on every save and can
+        # reject rows that were acceptable before these rules existed.
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def distance_to(self, other):
+        """BRN-RULE-004: great-circle distance in km to another branch
+        (Haversine). Returns None unless both branches have coordinates."""
+        from math import asin, cos, radians, sin, sqrt
+
+        if None in (self.latitude, self.longitude, other.latitude, other.longitude):
+            return None
+        lat1, lon1, lat2, lon2 = map(
+            radians,
+            [float(self.latitude), float(self.longitude),
+             float(other.latitude), float(other.longitude)],
+        )
+        dlat, dlon = lat2 - lat1, lon2 - lon1
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+        return round(2 * asin(sqrt(a)) * 6371.0088, 2)
+
+    @property
+    def license_expires_soon(self):
+        """BRN-CTRL-005: True within 60 days of commercial-license expiry."""
+        from datetime import date, timedelta
+
+        if not self.license_expiry:
+            return False
+        return self.license_expiry <= date.today() + timedelta(days=60)
 
 
 class Warehouse(models.Model):

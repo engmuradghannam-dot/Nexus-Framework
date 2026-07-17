@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
@@ -54,6 +55,18 @@ class SalesOrderSerializer(serializers.ModelSerializer):
         new_status = data.get("status")
         if self.instance and new_status and new_status != self.instance.status:
             validate_transition(SO_TRANSITIONS, self.instance.status, new_status)
+            if new_status == "Submitted":
+                # SAL-CTRL-001 (credit) and SAL-CTRL-004 (discount) are
+                # preventive controls: they must block the Draft -> Submitted
+                # confirmation, not merely warn after the fact.
+                for check in (
+                    self.instance.check_credit_limit,
+                    self.instance.check_discount_authorization,
+                ):
+                    try:
+                        check()
+                    except DjangoValidationError as exc:
+                        raise serializers.ValidationError(exc.messages[0])
         return data
 
     def update(self, instance, validated_data):

@@ -111,6 +111,11 @@ class SalesOrder(models.Model):
         help_text="Sum of invoice totals generated from this order. Maintained by "
         "Invoice.create_from_sales_order().",
     )
+    discount_approved_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="approved_sales_discounts",
+        help_text="Manager who authorised a discount above 10% (SAL-CTRL-004).",
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -145,6 +150,48 @@ class SalesOrder(models.Model):
             grand_total=self.grand_total,
         )
 
+    @property
+    def discount_percent(self):
+        """Document discount as a percentage of the pre-discount line total."""
+        if not self.total_amount:
+            return Decimal(0)
+        return (Decimal(self.discount or 0) / Decimal(self.total_amount) * 100).quantize(
+            Decimal("0.01")
+        )
+
+    def check_credit_limit(self):
+        """CRM-CTRL-001 / SAL-CTRL-001: block confirmation when the customer's
+        outstanding balance plus this order would breach their credit limit.
+
+        credit_limit already existed on Customer but nothing read it. A zero
+        limit means "not configured" and is not enforced, so existing customers
+        keep working until a limit is actually set.
+        """
+        limit = Decimal(self.customer.credit_limit or 0)
+        if limit <= 0:
+            return
+        other_outstanding = sum(
+            (Decimal(so.outstanding_amount) for so in
+             SalesOrder.objects.filter(customer=self.customer)
+             .exclude(pk=self.pk)
+             .exclude(status__in=["Draft", "Cancelled"])),
+            Decimal(0),
+        )
+        exposure = other_outstanding + Decimal(self.outstanding_amount)
+        if exposure > limit:
+            raise DjangoValidationError(
+                f"Credit limit exceeded for {self.customer.name}: "
+                f"exposure {exposure} > limit {limit}."
+            )
+
+    def check_discount_authorization(self):
+        """SAL-CTRL-004 / CRM-RULE-005: a discount over 10% needs manager sign-off."""
+        if self.discount_percent > Decimal(10) and not self.discount_approved_by_id:
+            raise DjangoValidationError(
+                f"Discount of {self.discount_percent}% exceeds 10% and requires "
+                f"manager approval."
+            )
+
     def deliver_stock(self):
         """Called when the SO transitions to 'Delivered'. Validates enough
         stock exists for every line BEFORE issuing anything (all-or-nothing),
@@ -162,10 +209,15 @@ class SalesOrder(models.Model):
             )
         shortages = []
         for line in items:
-            available = line.item.stock_quantity
+            # Per SAL-CTRL-002 the check must be against the warehouse we are
+            # shipping from. item.stock_quantity is the company-wide total, so
+            # using it let an order ship out of an empty warehouse whenever any
+            # other warehouse held the item.
+            available = line.item.stock_in_warehouse(self.warehouse)
             if available < line.qty:
                 shortages.append(
-                    f"{line.item.item_code} (available {available}, need {line.qty})"
+                    f"{line.item.item_code} (available {available} at {self.warehouse.name}, "
+                    f"need {line.qty})"
                 )
         if shortages:
             raise DjangoValidationError(

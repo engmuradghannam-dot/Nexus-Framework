@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models, transaction
@@ -99,6 +101,32 @@ class Item(models.Model):
             elif entry.entry_type == "Issue":
                 total -= entry.quantity
         return total
+
+    def stock_in_warehouse(self, warehouse):
+        """On-hand quantity of this item at one warehouse.
+
+        ``stock_quantity`` sums every StockEntry regardless of location, so it
+        answers "how much of this item does the company own", not "how much can
+        I ship from here". Callers that issue stock out of a specific warehouse
+        (sales delivery, production consumption) need this one — otherwise an
+        order ships from an empty warehouse whenever some *other* warehouse
+        happens to hold the item.
+        """
+        from django.db.models import Case, DecimalField, Sum, When
+
+        if warehouse is None:
+            return Decimal(0)
+        agg = self.stockentry_set.filter(warehouse=warehouse).aggregate(
+            qty=Sum(
+                Case(
+                    When(entry_type="Receipt", then="quantity"),
+                    When(entry_type="Issue", then=-models.F("quantity")),
+                    default=Decimal(0),
+                    output_field=DecimalField(max_digits=18, decimal_places=2),
+                )
+            )
+        )
+        return agg["qty"] or Decimal(0)
 
 
 class ItemSerialNumber(models.Model):
