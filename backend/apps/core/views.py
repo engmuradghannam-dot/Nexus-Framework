@@ -298,3 +298,37 @@ class BinLocationViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     filterset_fields = ["warehouse", "zone", "is_active"]
     search_fields = ["code", "zone", "aisle", "rack"]
     company_field = "warehouse__branch__company"
+
+
+class InterBranchTransferAuditViewSet(viewsets.ViewSet):
+    """BRN-CTRL-003: every transfer that crosses a branch boundary, logged and
+    reconciled against the two branches' balances."""
+
+    def list(self, request):
+        from apps.inventory.models import StockEntry
+
+        user = request.user
+        qs = StockEntry.objects.filter(entry_type="Transfer").select_related(
+            "item", "source_warehouse__branch", "target_warehouse__branch"
+        )
+        if not user.is_authenticated:
+            qs = qs.none()
+        elif not user.is_superuser:
+            qs = qs.filter(company__in=user.managed_companies.all())
+
+        rows = []
+        for e in qs:
+            if not e.is_inter_branch:
+                continue
+            rows.append({
+                "id": e.pk,
+                "posting_date": e.posting_date,
+                "item_code": e.item.item_code,
+                "quantity": str(e.quantity),
+                "from_branch": e.source_warehouse.branch.name,
+                "from_warehouse": e.source_warehouse.name,
+                "to_branch": e.target_warehouse.branch.name,
+                "to_warehouse": e.target_warehouse.name,
+                "reference": e.reference,
+            })
+        return Response({"count": len(rows), "transfers": rows})

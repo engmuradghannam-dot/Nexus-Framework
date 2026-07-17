@@ -29,6 +29,22 @@ class Lead(models.Model):
         return self.lead_name
 
 
+# CRM-RULE-002: opportunities move forward through the funnel, never
+# backwards. Lost is reachable from any open stage; Converted only from
+# Quotation, because you can't win a deal you never quoted.
+OPPORTUNITY_TRANSITIONS = {
+    "Open": {"Quotation", "Lost"},
+    "Quotation": {"Converted", "Lost"},
+    "Converted": set(),
+    "Lost": set(),
+}
+# Fields each stage requires before it can be entered.
+OPPORTUNITY_STAGE_REQUIREMENTS = {
+    "Quotation": ["expected_amount", "closing_date"],
+    "Converted": ["customer_name", "expected_amount", "closing_date"],
+}
+
+
 class Opportunity(models.Model):
     STATUS_CHOICES = [
         ("Open", "Open"),
@@ -53,3 +69,29 @@ class Opportunity(models.Model):
 
     def __str__(self):
         return self.opportunity_name
+
+    def check_stage_transition(self, new_status):
+        """CRM-RULE-002: validate the sequence and the fields each stage needs.
+
+        A pipeline that lets deals jump straight to Converted, or slide back to
+        Open after being lost, reports numbers nobody can trust — which is what
+        CRM-CTRL-003's pipeline audit is meant to rely on.
+        """
+        from django.core.exceptions import ValidationError
+
+        if new_status == self.status:
+            return
+        allowed = OPPORTUNITY_TRANSITIONS.get(self.status, set())
+        if new_status not in allowed:
+            raise ValidationError(
+                f"Cannot move an opportunity from '{self.status}' to "
+                f"'{new_status}'. Allowed: {', '.join(sorted(allowed)) or 'none'}."
+            )
+        missing = [
+            f for f in OPPORTUNITY_STAGE_REQUIREMENTS.get(new_status, [])
+            if not getattr(self, f, None)
+        ]
+        if missing:
+            raise ValidationError(
+                f"'{new_status}' requires {', '.join(missing)} to be set first."
+            )

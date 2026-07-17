@@ -94,6 +94,12 @@ class Item(models.Model):
 
     @property
     def stock_quantity(self):
+        """Company-wide units on hand.
+
+        Transfers are deliberately ignored here: they move stock between
+        warehouses without changing how much the company owns, so they net to
+        zero at this level. stock_in_warehouse() is where they matter.
+        """
         total = 0
         for entry in self.stockentry_set.all():
             if entry.entry_type == "Receipt":
@@ -208,11 +214,23 @@ class Item(models.Model):
 
         if warehouse is None:
             return Decimal(0)
-        agg = self.stockentry_set.filter(warehouse=warehouse).aggregate(
+        from django.db.models import Q
+
+        agg = self.stockentry_set.filter(
+            Q(warehouse=warehouse) | Q(source_warehouse=warehouse)
+            | Q(target_warehouse=warehouse)
+        ).aggregate(
             qty=Sum(
                 Case(
-                    When(entry_type="Receipt", then="quantity"),
-                    When(entry_type="Issue", then=-models.F("quantity")),
+                    When(entry_type="Receipt", warehouse=warehouse, then="quantity"),
+                    When(entry_type="Issue", warehouse=warehouse, then=-models.F("quantity")),
+                    # Transfers were completely inert: the entry type and the
+                    # source/target fields existed, but nothing read them, so
+                    # moving stock between warehouses changed no balance
+                    # anywhere.
+                    When(entry_type="Transfer", target_warehouse=warehouse, then="quantity"),
+                    When(entry_type="Transfer", source_warehouse=warehouse,
+                         then=-models.F("quantity")),
                     default=Decimal(0),
                     output_field=DecimalField(max_digits=18, decimal_places=2),
                 )
@@ -321,6 +339,46 @@ class StockEntry(models.Model):
     @property
     def total_cost(self):
         return self.quantity * self.rate
+
+    def clean(self):
+        """INV-RULE-004 / BRN-CTRL-003: a transfer must actually say where the
+        stock came from and where it went, and must not invent quantity.
+
+        None of this was checked before, because nothing consumed these fields
+        at all — a Transfer row with no source and no target was accepted and
+        then quietly did nothing.
+        """
+        if self.entry_type != "Transfer":
+            return
+        if self.source_warehouse_id is None or self.target_warehouse_id is None:
+            raise DjangoValidationError(
+                {"source_warehouse": "A transfer needs both a source and a target warehouse."}
+            )
+        if self.source_warehouse_id == self.target_warehouse_id:
+            raise DjangoValidationError(
+                {"target_warehouse": "Source and target warehouse must differ."}
+            )
+        available = self.item.stock_in_warehouse(self.source_warehouse)
+        if self.pk:
+            previous = StockEntry.objects.filter(pk=self.pk).first()
+            if previous and previous.entry_type == "Transfer" \
+                    and previous.source_warehouse_id == self.source_warehouse_id:
+                available += previous.quantity
+        if available < self.quantity:
+            raise DjangoValidationError(
+                {"quantity": f"Cannot transfer {self.quantity} of "
+                             f"{self.item.item_code}: only {available} at "
+                             f"{self.source_warehouse.name}."}
+            )
+
+    @property
+    def is_inter_branch(self):
+        """BRN-CTRL-003: a transfer that crosses a branch boundary."""
+        if self.entry_type != "Transfer":
+            return False
+        if not (self.source_warehouse_id and self.target_warehouse_id):
+            return False
+        return self.source_warehouse.branch_id != self.target_warehouse.branch_id
 
     def __str__(self):
         return f"{self.entry_type} - {self.item.item_code}"

@@ -48,6 +48,18 @@ class StockEntrySerializer(serializers.ModelSerializer):
         entry_type = data.get("entry_type", getattr(self.instance, "entry_type", None))
         item = data.get("item", getattr(self.instance, "item", None))
         quantity = data.get("quantity", getattr(self.instance, "quantity", None))
+        if entry_type == "Transfer":
+            probe = self.instance or StockEntry()
+            for k, v in data.items():
+                setattr(probe, k, v)
+            try:
+                probe.clean()
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(
+                    exc.message_dict if hasattr(exc, "message_dict") else exc.messages[0]
+                )
+            return data
+
         warehouse = data.get("warehouse", getattr(self.instance, "warehouse", None))
         bin_location = data.get("bin_location", getattr(self.instance, "bin_location", None))
         if warehouse and warehouse.uses_bins and bin_location is None:

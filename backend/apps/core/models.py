@@ -331,11 +331,19 @@ class Warehouse(models.Model):
 
         from django.db.models import Case, DecimalField, F, Sum, When
 
-        agg = self.stockentry_set.aggregate(
+        from django.db.models import Q
+
+        from apps.inventory.models import StockEntry
+
+        agg = StockEntry.objects.filter(
+            Q(warehouse=self) | Q(source_warehouse=self) | Q(target_warehouse=self)
+        ).aggregate(
             qty=Sum(
                 Case(
-                    When(entry_type="Receipt", then="quantity"),
-                    When(entry_type="Issue", then=-F("quantity")),
+                    When(entry_type="Receipt", warehouse=self, then="quantity"),
+                    When(entry_type="Issue", warehouse=self, then=-F("quantity")),
+                    When(entry_type="Transfer", target_warehouse=self, then="quantity"),
+                    When(entry_type="Transfer", source_warehouse=self, then=-F("quantity")),
                     default=Decimal(0),
                     output_field=DecimalField(max_digits=18, decimal_places=2),
                 )
