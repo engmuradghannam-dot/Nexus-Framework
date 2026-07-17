@@ -1,9 +1,17 @@
 from rest_framework import serializers
 
-from .models import Invoice
+from .models import Invoice, InvoiceItem
+
+
+class InvoiceItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceItem
+        fields = "__all__"
+        read_only_fields = ["amount", "tax_amount"]
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
+    line_items = InvoiceItemSerializer(many=True, read_only=True)
     creditable_remaining = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
     outstanding = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
     base_total = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)

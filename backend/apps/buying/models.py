@@ -111,6 +111,19 @@ class PurchaseOrder(models.Model):
         blank=True,
         related_name="approved_purchase_orders",
     )
+    cost_center = models.ForeignKey(
+        "accounts.CostCenter", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="purchase_orders",
+    )
+    project = models.ForeignKey(
+        "pmo.Project", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="purchase_orders",
+    )
+    billed_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="Sum of invoice totals generated from this order. Maintained by "
+        "Invoice.create_from_purchase_order().",
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -125,6 +138,13 @@ class PurchaseOrder(models.Model):
     @property
     def outstanding_amount(self):
         return self.grand_total - self.total_paid
+
+    @property
+    def per_billed(self):
+        """Percentage of this order's value already carried onto an invoice."""
+        if not self.grand_total:
+            return Decimal(0)
+        return (Decimal(self.billed_amount) / Decimal(self.grand_total) * 100).quantize(Decimal("0.01"))
 
     def recalculate_totals(self):
         """Recompute totals from line items and tax charges. Called

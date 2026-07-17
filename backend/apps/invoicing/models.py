@@ -34,6 +34,28 @@ class Invoice(models.Model):
     notes = models.TextField(blank=True)
     due_date = models.DateField(null=True, blank=True)
     paid_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    discount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="Document-level discount, subtracted from subtotal before arriving at "
+        "total. Mirrors SalesOrder.discount / PurchaseOrder.discount so an order converts "
+        "to an invoice without silently dropping the discount the customer was quoted.",
+    )
+    cost_center = models.ForeignKey(
+        "accounts.CostCenter", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invoices", help_text="Cost center this invoice's revenue/expense is attributed to.",
+    )
+    project = models.ForeignKey(
+        "pmo.Project", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invoices", help_text="Project this invoice bills against, if any.",
+    )
+    against_sales_order = models.ForeignKey(
+        "selling.SalesOrder", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invoices", help_text="Sales Order this invoice was generated from, if any.",
+    )
+    against_purchase_order = models.ForeignKey(
+        "buying.PurchaseOrder", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invoices", help_text="Purchase Order this invoice was generated from, if any.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -77,10 +99,142 @@ class Invoice(models.Model):
         self.save(update_fields=["paid_amount"])
         return self.paid_amount
 
+    def has_line_items(self):
+        """Whether this invoice carries item-level detail. Invoices entered as a
+        flat subtotal (the only option before InvoiceItem existed) have none."""
+        return bool(self.pk) and self.line_items.exists()
+
     def recompute(self):
+        """Derive tax/total from the flat subtotal + document tax_rate.
+
+        Only meaningful for flat-entry invoices. Once line items exist they own
+        the totals, and recomputing from subtotal * tax_rate here would silently
+        clobber the per-line VAT on the next save() — so bail out instead.
+        """
+        if self.has_line_items():
+            return
         sub = Decimal(self.subtotal or 0)
         self.tax_amount = (sub * Decimal(self.tax_rate or 0) / Decimal(100)).quantize(Decimal("0.01"))
-        self.total = sub + self.tax_amount
+        self.total = sub - Decimal(self.discount or 0) + self.tax_amount
+
+    def recalculate_totals(self, force=False):
+        """Recompute subtotal/tax_amount/total from line items.
+
+        Called via the InvoiceItem post_save/post_delete signal (mirrors
+        SalesOrder.recalculate_totals / PurchaseOrder.recalculate_totals).
+
+        With no line items this is a no-op by default, so legacy flat-entry
+        invoices keep working. ``force=True`` (used by post_delete) zeroes the
+        totals instead, so removing the last line doesn't strand the invoice at
+        its old amount.
+        """
+        items = list(self.line_items.all())
+        if not items and not force:
+            return
+        subtotal = sum((i.amount for i in items), Decimal(0))
+        tax_amount = sum((i.tax_amount for i in items), Decimal(0))
+        total = subtotal - Decimal(self.discount or 0) + tax_amount
+        self.subtotal, self.tax_amount, self.total = subtotal, tax_amount, total
+        Invoice.objects.filter(pk=self.pk).update(
+            subtotal=subtotal, tax_amount=tax_amount, total=total
+        )
+
+    @staticmethod
+    def _effective_tax_rate(order):
+        """Collapse an order's document-level tax charges to a single rate.
+
+        SalesOrder/PurchaseOrder model VAT as SalesTaxCharge/PurchaseTaxCharge
+        rows against the whole document, not per line — so there is no per-line
+        rate to copy. Deriving the effective rate (total_tax / total_amount)
+        keeps the generated invoice's VAT equal to the order's own, which taking
+        the *first* charge's rate would not once a document carries more than
+        one charge.
+        """
+        total_amount = Decimal(order.total_amount or 0)
+        total_tax = Decimal(order.total_tax or 0)
+        if total_amount <= 0 or total_tax <= 0:
+            return Decimal(0)
+        return (total_tax / total_amount * Decimal(100)).quantize(Decimal("0.0001"))
+
+    @classmethod
+    def _create_from_order(cls, order, *, invoice_type, party_name, order_field,
+                           invoice_number, invoice_date, due_date=None):
+        from django.core.exceptions import ValidationError
+        from django.db import transaction
+        from django.utils.dateparse import parse_date
+
+        def as_date(value, field):
+            # Invoice.save() does arithmetic on invoice_date to default due_date,
+            # so a raw "YYYY-MM-DD" string off the API blows up there instead of
+            # here. Normalise at the door.
+            if value is None or not isinstance(value, str):
+                return value
+            parsed = parse_date(value)
+            if parsed is None:
+                raise ValidationError(f"{field} must be a valid date (YYYY-MM-DD).")
+            return parsed
+
+        invoice_date = as_date(invoice_date, "invoice_date")
+        due_date = as_date(due_date, "due_date")
+
+        if order.status not in ("Submitted", "Delivered", "Received"):
+            raise ValidationError(
+                f"Cannot invoice an order in status '{order.status}' — submit it first."
+            )
+        if not order.items.exists():
+            raise ValidationError("Cannot invoice an order with no line items.")
+        if cls.objects.filter(invoice_number=invoice_number).exists():
+            raise ValidationError(f"Invoice number '{invoice_number}' already exists.")
+
+        rate = cls._effective_tax_rate(order)
+        with transaction.atomic():
+            inv = cls.objects.create(
+                company=order.company,
+                invoice_type=invoice_type,
+                invoice_number=invoice_number,
+                party_name=party_name,
+                invoice_date=invoice_date,
+                due_date=due_date,
+                currency=order.currency,
+                # Invoice.tax_rate is 2dp and purely informational once line items
+                # exist (recompute() defers to them); the lines keep full precision.
+                tax_rate=rate.quantize(Decimal("0.01")),
+                discount=order.discount or Decimal(0),
+                cost_center=getattr(order, "cost_center", None),
+                project=getattr(order, "project", None),
+                **{order_field: order},
+            )
+            for line in order.items.all():
+                InvoiceItem.objects.create(
+                    invoice=inv, item=line.item, qty=line.qty, rate=line.rate, tax_rate=rate,
+                )
+            inv.refresh_from_db()
+            inv.recalculate_totals()
+            order.__class__.objects.filter(pk=order.pk).update(
+                billed_amount=models.F("billed_amount") + inv.total
+            )
+        return inv
+
+    @classmethod
+    def create_from_sales_order(cls, sales_order, invoice_number, invoice_date, due_date=None):
+        """Build a draft Sales Invoice from a submitted Sales Order, copying every
+        line item across so item-level detail survives into the ZATCA-facing
+        document instead of being re-typed by hand."""
+        return cls._create_from_order(
+            sales_order, invoice_type="sales", party_name=sales_order.customer.name,
+            order_field="against_sales_order", invoice_number=invoice_number,
+            invoice_date=invoice_date, due_date=due_date,
+        )
+
+    @classmethod
+    def create_from_purchase_order(cls, purchase_order, invoice_number, invoice_date, due_date=None):
+        """Build a draft Purchase Invoice from a submitted Purchase Order
+        (see create_from_sales_order)."""
+        return cls._create_from_order(
+            purchase_order, invoice_type="purchase", party_name=purchase_order.supplier.name,
+            order_field="against_purchase_order", invoice_number=invoice_number,
+            invoice_date=invoice_date, due_date=due_date,
+        )
 
     def save(self, *args, **kwargs):
         self.recompute()
@@ -430,3 +584,48 @@ class Payment(models.Model):
     def company_or_default(self):
         from apps.core.models import Company
         return self.invoice.company or Company.objects.order_by("id").first()
+
+
+class InvoiceItem(models.Model):
+    """A single billed line on an Invoice — item, quantity, rate and the per-line
+    VAT that ZATCA e-invoicing requires.
+
+    Historic invoices entered as a flat subtotal (no line items) keep working:
+    Invoice.recompute() owns the totals while there are no lines, and
+    Invoice.recalculate_totals() takes over once at least one line exists.
+    """
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="line_items")
+    item = models.ForeignKey(
+        "inventory.Item", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invoice_lines",
+    )
+    item_code = models.CharField(max_length=100, blank=True)
+    item_name = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True)
+    warehouse = models.ForeignKey(
+        "core.Warehouse", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invoice_lines",
+    )
+    qty = models.DecimalField(max_digits=18, decimal_places=2, default=1)
+    rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    amount = models.DecimalField(max_digits=18, decimal_places=2, default=0, editable=False)
+    tax_rate = models.DecimalField(max_digits=7, decimal_places=4, default=15)
+    tax_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0, editable=False)
+
+    class Meta:
+        db_table = "invoice_items"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.item_code or self.item_name} x{self.qty}"
+
+    def save(self, *args, **kwargs):
+        if self.item and not self.item_code:
+            self.item_code = self.item.item_code
+            self.item_name = self.item.item_name
+        self.amount = (self.qty or Decimal(0)) * (self.rate or Decimal(0))
+        self.tax_amount = (
+            self.amount * (self.tax_rate or Decimal(0)) / Decimal(100)
+        ).quantize(Decimal("0.01"))
+        super().save(*args, **kwargs)
