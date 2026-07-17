@@ -30,6 +30,7 @@ class TaskSerializer(serializers.ModelSerializer):
         source="assignee.get_full_name", read_only=True
     )
     project_name = serializers.CharField(source="project.name", read_only=True)
+    subtask_count = serializers.IntegerField(source="subtasks.count", read_only=True)
 
     class Meta:
         model = Task
@@ -42,6 +43,11 @@ class TaskSerializer(serializers.ModelSerializer):
             "assignee",
             "assignee_name",
             "status",
+            "priority",
+            "parent_task",
+            "subtask_count",
+            "milestone",
+            "start_date",
             "due_date",
             "estimated_hours",
             "actual_hours",
@@ -91,6 +97,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             "owner_name",
             "start_date",
             "end_date",
+            "actual_start_date",
+            "actual_end_date",
             "budget",
             "spent",
             "budget_utilization",

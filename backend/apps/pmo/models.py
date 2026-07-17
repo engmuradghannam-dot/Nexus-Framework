@@ -102,13 +102,25 @@ class Project(models.Model):
     )
     start_date = models.DateField(null=True, blank=True, verbose_name="Start Date")
     end_date = models.DateField(null=True, blank=True, verbose_name="End Date")
+    actual_start_date = models.DateField(
+        null=True, blank=True, verbose_name="Actual Start Date"
+    )
+    actual_end_date = models.DateField(
+        null=True, blank=True, verbose_name="Actual End Date"
+    )
     budget = models.DecimalField(
         max_digits=15, decimal_places=2, default=0, verbose_name="Budget"
     )
     spent = models.DecimalField(
         max_digits=15, decimal_places=2, default=0, verbose_name="Spent"
     )
-    progress = models.PositiveIntegerField(default=0, verbose_name="Progress %")
+    progress = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Progress %",
+        help_text="Auto-computed from task completion ratio once the project has "
+        "tasks (see recalculate_progress); stays manually editable for projects "
+        "with no tasks yet.",
+    )
     branch = models.ForeignKey(
         "core.Branch",
         on_delete=models.SET_NULL,
@@ -142,6 +154,21 @@ class Project(models.Model):
             return date.today() > self.end_date
         return False
 
+    def recalculate_progress(self):
+        """Recompute progress % from task completion (done / non-cancelled tasks).
+
+        Called via the Task post_save/post_delete signal. A no-op when the
+        project has no tasks yet, so the manually-entered progress value
+        keeps working until tasks exist to derive it from.
+        """
+        tasks = list(self.tasks.exclude(status="cancelled"))
+        if not tasks:
+            return
+        done = sum(1 for t in tasks if t.status == "done")
+        progress = round((done / len(tasks)) * 100)
+        Project.objects.filter(pk=self.pk).update(progress=progress)
+        self.progress = progress
+
 
 class Task(models.Model):
     """Task model for projects"""
@@ -152,6 +179,13 @@ class Task(models.Model):
         ("review", "Review"),
         ("done", "Done"),
         ("cancelled", "Cancelled"),
+    ]
+
+    PRIORITY_CHOICES = [
+        ("low", "Low"),
+        ("medium", "Medium"),
+        ("high", "High"),
+        ("critical", "Critical"),
     ]
 
     project = models.ForeignKey(
@@ -170,6 +204,26 @@ class Task(models.Model):
     status = models.CharField(
         max_length=50, choices=STATUS_CHOICES, default="todo", verbose_name="Status"
     )
+    priority = models.CharField(
+        max_length=20, choices=PRIORITY_CHOICES, default="medium", verbose_name="Priority"
+    )
+    parent_task = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="subtasks",
+        verbose_name="Parent Task",
+    )
+    milestone = models.ForeignKey(
+        "Milestone",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+        verbose_name="Milestone",
+    )
+    start_date = models.DateField(null=True, blank=True, verbose_name="Start Date")
     due_date = models.DateField(null=True, blank=True, verbose_name="Due Date")
     estimated_hours = models.DecimalField(
         max_digits=8, decimal_places=2, default=0, verbose_name="Estimated Hours"
