@@ -3,7 +3,13 @@ from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
 
-from .models import EmployeeTermination  # noqa: F401
+from .models import (  # noqa: F401
+    EmployeeTermination,
+    EndOfServiceBand,
+    EndOfServicePolicy,
+    HRPolicy,
+    LeaveEntitlement,
+)
 from .models import Department, Employee, LeaveRequest, Payroll, Team
 
 LEAVE_TRANSITIONS = {
@@ -256,3 +262,31 @@ class EmployeeTerminationSerializer(serializers.ModelSerializer):
 
     def get_employee_name(self, obj):
         return f"{obj.employee.first_name} {obj.employee.last_name}".strip()
+
+
+class HRPolicySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HRPolicy
+        fields = "__all__"
+
+
+class LeaveEntitlementSerializer(serializers.ModelSerializer):
+    days_per_month = serializers.ReadOnlyField()
+
+    class Meta:
+        model = LeaveEntitlement
+        fields = "__all__"
+
+
+class EndOfServiceBandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EndOfServiceBand
+        fields = "__all__"
+
+
+class EndOfServicePolicySerializer(serializers.ModelSerializer):
+    bands = EndOfServiceBandSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = EndOfServicePolicy
+        fields = "__all__"

@@ -122,7 +122,97 @@ class Employee(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    PROBATION_DAYS = 90
+    @property
+    def policy(self):
+        return HRPolicy.for_company(self.company)
+
+    def tenure_years(self, as_of=None):
+        """Years of service as a decimal. 365.25 absorbs leap years."""
+        from datetime import date
+
+        if not self.date_of_joining:
+            return Decimal(0)
+        as_of = as_of or date.today()
+        days = (as_of - self.date_of_joining).days
+        if days <= 0:
+            return Decimal(0)
+        return (Decimal(days) / Decimal("365.25")).quantize(Decimal("0.01"))
+
+    def leave_entitlement_days(self, as_of=None):
+        """HR-RULE-001: annual leave this employee is entitled to.
+
+        Resolves the LeaveEntitlement rule HR configured for this employment
+        type and tenure, preferring a type-specific rule over a catch-all and
+        the highest tenure band the employee has actually reached. Falls back to
+        the company default only when nothing matches, so an unconfigured
+        company keeps its previous behaviour instead of silently dropping
+        everyone to zero days.
+        """
+        tenure = self.tenure_years(as_of)
+        rules = LeaveEntitlement.objects.filter(
+            company=self.company, is_active=True, min_tenure_years__lte=tenure,
+        )
+        specific = rules.filter(employment_type=self.employment_type).first()
+        if specific:
+            return Decimal(specific.days_per_year)
+        catch_all = rules.filter(employment_type="").first()
+        if catch_all:
+            return Decimal(catch_all.days_per_year)
+        return Decimal(self.policy.default_annual_leave_days)
+
+    def monthly_leave_accrual(self, as_of=None):
+        """HR-RULE-001: days earned per month at the current entitlement."""
+        return (self.leave_entitlement_days(as_of) / Decimal(12)).quantize(Decimal("0.01"))
+
+    def end_of_service_benefit(self, as_of=None, resigned=False):
+        """HR-RULE-003: end-of-service benefit, from HR's own bands.
+
+        This function contains no statutory numbers. It applies whatever bands
+        HR configured, in order, against the employee's tenure. With no policy
+        configured it raises rather than returning zero — this figure lands in
+        somebody's final pay, and a silent zero is the most dangerous wrong
+        number there is.
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        policy = EndOfServicePolicy.objects.filter(company=self.company).first()
+        if policy is None or not policy.bands.exists():
+            raise DjangoValidationError(
+                "No end-of-service policy is configured for this company. HR must "
+                "define the tenure bands before a benefit can be calculated."
+            )
+        wage = Decimal(self.salary or 0)
+        if policy.wage_basis == "gross":
+            latest = self.payrolls.order_by("-pay_period_end").first()
+            if latest:
+                wage = Decimal(latest.gross_salary)
+        tenure = self.tenure_years(as_of)
+        total_months = Decimal(0)
+        breakdown = []
+        for band in policy.bands.order_by("from_years"):
+            lower = Decimal(band.from_years)
+            upper = Decimal(band.to_years) if band.to_years is not None else tenure
+            years_in_band = min(tenure, upper) - lower
+            if years_in_band <= 0:
+                continue
+            months = years_in_band * Decimal(band.months_per_year)
+            if resigned:
+                months *= Decimal(band.resignation_fraction)
+            total_months += months
+            breakdown.append({
+                "band": str(band),
+                "years_counted": years_in_band.quantize(Decimal("0.01")),
+                "months_accrued": months.quantize(Decimal("0.01")),
+            })
+        return {
+            "tenure_years": tenure,
+            "wage_basis": policy.wage_basis,
+            "monthly_wage": wage,
+            "months_accrued": total_months.quantize(Decimal("0.01")),
+            "amount": (wage * total_months).quantize(Decimal("0.01")),
+            "resigned": resigned,
+            "breakdown": breakdown,
+        }
 
     def check_hiring_approval(self):
         """HR-CTRL-002: a new hire needs both the department head and HR before
@@ -149,12 +239,12 @@ class Employee(models.Model):
 
     @property
     def probation_end_date(self):
-        """HR-RULE-002: hire date + 90 days."""
+        """HR-RULE-002: hire date + the probation length HR configured."""
         from datetime import timedelta
 
         if not self.date_of_joining:
             return None
-        return self.date_of_joining + timedelta(days=self.PROBATION_DAYS)
+        return self.date_of_joining + timedelta(days=self.policy.probation_days)
 
     @property
     def probation_review_due(self):
@@ -259,7 +349,7 @@ class LeaveRequest(models.Model):
 
         if self.leave_type != "Annual" or not self.year:
             return
-        ANNUAL_ALLOWANCE = 21
+        ANNUAL_ALLOWANCE = self.employee.leave_entitlement_days()
         taken = sum(
             (lr.duration_days for lr in LeaveRequest.objects.filter(
                 employee=self.employee, leave_type="Annual",
@@ -280,7 +370,7 @@ class LeaveRequest(models.Model):
         annual allowance minus approved Annual leave days taken this year."""
         if self.leave_type != "Annual" or not self.year:
             return None
-        ANNUAL_ALLOWANCE = 21
+        ANNUAL_ALLOWANCE = self.employee.leave_entitlement_days()
         taken = LeaveRequest.objects.filter(
             employee=self.employee,
             leave_type="Annual",
@@ -301,9 +391,9 @@ class LeaveRequest(models.Model):
         return f"{self.employee} - {self.leave_type} ({self.start_date} to {self.end_date})"
 
 
-# HR-RULE-004: multipliers stated in ERP_Complete_System.xlsx.
-OVERTIME_WEEKDAY_MULTIPLIER = Decimal("1.5")
-OVERTIME_HOLIDAY_MULTIPLIER = Decimal("2")
+# HR-RULE-004: the 1.5x/2x multipliers from ERP_Complete_System.xlsx now live on
+# HRPolicy as defaults rather than as constants here — they are HR's to set, and
+# a company needing different ones shouldn't need a redeploy to get them.
 
 
 class Payroll(models.Model):
@@ -396,8 +486,15 @@ class Payroll(models.Model):
         """
         legacy = (self.overtime_hours or Decimal(0)) * (self.overtime_rate or Decimal(0))
         base = self.base_hourly_rate or Decimal(0)
-        weekday = (self.overtime_weekday_hours or Decimal(0)) * base * OVERTIME_WEEKDAY_MULTIPLIER
-        holiday = (self.overtime_holiday_hours or Decimal(0)) * base * OVERTIME_HOLIDAY_MULTIPLIER
+        policy = self.employee.policy
+        weekday = (
+            (self.overtime_weekday_hours or Decimal(0))
+            * base * Decimal(policy.overtime_weekday_multiplier)
+        )
+        holiday = (
+            (self.overtime_holiday_hours or Decimal(0))
+            * base * Decimal(policy.overtime_holiday_multiplier)
+        )
         return (legacy + weekday + holiday).quantize(Decimal("0.01"))
 
     @property
@@ -578,3 +675,156 @@ class EmployeeTermination(models.Model):
             self.save(update_fields=["status"])
             Employee.objects.filter(pk=self.employee_id).update(status="Terminated")
         return True, "تم إنهاء الخدمة / Termination approved"
+
+
+class HRPolicy(models.Model):
+    """Company-level HR parameters that HR maintains, not the code.
+
+    Probation length, overtime multipliers and leave allowance were hardcoded
+    constants (90 days, 1.5x, 2x, 21 days). They are policy, not physics: they
+    differ by company and change over time, and a company that needed different
+    numbers had to be redeployed to get them.
+
+    Every field has the previously-hardcoded value as its default, so a company
+    with no policy row behaves exactly as before.
+    """
+
+    company = models.OneToOneField(
+        Company, on_delete=models.CASCADE, related_name="hr_policy"
+    )
+    probation_days = models.PositiveIntegerField(default=90)
+    overtime_weekday_multiplier = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("1.5")
+    )
+    overtime_holiday_multiplier = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("2")
+    )
+    default_annual_leave_days = models.PositiveIntegerField(
+        default=21,
+        help_text="Used when no LeaveEntitlement rule matches the employee.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "HR policies"
+
+    def __str__(self):
+        return f"HR policy — {self.company}"
+
+    @classmethod
+    def for_company(cls, company):
+        """Never creates a row: reading a policy shouldn't write to the database.
+        Returns an unsaved instance carrying the defaults when none exists."""
+        if company is None:
+            return cls()
+        return cls.objects.filter(company=company).first() or cls(company=company)
+
+
+class LeaveEntitlement(models.Model):
+    """HR-RULE-001: how much annual leave accrues, per employment type and tenure.
+
+    The spec says leave accrues 'based on employment type and tenure' and gives
+    no rates — because they're HR's to set. This is where HR sets them.
+
+    Resolution picks the most specific match: the rule with the highest
+    min_tenure_years the employee has actually reached, for their employment
+    type, preferring a type-specific rule over a catch-all.
+    """
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="leave_entitlements"
+    )
+    employment_type = models.CharField(
+        max_length=50, blank=True,
+        help_text="Blank means it applies to every employment type.",
+    )
+    min_tenure_years = models.PositiveIntegerField(
+        default=0, help_text="Applies once the employee has served this many years."
+    )
+    days_per_year = models.DecimalField(max_digits=6, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-min_tenure_years", "employment_type"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "employment_type", "min_tenure_years"],
+                name="unique_leave_entitlement_rule",
+            )
+        ]
+
+    def __str__(self):
+        scope = self.employment_type or "all types"
+        return f"{scope}, {self.min_tenure_years}+ yrs → {self.days_per_year} days"
+
+    @property
+    def days_per_month(self):
+        """HR-RULE-001: the monthly accrual this entitlement implies."""
+        return (Decimal(self.days_per_year) / Decimal(12)).quantize(Decimal("0.01"))
+
+
+class EndOfServicePolicy(models.Model):
+    """HR-RULE-003: the end-of-service benefit rules, as HR defines them.
+
+    Deliberately holds no numbers of its own. Saudi Labor Law states the shape
+    (a fraction of wage per year of service, banded by tenure, reduced on
+    resignation) but the exact fractions and bands are a legal reading that HR
+    and legal own — not something to hardcode from memory into a calculation
+    that lands in someone's final pay.
+
+    A company with no bands configured gets no calculation and an explicit
+    error, never a silent zero or an invented figure.
+    """
+
+    company = models.OneToOneField(
+        Company, on_delete=models.CASCADE, related_name="eosb_policy"
+    )
+    wage_basis = models.CharField(
+        max_length=20,
+        choices=[("basic", "Basic salary"), ("gross", "Gross salary")],
+        default="basic",
+        help_text="Which wage the per-year fraction applies to.",
+    )
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "End of service policies"
+
+    def __str__(self):
+        return f"EOSB policy — {self.company}"
+
+
+class EndOfServiceBand(models.Model):
+    """One tenure band of an EndOfServicePolicy.
+
+    Example a company might enter: 0–5 years at 0.5 months of wage per year,
+    5+ years at 1.0. The resignation_fraction then scales the entitlement when
+    the employee resigns rather than being let go.
+    """
+
+    policy = models.ForeignKey(
+        EndOfServicePolicy, on_delete=models.CASCADE, related_name="bands"
+    )
+    from_years = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    to_years = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text="Leave blank for 'and above'.",
+    )
+    months_per_year = models.DecimalField(
+        max_digits=5, decimal_places=3,
+        help_text="Months of wage accrued per year of service inside this band.",
+    )
+    resignation_fraction = models.DecimalField(
+        max_digits=5, decimal_places=3, default=Decimal("1"),
+        help_text="Multiplier applied to this band's entitlement when the "
+        "employee resigns. 1 means resignation is treated the same as "
+        "termination.",
+    )
+
+    class Meta:
+        ordering = ["from_years"]
+
+    def __str__(self):
+        upper = self.to_years if self.to_years is not None else "∞"
+        return f"{self.from_years}–{upper} yrs: {self.months_per_year} mo/yr"
