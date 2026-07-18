@@ -398,6 +398,13 @@ class SalesOrder(models.Model):
             raise DjangoValidationError(
                 "Cannot deliver a sales order with no line items."
             )
+        # Idempotency guard: delivering twice issued the stock twice. Lines
+        # record delivered_qty on success, so if every line is already fully
+        # delivered this is a repeat call and there is nothing to do. The status
+        # transition normally calls this once, but a direct or retried call must
+        # not double-issue.
+        if all(line.delivered_qty >= line.qty for line in items):
+            return
         shortages = []
         for line in items:
             # Per SAL-CTRL-002 the check must be against the warehouse we are

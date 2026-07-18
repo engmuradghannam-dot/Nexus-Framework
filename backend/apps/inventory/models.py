@@ -441,6 +441,15 @@ class StockReconciliation(models.Model):
         """Called when the reconciliation transitions to 'Submitted'.
         Creates a Receipt/Issue StockEntry per line to bring actual system
         stock in line with the counted quantity."""
+        # Idempotency guard keyed on the entries this reconciliation already
+        # posted, not on status: the serializer sets status=Submitted before
+        # calling this, so a status check would block the first run too. Each
+        # adjustment carries a reference back to this reconciliation, so their
+        # existence proves it has already been applied.
+        if StockEntry.objects.filter(
+            reference=f"Stock Reconciliation SR-{self.id}"
+        ).exists():
+            return
         lines = list(self.items.all())
         if not lines:
             raise DjangoValidationError(

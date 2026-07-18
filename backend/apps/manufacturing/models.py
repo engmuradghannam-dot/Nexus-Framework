@@ -256,6 +256,12 @@ class WorkOrder(models.Model):
         """Called when the WorkOrder transitions to 'Completed'. Validates
         raw-material availability for the full BOM FIRST (all-or-nothing),
         then issues raw materials and receipts the finished good."""
+        if self.produced_qty and self.produced_qty > 0:
+            # Idempotency guard keyed on actual output, not on status: the
+            # serializer sets status=Completed before calling this, so a
+            # status check would block the first legitimate run too. produced_qty
+            # is only written once production has actually happened.
+            return
         if not self.bom:
             raise DjangoValidationError("Cannot complete a work order without a BOM.")
         if not self.warehouse:
@@ -305,8 +311,11 @@ class WorkOrder(models.Model):
                 )
             # The materials have physically moved, so the promise is spent.
             self.reservations.all().delete()
-            WorkOrder.objects.filter(pk=self.pk).update(produced_qty=good_qty)
+            WorkOrder.objects.filter(pk=self.pk).update(
+                produced_qty=good_qty, status="Completed"
+            )
             self.produced_qty = good_qty
+            self.status = "Completed"
 
     def __str__(self):
         return self.wo_number

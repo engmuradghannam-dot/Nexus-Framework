@@ -150,6 +150,11 @@ class JournalEntry(models.Model):
         choices=[("Draft", "Draft"), ("Submitted", "Submitted")],
     )
     notes = models.TextField(blank=True)
+    posted = models.BooleanField(
+        default=False,
+        help_text="True once this entry has hit the ledger. Guards against "
+        "double-posting: nothing depends on the caller only ever calling once.",
+    )
     is_reversed = models.BooleanField(default=False)
     reversal_of = models.ForeignKey("self", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="reversals")
@@ -247,6 +252,14 @@ class JournalEntry(models.Model):
         two-account shortcut and full multi-line postings."""
         from django.core.exceptions import ValidationError as DjangoValidationError
 
+        # Idempotency guard: posting twice doubled every balance. The status
+        # transition normally calls this once, but a direct call, a management
+        # command or a retried task must not be able to post the same entry
+        # again — the guard lives here, not in the one caller that happens to be
+        # careful.
+        if self.posted:
+            return
+
         # FIN-RULE-004: nothing posts until both legs are proven to belong to
         # this company's chart of accounts.
         self.check_accounts()
@@ -273,6 +286,11 @@ class JournalEntry(models.Model):
                 )
             self.debit_account.post(debit_amount=self.amount)
             self.credit_account.post(credit_amount=self.amount)
+
+        # Record that the ledger has been touched, so a second call is a no-op.
+        self.posted = True
+        if self.pk:
+            JournalEntry.objects.filter(pk=self.pk).update(posted=True)
 
     def reverse(self, posting_date=None, reference=None):
         """Create a balanced mirror entry that undoes this one. Idempotent:
