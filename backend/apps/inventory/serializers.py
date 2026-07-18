@@ -51,6 +51,15 @@ class StockEntrySerializer(CompanyConsistencyMixin, serializers.ModelSerializer)
         entry_type = data.get("entry_type", getattr(self.instance, "entry_type", None))
         item = data.get("item", getattr(self.instance, "item", None))
         quantity = data.get("quantity", getattr(self.instance, "quantity", None))
+        if quantity is not None and quantity <= 0:
+            # Direction is carried by entry_type, never by the sign. A negative
+            # "Receipt" would subtract stock while reading as an addition, and
+            # every downstream count (INV-CTRL-002, WHS-RULE-004, MFG-CTRL-003)
+            # assumes stock is non-negative.
+            raise serializers.ValidationError(
+                {"quantity": "Quantity must be greater than zero. Use entry_type "
+                             "to remove stock (Issue), not a negative quantity."}
+            )
         if entry_type == "Transfer":
             probe = self.instance or StockEntry()
             for k, v in data.items():

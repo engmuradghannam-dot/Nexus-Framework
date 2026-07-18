@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models, transaction
 
 from apps.core.models import Branch, Company, Warehouse
@@ -321,7 +321,13 @@ class StockEntry(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
     entry_type = models.CharField(max_length=50, choices=ENTRY_TYPES)
     transaction_date = models.DateTimeField(auto_now_add=True)
-    quantity = models.DecimalField(max_digits=18, decimal_places=2)
+    quantity = models.DecimalField(
+        max_digits=18, decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Always positive. Direction comes from entry_type (Receipt "
+        "adds, Issue removes), never from the sign of the quantity — a negative "
+        "'Receipt' would quietly subtract stock while reading as an addition.",
+    )
     uom = models.CharField(max_length=50, default="Unit")
     rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     posting_date = models.DateField(auto_now_add=True)
