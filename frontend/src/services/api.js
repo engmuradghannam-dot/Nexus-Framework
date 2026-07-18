@@ -285,6 +285,10 @@ export const customFieldsApi = {
   list: (module) => data(API.get('/customfields/fields/', { params: module ? { module } : {} })),
   create: (payload) => data(API.post('/customfields/fields/', payload)),
   remove: (id) => API.delete(`/customfields/fields/${id}/`),
+  // Read a record's custom fields with formula/lookup values computed:
+  recordValues: (module, recordId) => data(API.get(`/customfields/fields/records/${module}/${recordId}/`)),
+  // Save a record's input field values ({field_key: value}); computed fields are ignored server-side:
+  saveRecordValues: (module, recordId, values) => data(API.post(`/customfields/fields/records/${module}/${recordId}/`, values)),
 }
 
 // ════════ Pricing rules ════════

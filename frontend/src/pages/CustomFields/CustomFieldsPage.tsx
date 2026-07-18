@@ -13,7 +13,7 @@ const MODULES = [
   ['inventory', 'المخزون'], ['crm', 'العملاء'], ['selling', 'المبيعات'], ['buying', 'المشتريات'],
   ['hr', 'الموارد البشرية'], ['assets', 'الأصول'], ['warehouses', 'المستودعات'],
 ];
-const TYPES = [['text', 'نص'], ['number', 'رقم'], ['date', 'تاريخ'], ['select', 'قائمة'], ['boolean', 'نعم/لا'], ['textarea', 'نص طويل']];
+const TYPES = [['text', 'نص'], ['number', 'رقم'], ['date', 'تاريخ'], ['select', 'قائمة'], ['boolean', 'نعم/لا'], ['textarea', 'نص طويل'], ['formula', 'معادلة (Excel)'], ['lookup', 'ربط بيانات (VLOOKUP)']];
 
 export default function CustomFieldsPage() {
   const [module, setModule] = useState('inventory');
@@ -60,6 +60,7 @@ export default function CustomFieldsPage() {
             { key: 'field_type', label: 'النوع', render: (v: string) => <FluentBadge label={TYPES.find((t) => t[0] === v)?.[1] || v} variant="info" size="small" /> },
             { key: 'required', label: 'إلزامي', render: (v: boolean) => (v ? 'نعم' : '—') },
             { key: 'options', label: 'الخيارات', render: (v: any) => Array.isArray(v) && v.length ? v.join('، ') : '—' },
+            { key: '__detail', label: 'المعادلة / الربط', render: (_: any, r: any) => r.field_type === 'formula' ? <code className="text-xs bg-[#eff6fc] px-1.5 py-0.5 rounded text-[#0078d4]">{r.formula}</code> : r.field_type === 'lookup' ? <span className="text-xs text-[#605e5c]">{r.lookup_module}.{r.lookup_return} ← {r.lookup_match_local}</span> : '—' },
             { key: '__del', label: '', render: (_: any, r: any) => <button onClick={(e) => { e.stopPropagation(); del(r.id); }} className="text-[#a4262c] hover:bg-[#fdf2f2] p-1 rounded"><Trash2 size={14} /></button> },
           ]}
           data={fields}
@@ -83,6 +84,39 @@ export default function CustomFieldsPage() {
           </FluentFormField>
           {form.field_type === 'select' && (
             <FluentFormField label="الخيارات (مفصولة بفاصلة)"><FluentInput value={form.options || ''} onChange={(e) => set('options', e.target.value)} placeholder="A, B, C" /></FluentFormField>
+          )}
+          {form.field_type === 'formula' && (
+            <div className="rounded-sm border border-[#0078d4]/30 bg-[#eff6fc] p-3 space-y-2">
+              <FluentFormField label="المعادلة">
+                <FluentInput value={form.formula || ''} onChange={(e) => set('formula', e.target.value)} placeholder="{qty} * {price} * 1.15" />
+              </FluentFormField>
+              <p className="text-xs text-[#605e5c] leading-relaxed">
+                استخدم <code className="bg-white px-1 rounded">{'{معرّف_الحقل}'}</code> للإشارة إلى حقل آخر،
+                والعمليات <code className="bg-white px-1 rounded">+ - * / ( )</code> فقط — كما في Excel.
+                مثال: <code className="bg-white px-1 rounded">{'{qty} * {price} * 1.15'}</code> يحسب الإجمالي مع الضريبة.
+                القيمة تُحسب تلقائياً ولا تُخزَّن.
+              </p>
+            </div>
+          )}
+          {form.field_type === 'lookup' && (
+            <div className="rounded-sm border border-[#0078d4]/30 bg-[#eff6fc] p-3 space-y-2">
+              <p className="text-xs text-[#605e5c] mb-1">اجلب قيمة من وحدة أخرى، كدالة VLOOKUP في Excel:</p>
+              <FluentFormField label="الوحدة المصدر">
+                <FluentSelect value={form.lookup_module || ''} onChange={(e) => set('lookup_module', e.target.value)}>
+                  <option value="">— اختر —</option>
+                  {MODULES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </FluentSelect>
+              </FluentFormField>
+              <FluentFormField label="حقل المطابقة عندنا">
+                <FluentInput value={form.lookup_match_local || ''} onChange={(e) => set('lookup_match_local', e.target.value)} placeholder="sku" />
+              </FluentFormField>
+              <FluentFormField label="حقل المطابقة في المصدر">
+                <FluentInput value={form.lookup_match_source || ''} onChange={(e) => set('lookup_match_source', e.target.value)} placeholder="item_code" />
+              </FluentFormField>
+              <FluentFormField label="الحقل المُعاد">
+                <FluentInput value={form.lookup_return || ''} onChange={(e) => set('lookup_return', e.target.value)} placeholder="item_name" />
+              </FluentFormField>
+            </div>
           )}
           <label className="flex items-center gap-2 text-sm text-[#323130]">
             <input type="checkbox" checked={!!form.required} onChange={(e) => set('required', e.target.checked)} className="h-4 w-4 accent-[#0078d4]" /> حقل إلزامي
