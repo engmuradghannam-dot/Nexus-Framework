@@ -1,6 +1,6 @@
 // pages/Invoicing/InvoicingPage.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { Receipt, Plus, RefreshCw, CheckCircle, Send, Printer , Ban, Wallet} from 'lucide-react';
+import { Receipt, Plus, RefreshCw, CheckCircle, Send, Printer, Ban, Wallet, Trash2 } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
 import { FluentCard } from '../../components/FluentUI/FluentCard';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
@@ -8,7 +8,7 @@ import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
 import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentPanel } from '../../components/FluentUI/FluentPanel';
 import { FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
-import { invoicingApi, taxApi } from '../../services/api';
+import { invoicingApi, taxApi, buyingApi } from '../../services/api';
 import { printInvoice } from '../../utils/printInvoice';
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,6 +23,8 @@ export default function InvoicingPage() {
   const [payInvoice, setPayInvoice] = useState<any>(null);
   const [payForm, setPayForm] = useState<any>({ method: 'bank' });
   const [payHistory, setPayHistory] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [lineItems, setLineItems] = useState<any[]>([]);
 
   const reload = () => {
     setLoading(true);
@@ -30,19 +32,35 @@ export default function InvoicingPage() {
   };
   useEffect(reload, []);
   useEffect(() => { taxApi.templates().then(setTemplates).catch(() => {}); }, []);
+  useEffect(() => { buyingApi.itemsList().then(setItems).catch(() => {}); }, []);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
-  const sub = Number(form.subtotal || 0);
-  const rate = Number(form.tax_rate ?? 15);
-  const tax = (sub * rate) / 100;
 
-  const openNew = () => { setForm({ invoice_type: 'sales', tax_rate: 15, invoice_date: new Date().toISOString().slice(0, 10) }); setShowPanel(true); };
+  // Line-item grid: the subtotal and tax are derived from the lines, not typed.
+  const addLine = () => setLineItems((ls) => [...ls, { item: '', qty: '1', rate: '', tax_rate: form.tax_rate ?? 15 }]);
+  const setLine = (i: number, k: string, v: any) => setLineItems((ls) => { const n = [...ls]; n[i] = { ...n[i], [k]: v }; return n; });
+  const delLine = (i: number) => setLineItems((ls) => ls.filter((_, x) => x !== i));
+  const lineAmount = (l: any) => Number(l.qty || 0) * Number(l.rate || 0);
+  const sub = lineItems.length ? lineItems.reduce((s, l) => s + lineAmount(l), 0) : Number(form.subtotal || 0);
+  const tax = lineItems.length
+    ? lineItems.reduce((s, l) => s + lineAmount(l) * Number(l.tax_rate || 0) / 100, 0)
+    : (sub * Number(form.tax_rate ?? 15)) / 100;
+
+  const openNew = () => { setForm({ invoice_type: 'sales', tax_rate: 15, invoice_date: new Date().toISOString().slice(0, 10) }); setLineItems([]); setShowPanel(true); };
 
   const save = async () => {
     try {
-      await invoicingApi.create(form);
-      setShowPanel(false); reload();
-    } catch { alert('تعذّر الحفظ — تأكد من رقم الفاتورة والمبلغ.'); }
+      const payload: any = { ...form };
+      if (lineItems.length) {
+        // Real line items → sent atomically; subtotal/tax are derived server-side.
+        payload.line_items = lineItems
+          .filter((l) => l.item && l.qty && l.rate)
+          .map((l) => ({ item: Number(l.item), qty: l.qty, rate: l.rate, tax_rate: l.tax_rate || 0 }));
+        delete payload.subtotal;
+      }
+      await invoicingApi.create(payload);
+      setShowPanel(false); setLineItems([]); reload();
+    } catch { alert('تعذّر الحفظ — تأكد من رقم الفاتورة والبنود.'); }
   };
 
   const doPrint = async (id: number) => { try { const d = await invoicingApi.zatcaQr(id); await printInvoice(d); } catch { alert('تعذّرت الطباعة'); } };
@@ -137,7 +155,33 @@ export default function InvoicingPage() {
           <FluentFormField label="رقم الفاتورة"><FluentInput value={form.invoice_number || ''} onChange={(e) => set('invoice_number', e.target.value)} placeholder="SINV-0003" /></FluentFormField>
           <FluentFormField label="الطرف (عميل/مورّد)"><FluentInput value={form.party_name || ''} onChange={(e) => set('party_name', e.target.value)} /></FluentFormField>
           <FluentFormField label="التاريخ"><FluentInput type="date" value={form.invoice_date || ''} onChange={(e) => set('invoice_date', e.target.value)} /></FluentFormField>
-          <FluentFormField label="المبلغ الأساسي"><FluentInput type="number" value={form.subtotal || ''} onChange={(e) => set('subtotal', e.target.value)} /></FluentFormField>
+          <div className="border-t border-[#e1dfdd] pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-[#323130]">بنود الفاتورة</span>
+              <button onClick={addLine} className="text-xs text-[#0078d4] hover:underline flex items-center gap-1"><Plus size={12} /> إضافة سطر</button>
+            </div>
+            {lineItems.length === 0 && (
+              <div className="text-xs text-[#605e5c] bg-[#faf9f8] rounded-sm p-2 mb-2">
+                لا بنود بعد — أضف سطراً، أو اترك البنود فارغة وأدخل المبلغ الأساسي يدوياً بالأسفل.
+              </div>
+            )}
+            {lineItems.map((l, i) => (
+              <div key={i} className="flex items-center gap-1.5 mb-1.5">
+                <FluentSelect value={l.item} onChange={(e) => setLine(i, 'item', e.target.value)} className="flex-1">
+                  <option value="">— الصنف —</option>
+                  {items.map((it) => <option key={it.id} value={it.id}>{it.item_code} — {it.item_name}</option>)}
+                </FluentSelect>
+                <FluentInput type="number" value={l.qty} onChange={(e) => setLine(i, 'qty', e.target.value)} placeholder="كمية" className="w-16" />
+                <FluentInput type="number" value={l.rate} onChange={(e) => setLine(i, 'rate', e.target.value)} placeholder="سعر" className="w-20" />
+                <FluentInput type="number" value={l.tax_rate} onChange={(e) => setLine(i, 'tax_rate', e.target.value)} placeholder="ض%" className="w-14" />
+                <span className="w-20 text-xs text-left font-mono text-[#605e5c]">{fmt(lineAmount(l))}</span>
+                <button onClick={() => delLine(i)} className="text-[#a4262c] hover:bg-[#fdf2f2] p-1 rounded"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+          {lineItems.length === 0 && (
+            <FluentFormField label="المبلغ الأساسي (إن لم تُضف بنوداً)"><FluentInput type="number" value={form.subtotal || ''} onChange={(e) => set('subtotal', e.target.value)} /></FluentFormField>
+          )}
           <FluentFormField label="العملة">
             <FluentSelect value={form.currency || 'SAR'} onChange={(e) => set('currency', e.target.value)}>
               <option value="SAR">ريال سعودي (SAR)</option><option value="USD">دولار (USD)</option>
