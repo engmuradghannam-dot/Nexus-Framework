@@ -100,3 +100,35 @@ class TestSeeder:
     def test_warehouse_occupancy_is_real(self, seeded):
         wh = Warehouse.objects.get(branch__company=seeded, branch__code="RUH")
         assert 0 < wh.occupancy_rate < 100
+
+
+@pytest.mark.django_db
+class TestBulkDemoData:
+    """The demo should fill the company with several purchase orders and
+    customer invoices in varied states — not one of each."""
+
+    def test_multiple_purchase_orders_across_statuses(self, seeded):
+        from apps.buying.models import PurchaseOrder
+        pos = PurchaseOrder.objects.filter(company=seeded)
+        assert pos.count() >= 5
+        statuses = set(pos.values_list("status", flat=True))
+        # Both draft and submitted present — the cycle at different stages.
+        assert "Draft" in statuses and "Submitted" in statuses
+
+    def test_multiple_customer_invoices_in_varied_payment_states(self, seeded):
+        from apps.invoicing.models import Invoice
+        invoices = Invoice.objects.filter(company=seeded, invoice_type="sales")
+        assert invoices.count() >= 5
+        # A paid, a part-paid and an unpaid invoice all exist, so receivables
+        # and aging screens show something real rather than all-identical rows.
+        fully_paid = any(i.paid_amount and i.paid_amount >= i.total for i in invoices)
+        part_paid = any(i.paid_amount and 0 < i.paid_amount < i.total for i in invoices)
+        unpaid = any(not i.paid_amount for i in invoices)
+        assert fully_paid and part_paid and unpaid
+
+    def test_purchase_orders_span_multiple_branches(self, seeded):
+        from apps.buying.models import PurchaseOrder
+        branches = set(
+            PurchaseOrder.objects.filter(company=seeded).values_list("branch__code", flat=True)
+        )
+        assert len(branches) >= 2

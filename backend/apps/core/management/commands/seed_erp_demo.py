@@ -48,6 +48,8 @@ class Command(BaseCommand):
         self._procurement(company, branches, items)
         self._sales(company, branches, items)
         self._manufacturing(company, branches, items)
+        self._more_purchase_orders(company, branches, items)
+        self._customer_invoices(company, branches, items)
 
         self.stdout.write(self.style.SUCCESS(
             f"\nDemo ready for {company.name} ({COMPANY_CODE})."
@@ -108,6 +110,7 @@ class Command(BaseCommand):
             ("1300", "Accounts Receivable", "Asset"), ("1400", "Inventory", "Asset"),
             ("2100", "Accounts Payable", "Liability"), ("2200", "VAT Payable", "Liability"),
             ("4000", "Sales Revenue", "Income"),
+            ("4100", "Sales Revenue (Invoiced)", "Income"),
             ("5000", "Cost of Goods Sold", "Expense"), ("5200", "Salaries Expense", "Expense"),
         ]
         for number, name, kind in chart:
@@ -438,6 +441,128 @@ class Command(BaseCommand):
         )
 
     # ---------- output ----------
+
+    def _more_purchase_orders(self, company, branches, items):
+        """Several purchase orders across suppliers, branches and statuses, so
+        the purchasing list isn't a single row. Deliberately varied — draft,
+        submitted, and one fully received — to show the cycle at different
+        stages rather than a wall of identical records."""
+        from apps.buying.models import (
+            GoodsReceipt, GoodsReceiptItem, PurchaseOrder, PurchaseOrderItem, Supplier,
+        )
+        from apps.core.models import Warehouse
+
+        supplier = Supplier.objects.filter(company=company).first()
+        if supplier is None:
+            supplier = Supplier.objects.create(company=company, name="Demo Supplier")
+
+        # (number, branch, days_ago, status, [(item_code, qty, rate)], receive?)
+        specs = [
+            ("PO-DEMO-0002", "RUH", 15, "Submitted",
+             [("BLT-200", 1000, "1.9"), ("PNT-300", 40, "115")], False),
+            ("PO-DEMO-0003", "JED", 8, "Draft",
+             [("STL-100", 150, "43")], False),
+            ("PO-DEMO-0004", "DMM", 25, "Submitted",
+             [("STL-100", 300, "44"), ("BLT-200", 2000, "1.85")], True),
+            ("PO-DEMO-0005", "RUH", 3, "Draft",
+             [("PNT-300", 60, "118")], False),
+        ]
+        wh_by_branch = {
+            code: Warehouse.objects.filter(branch=branches[code]).first()
+            for code in ("RUH", "JED", "DMM")
+        }
+        made = 0
+        for number, bcode, days_ago, status, lines, receive in specs:
+            if PurchaseOrder.objects.filter(company=company, po_number=number).exists():
+                continue
+            po = PurchaseOrder.objects.create(
+                company=company, supplier=supplier, branch=branches[bcode],
+                warehouse=wh_by_branch[bcode], po_number=number,
+                transaction_date=date.today() - timedelta(days=days_ago),
+                required_by=date.today() + timedelta(days=10),
+                status="Draft",
+            )
+            for code, qty, rate in lines:
+                PurchaseOrderItem.objects.create(
+                    purchase_order=po, item=items[code], qty=qty, rate=Decimal(rate)
+                )
+            po.recalculate_totals()
+            if status == "Submitted" or receive:
+                PurchaseOrder.objects.filter(pk=po.pk).update(status="Submitted")
+                po.refresh_from_db()
+            if receive:
+                grn = GoodsReceipt.objects.create(
+                    company=company, purchase_order=po,
+                    grn_number=f"GRN-{number}", receipt_date=date.today() - timedelta(days=1),
+                    warehouse=wh_by_branch[bcode],
+                )
+                for po_item in po.items.all():
+                    GoodsReceiptItem.objects.create(
+                        goods_receipt=grn, po_item=po_item, qty_received=po_item.qty
+                    )
+                grn.submit()
+            made += 1
+        self.stdout.write(f"  Purchasing: {made} more purchase orders (draft, submitted, received)")
+
+    def _customer_invoices(self, company, branches, items):
+        """A batch of customer (sales) invoices in different payment states —
+        unpaid, part-paid, fully paid — so the receivables screens and aging
+        have something real to show."""
+        from apps.invoicing.models import Invoice, InvoiceItem, Payment
+        from apps.selling.models import Customer
+
+        customers = list(Customer.objects.filter(company=company))
+        if not customers:
+            customers = [Customer.objects.create(company=company, name="Demo Customer")]
+
+        # (number, customer_index, days_ago, [(item_code, qty, rate)], paid_fraction)
+        specs = [
+            ("SINV-DEMO-0002", 0, 20, [("STL-100", 40, "70"), ("PNT-300", 8, "160")], "1"),
+            ("SINV-DEMO-0003", 1, 12, [("CAB-400", 5, "1200")], "0.5"),
+            ("SINV-DEMO-0004", 0, 6, [("BLT-200", 800, "3.5")], "0"),
+            ("SINV-DEMO-0005", 1, 2, [("STL-100", 100, "68"), ("BLT-200", 500, "3.2")], "0"),
+        ]
+        made = 0
+        for number, cidx, days_ago, lines, paid_frac in specs:
+            if Invoice.objects.filter(company=company, invoice_number=number).exists():
+                continue
+            customer = customers[cidx % len(customers)]
+            inv = Invoice.objects.create(
+                company=company, invoice_type="sales", invoice_number=number,
+                party_name=customer.name,
+                invoice_date=date.today() - timedelta(days=days_ago),
+                due_date=date.today() - timedelta(days=days_ago) + timedelta(days=30),
+            )
+            for code, qty, rate in lines:
+                InvoiceItem.objects.create(
+                    invoice=inv, item=items[code], qty=Decimal(qty),
+                    rate=Decimal(rate), tax_rate=Decimal("15"),
+                )
+            inv.refresh_from_db()
+            # A payment can only be recorded against a posted invoice, so post
+            # it first — this also gives the demo a mix of posted invoices, not
+            # a pile of drafts.
+            try:
+                inv.post_to_ledger()
+                inv.refresh_from_db()
+            except Exception:
+                pass
+            # Record a payment for the paid fraction, the same way the API does
+            # (create Payment + post_to_ledger), so the invoice sits in a real
+            # state rather than all being identically unpaid.
+            frac = Decimal(paid_frac)
+            if frac > 0 and inv.total and inv.status == "posted":
+                amount = (Decimal(inv.total) * frac).quantize(Decimal("0.01"))
+                pay = Payment.objects.create(
+                    invoice=inv, amount=amount, payment_date=date.today(),
+                    method="bank", reference=f"DEMO-PAY-{number}",
+                    exchange_rate=getattr(inv, "exchange_rate", 1) or 1,
+                )
+                ok, _ = pay.post_to_ledger()
+                if not ok:
+                    pay.delete()
+            made += 1
+        self.stdout.write(f"  Invoicing: {made} customer invoices (paid, part-paid, unpaid)")
 
     def _say(self, kind, name, created):
         verb = "created" if created else "exists"
