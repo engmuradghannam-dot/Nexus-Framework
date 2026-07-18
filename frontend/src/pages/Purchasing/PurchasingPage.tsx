@@ -57,6 +57,31 @@ export default function PurchasingPage() {
     setComparison(c);
   };
 
+  const openQuote = async (rfq: any) => {
+    // Load the RFQ's lines so the supplier can price each one.
+    const full = await buyingApi.getRfq(rfq.id).catch(() => null);
+    if (!full) { setMsg('تعذّر تحميل بنود الطلب'); return; }
+    setQuoteForm({
+      rfq: rfq.id, rfq_number: rfq.rfq_number, status: 'Received',
+      lines: (full.items || []).map((it: any) => ({ rfq_line: it.id, item_code: it.item_code, qty: it.qty, unit_price: '' })),
+    });
+    setShowQuote(true);
+  };
+
+  const saveQuote = async () => {
+    try {
+      await buyingApi.createQuotation({
+        rfq: quoteForm.rfq, supplier: Number(quoteForm.supplier), status: 'Received',
+        quote_number: quoteForm.quote_number || '', lead_time_days: quoteForm.lead_time_days || null,
+        payment_terms: quoteForm.payment_terms || '', valid_until: quoteForm.valid_until || null,
+        lines: (quoteForm.lines || []).filter((l: any) => l.unit_price !== '')
+          .map((l: any) => ({ rfq_line: l.rfq_line, unit_price: l.unit_price })),
+      });
+      setShowQuote(false); setQuoteForm({}); setMsg('تم تسجيل عرض المورّد'); reload();
+      if (selected) openCompare(selected);
+    } catch { setMsg('تعذّر حفظ العرض — تأكد من المورّد والأسعار'); }
+  };
+
   const award = async (quotationId: number) => {
     if (!selected) return;
     try {
@@ -86,9 +111,14 @@ export default function PurchasingPage() {
             { key: 'quotation_count', label: 'عروض', render: (v: number) => <FluentBadge label={`${v || 0}`} variant="info" size="small" /> },
             { key: 'status', label: 'الحالة', render: (v: string) => <FluentBadge label={v} variant={STATUS[v] || 'default'} size="small" /> },
             { key: '__cmp', label: '', render: (_: any, r: any) => (
-              <button onClick={(e) => { e.stopPropagation(); openCompare(r); }} className="flex items-center gap-1 text-[#0078d4] hover:bg-[#eff6fc] px-2 py-1 rounded text-xs">
-                <BarChart3 size={14} /> قارن ورسِّ
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={(e) => { e.stopPropagation(); openQuote(r); }} className="flex items-center gap-1 text-[#0b6a0b] hover:bg-[#f3faf3] px-2 py-1 rounded text-xs">
+                  <Plus size={14} /> عرض مورّد
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); openCompare(r); }} className="flex items-center gap-1 text-[#0078d4] hover:bg-[#eff6fc] px-2 py-1 rounded text-xs">
+                  <BarChart3 size={14} /> قارن ورسِّ
+                </button>
+              </div>
             ) },
           ]}
           data={rfqs}
@@ -154,6 +184,38 @@ export default function PurchasingPage() {
                 <FluentInput type="number" value={l.qty || ''} onChange={(e) => setLine(i, 'qty', e.target.value)} placeholder="كمية" className="w-24" />
               </div>
             ))}
+          </div>
+        </div>
+      </FluentPanel>
+
+      <FluentPanel isOpen={showQuote} onClose={() => setShowQuote(false)} title={`عرض مورّد — ${quoteForm.rfq_number || ''}`}
+        footer={<div className="flex gap-2 justify-end">
+          <button onClick={() => setShowQuote(false)} className="px-4 py-2 text-sm border border-[#8a8886] rounded-sm hover:bg-[#f3f2f1]">إلغاء</button>
+          <button onClick={saveQuote} className="px-4 py-2 text-sm text-white bg-[#0b6a0b] rounded-sm hover:bg-[#0a5c0a]">حفظ العرض</button>
+        </div>}>
+        <div className="space-y-3">
+          <FluentFormField label="المورّد">
+            <FluentSelect value={quoteForm.supplier || ''} onChange={(e) => setQuoteForm((f: any) => ({ ...f, supplier: e.target.value }))}>
+              <option value="">— اختر المورّد —</option>
+              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </FluentSelect>
+          </FluentFormField>
+          <div className="grid grid-cols-2 gap-2">
+            <FluentFormField label="رقم العرض"><FluentInput value={quoteForm.quote_number || ''} onChange={(e) => setQuoteForm((f: any) => ({ ...f, quote_number: e.target.value }))} /></FluentFormField>
+            <FluentFormField label="مدة التسليم (يوم)"><FluentInput type="number" value={quoteForm.lead_time_days || ''} onChange={(e) => setQuoteForm((f: any) => ({ ...f, lead_time_days: e.target.value }))} /></FluentFormField>
+            <FluentFormField label="شروط الدفع"><FluentInput value={quoteForm.payment_terms || ''} onChange={(e) => setQuoteForm((f: any) => ({ ...f, payment_terms: e.target.value }))} placeholder="Net 30" /></FluentFormField>
+            <FluentFormField label="صالح حتى"><FluentInput type="date" value={quoteForm.valid_until || ''} onChange={(e) => setQuoteForm((f: any) => ({ ...f, valid_until: e.target.value }))} /></FluentFormField>
+          </div>
+          <div className="border-t border-[#e1dfdd] pt-3">
+            <div className="text-sm font-medium mb-2">أسعار البنود</div>
+            {(quoteForm.lines || []).map((l: any, i: number) => (
+              <div key={i} className="flex items-center gap-2 mb-2">
+                <span className="flex-1 text-sm text-[#323130]">{l.item_code} <span className="text-[#605e5c]">× {fmt(l.qty)}</span></span>
+                <FluentInput type="number" value={l.unit_price} placeholder="سعر الوحدة" className="w-32"
+                  onChange={(e) => setQuoteForm((f: any) => { const lines = [...f.lines]; lines[i] = { ...lines[i], unit_price: e.target.value }; return { ...f, lines }; })} />
+              </div>
+            ))}
+            <div className="text-xs text-[#605e5c] mt-1">اترك السعر فارغاً لأي بند لا يسعّره المورّد.</div>
           </div>
         </div>
       </FluentPanel>
