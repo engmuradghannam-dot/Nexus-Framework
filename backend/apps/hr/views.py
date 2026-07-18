@@ -1,10 +1,15 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
+from rest_framework.response import Response
 
 from apps.core.mixins import CompanyScopedMixin
 
+from .models import EmployeeTermination  # noqa: F401
 from .models import Department, Employee, LeaveRequest, Payroll, Team
+from .serializers import EmployeeTerminationSerializer  # noqa: F401
 from .serializers import (
     DepartmentSerializer,
     EmployeeSerializer,
@@ -54,3 +59,27 @@ class PayrollViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ["employee", "status"]
     company_field = "employee__company"
+
+
+class EmployeeTerminationViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """HR-CTRL-004: the termination log."""
+
+    queryset = EmployeeTermination.objects.select_related("employee")
+    serializer_class = EmployeeTerminationSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["employee", "status", "reason"]
+    company_field = "employee__company"
+
+    def perform_create(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else None
+        serializer.save(requested_by=user)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        termination = self.get_object()
+        try:
+            ok, message = termination.approve()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=400)
+        return Response({"success": ok, "message": message,
+                         "employee_status": termination.employee.status})

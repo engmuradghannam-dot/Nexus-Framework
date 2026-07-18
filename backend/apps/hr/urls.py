@@ -1,6 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from .views import EmployeeTerminationViewSet  # noqa: F401
 from .views import (
     DepartmentViewSet,
     EmployeeViewSet,
@@ -12,6 +13,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r"departments", DepartmentViewSet)
 router.register(r"employees", EmployeeViewSet)
+router.register(r"terminations", EmployeeTerminationViewSet)
 router.register(r"teams", TeamViewSet)
 router.register(r"leave-requests", LeaveRequestViewSet)
 router.register(r"payrolls", PayrollViewSet)

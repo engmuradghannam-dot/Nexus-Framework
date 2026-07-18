@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
 
+from .models import EmployeeTermination  # noqa: F401
 from .models import Department, Employee, LeaveRequest, Payroll, Team
 
 LEAVE_TRANSITIONS = {
@@ -26,9 +27,76 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class EmployeeSerializer(serializers.ModelSerializer):
+# HR-CTRL-001: roles allowed to see pay data at all.
+SALARY_VISIBLE_ROLES = ["HR Manager", "HR", "Finance Manager", "CFO"]
+
+
+class SalaryVisibilityMixin:
+    """HR-CTRL-001: strip pay figures for anyone outside HR and Finance.
+
+    NOTE: the spec also asks for salary data to be *encrypted*. This implements
+    the access restriction only. Encryption at rest needs key management that
+    doesn't exist in this project yet, and a field that merely looks encrypted
+    would be worse than an honest plaintext column — so it is deliberately not
+    claimed here.
+
+    An employee may always see their own pay; that isn't a confidentiality
+    breach, and hiding it would make the record useless to the person it
+    describes.
+    """
+
+    SALARY_FIELDS = []
+
+    def _viewer(self):
+        request = self.context.get("request")
+        return getattr(request, "user", None) if request else None
+
+    def _may_see_salaries(self, instance=None):
+        from apps.rbac.models import RoleAssignment
+
+        user = self._viewer()
+        if user is None or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        if instance is not None and self._is_own_record(instance, user):
+            return True
+        return RoleAssignment.objects.filter(
+            user=user, role__name__in=SALARY_VISIBLE_ROLES
+        ).exists()
+
+    def _is_own_record(self, instance, user):
+        return getattr(instance, "user_id", None) == user.pk
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not self._may_see_salaries(instance):
+            for field in self.SALARY_FIELDS:
+                data.pop(field, None)
+        return data
+
+
+class EmployeeSerializer(SalaryVisibilityMixin, serializers.ModelSerializer):
     department_name = serializers.CharField(source="department.name", read_only=True, default="")
     full_name = serializers.SerializerMethodField()
+
+    SALARY_FIELDS = ["salary"]
+
+    def validate(self, data):
+        """HR-CTRL-002 is preventive: refuse the activation itself."""
+        new_status = data.get("status", getattr(self.instance, "status", None))
+        if new_status == "Active":
+            probe = self.instance or Employee(**{
+                k: v for k, v in data.items() if k != "status"
+            })
+            for k, v in data.items():
+                if k != "status":
+                    setattr(probe, k, v)
+            try:
+                probe.check_hiring_approval()
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(exc.messages[0])
+        return data
 
     class Meta:
         model = Employee
@@ -109,7 +177,18 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
         return instance
 
 
-class PayrollSerializer(serializers.ModelSerializer):
+class PayrollSerializer(SalaryVisibilityMixin, serializers.ModelSerializer):
+    SALARY_FIELDS = [
+        "basic_salary", "housing_allowance", "transport_allowance", "food_allowance",
+        "other_allowances", "bonuses", "overtime_amount", "gross_salary",
+        "total_deductions", "net_salary", "base_hourly_rate", "overtime_rate",
+        "social_insurance", "health_insurance", "loan_deductions",
+        "advance_payments", "deductions", "tax", "bank_account",
+    ]
+
+    def _is_own_record(self, instance, user):
+        return getattr(instance.employee, "user_id", None) == user.pk
+
     overtime_amount = serializers.ReadOnlyField()
     gross_salary = serializers.ReadOnlyField()
     total_deductions = serializers.ReadOnlyField()
@@ -165,3 +244,15 @@ class PayrollSerializer(serializers.ModelSerializer):
 
             send_payroll_paid_email(instance.id)
         return instance
+
+
+class EmployeeTerminationSerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeTermination
+        fields = "__all__"
+        read_only_fields = ["status", "created_at"]
+
+    def get_employee_name(self, obj):
+        return f"{obj.employee.first_name} {obj.employee.last_name}".strip()

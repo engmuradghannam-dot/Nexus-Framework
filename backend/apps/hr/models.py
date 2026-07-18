@@ -23,9 +23,11 @@ class Department(models.Model):
 class Employee(models.Model):
     GENDER_CHOICES = [("Male", "Male"), ("Female", "Female"), ("Other", "Other")]
     STATUS_CHOICES = [
+        ("Pending Approval", "Pending Approval"),
         ("Active", "Active"),
         ("Inactive", "Inactive"),
         ("On Leave", "On Leave"),
+        ("Terminated", "Terminated"),
     ]
     MARITAL_STATUS_CHOICES = [
         ("Single", "Single"),
@@ -72,6 +74,17 @@ class Employee(models.Model):
     )
     date_of_birth = models.DateField(null=True, blank=True)
     date_of_joining = models.DateField(null=True, blank=True)
+    approved_by_dept_head = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="hires_approved_as_dept_head",
+        help_text="HR-CTRL-002: department head sign-off on this hire.",
+    )
+    approved_by_hr = models.ForeignKey(
+        "core.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="hires_approved_as_hr",
+        help_text="HR-CTRL-002: HR sign-off. Both are required before the "
+        "employee can be made Active.",
+    )
     probation_reviewed_at = models.DateField(
         null=True, blank=True,
         help_text="HR-RULE-002: set when the probation review is completed. "
@@ -110,6 +123,29 @@ class Employee(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     PROBATION_DAYS = 90
+
+    def check_hiring_approval(self):
+        """HR-CTRL-002: a new hire needs both the department head and HR before
+        they become Active. Existing employees are grandfathered — they predate
+        this control and were never routed through it."""
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        if self.pk:
+            previous = Employee.objects.filter(pk=self.pk).values_list(
+                "status", flat=True
+            ).first()
+            if previous not in (None, "Pending Approval"):
+                return
+        missing = []
+        if self.approved_by_dept_head_id is None:
+            missing.append("department head")
+        if self.approved_by_hr_id is None:
+            missing.append("HR")
+        if missing:
+            raise DjangoValidationError(
+                f"New hire requires approval from {' and '.join(missing)} before "
+                f"activation."
+            )
 
     @property
     def probation_end_date(self):
@@ -454,3 +490,90 @@ class Payroll(models.Model):
 
     def __str__(self):
         return f"{self.employee} - {self.pay_period_start} to {self.pay_period_end}"
+
+
+class EmployeeTermination(models.Model):
+    """HR-CTRL-004: every termination logged with its reason and approval chain.
+
+    Employee.status could be flipped straight to Inactive by anyone, leaving no
+    record of why, who asked, or who agreed. This is the audit trail that
+    control requires.
+    """
+
+    REASON_CHOICES = [
+        ("Resignation", "Resignation"),
+        ("End of Contract", "End of Contract"),
+        ("Redundancy", "Redundancy"),
+        ("Dismissal", "Dismissal"),
+        ("Retirement", "Retirement"),
+        ("Other", "Other"),
+    ]
+    STATUS_CHOICES = [
+        ("Pending", "Pending"),
+        ("Approved", "Approved"),
+        ("Rejected", "Rejected"),
+    ]
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name="terminations"
+    )
+    termination_date = models.DateField()
+    reason = models.CharField(max_length=50, choices=REASON_CHOICES)
+    reason_detail = models.TextField(
+        blank=True, help_text="Free-text narrative behind the reason code."
+    )
+    requested_by = models.ForeignKey(
+        "core.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="terminations_requested",
+    )
+    approved_by_manager = models.ForeignKey(
+        Employee, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="terminations_approved_as_manager",
+    )
+    approved_by_hr = models.ForeignKey(
+        "core.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="terminations_approved_as_hr",
+    )
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-termination_date", "-id"]
+
+    def __str__(self):
+        return f"{self.employee} — {self.reason} ({self.termination_date})"
+
+    def approve(self):
+        """Complete the chain and take the employee off the roll.
+
+        Both a manager and HR must have signed, and they must not be the same
+        person acting twice — a one-signature termination is not an approval
+        chain.
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from django.db import transaction as db_transaction
+
+        if self.status != "Pending":
+            raise DjangoValidationError(
+                f"Only a pending termination can be approved (this one is "
+                f"'{self.status}')."
+            )
+        missing = []
+        if self.approved_by_manager_id is None:
+            missing.append("manager")
+        if self.approved_by_hr_id is None:
+            missing.append("HR")
+        if missing:
+            raise DjangoValidationError(
+                f"Termination requires approval from {' and '.join(missing)}."
+            )
+        manager_user = self.approved_by_manager.user
+        if manager_user and manager_user.pk == self.approved_by_hr_id:
+            raise DjangoValidationError(
+                "The approval chain needs two different people; one user cannot "
+                "sign as both manager and HR."
+            )
+        with db_transaction.atomic():
+            self.status = "Approved"
+            self.save(update_fields=["status"])
+            Employee.objects.filter(pk=self.employee_id).update(status="Terminated")
+        return True, "تم إنهاء الخدمة / Termination approved"
