@@ -155,6 +155,37 @@ class JournalEntry(models.Model):
         on_delete=models.SET_NULL, related_name="reversals")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def check_accounts(self):
+        """FIN-RULE-004: both legs must resolve to accounts in THIS company's
+        chart of accounts.
+
+        The FK guarantees the account exists; it does not guarantee it is yours.
+        A journal entry in company A could name company B's account and post
+        against it, corrupting both ledgers across the tenant boundary.
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        wrong = []
+        for label, account in (
+            ("debit_account", self.debit_account),
+            ("credit_account", self.credit_account),
+        ):
+            if account is None:
+                continue
+            if account.company_id != self.company_id:
+                wrong.append(
+                    f"{label} '{account.account_number}' belongs to "
+                    f"{account.company}, not {self.company}"
+                )
+        if wrong:
+            raise DjangoValidationError(
+                f"Account outside this company's chart of accounts: {'; '.join(wrong)}"
+            )
+        if self.debit_account_id and self.debit_account_id == self.credit_account_id:
+            raise DjangoValidationError(
+                "Debit and credit cannot be the same account."
+            )
+
     @property
     def needs_dual_authorization(self):
         """FIN-CTRL-001: value above the threshold."""
@@ -216,8 +247,18 @@ class JournalEntry(models.Model):
         two-account shortcut and full multi-line postings."""
         from django.core.exceptions import ValidationError as DjangoValidationError
 
+        # FIN-RULE-004: nothing posts until both legs are proven to belong to
+        # this company's chart of accounts.
+        self.check_accounts()
+
         lines = list(self.lines.all())
         if lines:
+            for line in lines:
+                if line.account.company_id != self.company_id:
+                    raise DjangoValidationError(
+                        f"Line account '{line.account.account_number}' belongs to "
+                        f"{line.account.company}, not {self.company}."
+                    )
             for line in lines:
                 if line.account.is_group:
                     raise DjangoValidationError(

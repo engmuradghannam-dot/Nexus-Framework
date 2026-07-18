@@ -46,8 +46,48 @@ class Customer(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    CONSENT_MARKETING = "marketing"
+    CONSENT_DATA_PROCESSING = "data_processing"
+
+    marketing_consent = models.BooleanField(
+        default=False,
+        help_text="CRM-CTRL-005: explicit opt-in. Defaults to False — consent "
+        "that was never given cannot be assumed.",
+    )
+    marketing_consent_at = models.DateTimeField(null=True, blank=True)
+    data_processing_consent = models.BooleanField(default=False)
+    data_processing_consent_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return self.name
+
+    def grant_consent(self, kind, actor=None):
+        """CRM-CTRL-005: record an opt-in, with who and when."""
+        from django.utils import timezone
+
+        return self._set_consent(kind, True, actor)
+
+    def withdraw_consent(self, kind, actor=None):
+        """Withdrawal must be as easy as granting, and just as auditable."""
+        return self._set_consent(kind, False, actor)
+
+    def _set_consent(self, kind, granted, actor):
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+
+        if kind not in (self.CONSENT_MARKETING, self.CONSENT_DATA_PROCESSING):
+            raise ValidationError(f"Unknown consent type '{kind}'.")
+        now = timezone.now()
+        setattr(self, f"{kind}_consent", granted)
+        setattr(self, f"{kind}_consent_at", now if granted else None)
+        self.save(update_fields=[f"{kind}_consent", f"{kind}_consent_at"])
+        ConsentLog.objects.create(
+            customer=self, consent_type=kind, granted=granted, actor=actor
+        )
+        return True
+
+    def has_consent(self, kind):
+        return bool(getattr(self, f"{kind}_consent", False))
 
 
 class SalesOrder(models.Model):
@@ -406,3 +446,34 @@ class StockReservation(models.Model):
 
     def __str__(self):
         return f"{self.item.item_code} x{self.qty} for {self.sales_order.so_number}"
+
+
+class ConsentLog(models.Model):
+    """CRM-CTRL-005: an append-only trail of consent decisions.
+
+    The boolean on Customer answers "may we contact them today". Proving
+    compliance needs the history — when it was given, when it was withdrawn,
+    and by whom — which a mutable flag cannot carry.
+    """
+
+    CONSENT_TYPES = [
+        ("marketing", "Marketing"),
+        ("data_processing", "Data Processing"),
+    ]
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="consent_logs"
+    )
+    consent_type = models.CharField(max_length=50, choices=CONSENT_TYPES)
+    granted = models.BooleanField()
+    actor = models.ForeignKey(
+        "core.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="consent_changes",
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-recorded_at", "-id"]
+
+    def __str__(self):
+        verb = "granted" if self.granted else "withdrew"
+        return f"{self.customer.name} {verb} {self.consent_type}"

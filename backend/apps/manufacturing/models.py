@@ -125,6 +125,12 @@ class WorkOrder(models.Model):
     priority = models.CharField(
         max_length=50, choices=PRIORITY_CHOICES, default="Medium"
     )
+    workstation_ref = models.ForeignKey(
+        "Workstation", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="work_orders",
+        help_text="MFG-CTRL-005: the machine this order runs on. Optional — the "
+        "free-text `workstation` field predates this and still works.",
+    )
     workstation = models.CharField(max_length=255, blank=True)
     supervisor = models.ForeignKey(
         "hr.Employee",
@@ -190,6 +196,15 @@ class WorkOrder(models.Model):
         """
         if not self.bom:
             raise DjangoValidationError("Cannot release a work order without a BOM.")
+        if self.workstation_ref and self.workstation_ref.maintenance_overdue:
+            # MFG-CTRL-005: preventive maintenance is enforced *before*
+            # production, not reported after the machine has already run.
+            due = self.workstation_ref.next_maintenance_due
+            raise DjangoValidationError(
+                f"Workstation {self.workstation_ref.code} is overdue for "
+                f"maintenance{f' (due {due})' if due else ' (never serviced)'}; "
+                f"it cannot be released to production."
+            )
         if not ignore_bom_approval and not self.bom.is_approved:
             raise DjangoValidationError(
                 f"BOM '{self.bom.bom_name}' is not approved; it cannot be released "
@@ -464,3 +479,100 @@ class MaterialReservation(models.Model):
 
     def __str__(self):
         return f"{self.item.item_code} x{self.qty} for {self.work_order.wo_number}"
+
+
+class Workstation(models.Model):
+    """A machine or station on the shop floor.
+
+    WorkOrder.workstation and JobCard.workstation are free-text strings, so
+    there was nothing to hang a maintenance schedule on — no machine record
+    existed at all. The text fields are left alone; this is additive.
+    """
+
+    company = models.ForeignKey(
+        "core.CompanyProfile", on_delete=models.CASCADE, related_name="workstations"
+    )
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50)
+    branch = models.ForeignKey(
+        "core.Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="workstations",
+    )
+    hour_rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    maintenance_interval_days = models.PositiveIntegerField(
+        default=0,
+        help_text="MFG-CTRL-005: days between preventive services. 0 means no "
+        "schedule, and is not enforced.",
+    )
+    last_maintenance_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "code"], name="unique_workstation_code_per_company"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.code} — {self.name}"
+
+    @property
+    def next_maintenance_due(self):
+        from datetime import timedelta
+
+        if not self.maintenance_interval_days or not self.last_maintenance_date:
+            return None
+        return self.last_maintenance_date + timedelta(days=self.maintenance_interval_days)
+
+    @property
+    def days_to_maintenance(self):
+        from datetime import date
+
+        due = self.next_maintenance_due
+        return None if due is None else (due - date.today()).days
+
+    @property
+    def maintenance_overdue(self):
+        """MFG-CTRL-005: past its service date.
+
+        A station with no interval configured is not on a schedule and is never
+        overdue — otherwise this rule would halt every existing shop floor the
+        day it shipped. A station with an interval but no recorded service has
+        never been serviced, which counts as overdue.
+        """
+        if not self.maintenance_interval_days:
+            return False
+        if self.last_maintenance_date is None:
+            return True
+        return self.days_to_maintenance < 0
+
+    def record_maintenance(self, on_date=None):
+        from datetime import date
+
+        self.last_maintenance_date = on_date or date.today()
+        self.save(update_fields=["last_maintenance_date"])
+        MaintenanceLog.objects.create(workstation=self, performed_on=self.last_maintenance_date)
+
+
+class MaintenanceLog(models.Model):
+    """The service history behind MFG-CTRL-005."""
+
+    workstation = models.ForeignKey(
+        Workstation, on_delete=models.CASCADE, related_name="maintenance_logs"
+    )
+    performed_on = models.DateField()
+    performed_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="maintenance_performed",
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-performed_on", "-id"]
+
+    def __str__(self):
+        return f"{self.workstation.code} serviced {self.performed_on}"

@@ -152,7 +152,13 @@ class CompanyProfile(models.Model):
         verbose_name_plural = "Company Profiles"
 
     def __str__(self):
-        return f"{self.name} [{self.industry_vertical.name}]"
+        # industry_vertical is nullable, so the old unconditional
+        # `self.industry_vertical.name` raised AttributeError for any company
+        # without one — in admin lists, error messages, and anywhere a company
+        # gets interpolated into a string.
+        if self.industry_vertical_id:
+            return f"{self.name} [{self.industry_vertical.name}]"
+        return self.name
 
     @property
     def effective_modules(self):

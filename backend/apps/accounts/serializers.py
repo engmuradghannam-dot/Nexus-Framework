@@ -77,10 +77,11 @@ class JournalEntrySerializer(serializers.ModelSerializer):
                 for field in ("approved_by", "second_approved_by", "amount"):
                     if field in data:
                         setattr(probe, field, data[field])
-                try:
-                    probe.check_authorization()
-                except DjangoValidationError as exc:
-                    raise serializers.ValidationError(exc.messages[0])
+                for check in (probe.check_accounts, probe.check_authorization):
+                    try:
+                        check()
+                    except DjangoValidationError as exc:
+                        raise serializers.ValidationError(exc.messages[0])
         return data
 
     def update(self, instance, validated_data):
