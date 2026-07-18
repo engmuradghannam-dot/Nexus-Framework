@@ -236,6 +236,45 @@ class Branch(models.Model):
     def __str__(self):
         return self.name
 
+    def profit_and_loss(self, start_date, end_date):
+        """BRN-CTRL-004: income, expense and net for this branch over a period.
+
+        Derived from journal entries tagged with the branch. JournalEntry.branch
+        already existed but nothing ever populated it, so a per-branch P&L would
+        have reported zero for every branch forever. Entries with no branch
+        (anything posted before the tag was filled, or from a source with no
+        branch of its own) are excluded rather than spread around — inventing an
+        allocation would be worse than showing what is actually attributable.
+        """
+        from decimal import Decimal
+
+        from django.db.models import Q, Sum
+
+        from apps.accounts.models import JournalEntry
+
+        entries = JournalEntry.objects.filter(
+            branch=self, posting_date__range=(start_date, end_date),
+        ).exclude(status="Cancelled")
+
+        def total(account_type, side):
+            field = f"{side}_account"
+            return entries.filter(
+                **{f"{field}__account_type": account_type}
+            ).aggregate(t=Sum("amount"))["t"] or Decimal(0)
+
+        # Income is earned when credited; expense is incurred when debited.
+        income = total("Income", "credit") - total("Income", "debit")
+        expense = total("Expense", "debit") - total("Expense", "credit")
+        return {
+            "branch": self.name,
+            "start_date": start_date,
+            "end_date": end_date,
+            "income": income,
+            "expense": expense,
+            "net_profit": income - expense,
+            "entries": entries.count(),
+        }
+
     def clean(self):
         """BRN-RULE-002 (one Head Office per company) and BRN-RULE-005
         (close time must be after open time)."""

@@ -40,6 +40,13 @@ class Invoice(models.Model):
         "total. Mirrors SalesOrder.discount / PurchaseOrder.discount so an order converts "
         "to an invoice without silently dropping the discount the customer was quoted.",
     )
+    branch = models.ForeignKey(
+        "core.Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invoices",
+        help_text="BRN-CTRL-004: which branch this invoice's revenue/expense "
+        "belongs to. Invoices carried no branch at all, so nothing a branch "
+        "earned could be attributed back to it.",
+    )
     cost_center = models.ForeignKey(
         "accounts.CostCenter", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="invoices", help_text="Cost center this invoice's revenue/expense is attributed to.",
@@ -200,6 +207,7 @@ class Invoice(models.Model):
                 # exist (recompute() defers to them); the lines keep full precision.
                 tax_rate=rate.quantize(Decimal("0.01")),
                 discount=order.discount or Decimal(0),
+                branch=getattr(order, "branch", None),
                 cost_center=getattr(order, "cost_center", None),
                 project=getattr(order, "project", None),
                 **{order_field: order},
@@ -283,6 +291,7 @@ class Invoice(models.Model):
                 continue
             JournalEntry.objects.create(
                 company=company,
+                branch=self.branch,
                 entry_number=f"INV-{self.invoice_number}-{i+1}",
                 posting_date=self.invoice_date,
                 reference=f"{self.get_invoice_type_display()} Invoice {self.invoice_number}",
@@ -339,6 +348,7 @@ class Invoice(models.Model):
                 continue
             JournalEntry.objects.create(
                 company=company,
+                branch=self.branch,
                 entry_number=f"VOID-{self.invoice_number}-{i+1}",
                 posting_date=self.invoice_date,
                 reference=f"Void {self.get_invoice_type_display()} Invoice {self.invoice_number}",
@@ -456,6 +466,7 @@ class CreditNote(models.Model):
                 continue
             JournalEntry.objects.create(
                 company=company,
+                branch=self.original_invoice.branch,
                 entry_number=f"CN-{self.credit_number}-{i+1}",
                 posting_date=self.credit_date,
                 reference=f"Credit Note {self.credit_number} (rev {inv.invoice_number})",
@@ -545,7 +556,8 @@ class Payment(models.Model):
 
         def je(d, c, base_amt, suffix=""):
             JournalEntry.objects.create(
-                company=company, entry_number=f"PAY-{inv.invoice_number}-{n}{suffix}",
+                company=company,
+                branch=inv.branch, entry_number=f"PAY-{inv.invoice_number}-{n}{suffix}",
                 posting_date=self.payment_date, reference=ref,
                 debit_account=d, credit_account=c, amount=base_amt,
                 total_debit=base_amt, total_credit=base_amt)

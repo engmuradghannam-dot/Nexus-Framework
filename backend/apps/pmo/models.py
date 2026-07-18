@@ -474,3 +474,116 @@ class Milestone(models.Model):
         if self.target_date and not self.is_achieved:
             return date.today() > self.target_date
         return False
+
+
+class ChangeRequest(models.Model):
+    """PRJ-CTRL-005: a formal record for any change to a project's scope,
+    budget or dates.
+
+    Project.budget and end_date could be edited freely by anyone, so scope creep
+    left no trace: the plan simply became whatever it had most recently been
+    changed to, and nobody could tell what had been agreed originally.
+    """
+
+    STATUS_CHOICES = [
+        ("Draft", "Draft"),
+        ("Submitted", "Submitted"),
+        ("Approved", "Approved"),
+        ("Rejected", "Rejected"),
+    ]
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="change_requests"
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    justification = models.TextField(
+        blank=True, help_text="Why the change is needed. Required to submit."
+    )
+    budget_delta = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="Change to the project budget. Negative reduces it.",
+    )
+    end_date_delta_days = models.IntegerField(
+        default=0, help_text="Change to the project end date, in days."
+    )
+    requested_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="change_requests_raised",
+    )
+    approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="change_requests_approved",
+    )
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Draft")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.project.code}: {self.title}"
+
+    def submit(self):
+        if self.status != "Draft":
+            raise DjangoValidationError(
+                f"Only a draft change request can be submitted (this one is "
+                f"'{self.status}')."
+            )
+        if not self.justification.strip():
+            raise DjangoValidationError(
+                "A change request needs a justification before it can be submitted."
+            )
+        if self.budget_delta == 0 and self.end_date_delta_days == 0:
+            raise DjangoValidationError(
+                "A change request must actually change something."
+            )
+        self.status = "Submitted"
+        self.save(update_fields=["status"])
+        return True, "تم إرسال طلب التغيير / Change request submitted"
+
+    def approve(self, approver):
+        """Apply the change to the project — the only sanctioned path.
+
+        The requester cannot approve their own change: a change control where
+        the person asking is the person agreeing controls nothing.
+        """
+        from datetime import timedelta
+
+        from django.db import transaction as db_transaction
+        from django.utils import timezone
+
+        if self.status != "Submitted":
+            raise DjangoValidationError(
+                f"Only a submitted change request can be approved (this one is "
+                f"'{self.status}')."
+            )
+        if approver is None:
+            raise DjangoValidationError("An approver is required.")
+        if self.requested_by_id and approver.pk == self.requested_by_id:
+            raise DjangoValidationError(
+                "The requester cannot approve their own change request."
+            )
+        with db_transaction.atomic():
+            project = self.project
+            if self.budget_delta:
+                project.budget = Decimal(project.budget or 0) + Decimal(self.budget_delta)
+            if self.end_date_delta_days and project.end_date:
+                project.end_date = project.end_date + timedelta(days=self.end_date_delta_days)
+            project.save(update_fields=["budget", "end_date"])
+            self.status = "Approved"
+            self.approved_by = approver
+            self.decided_at = timezone.now()
+            self.save(update_fields=["status", "approved_by", "decided_at"])
+        return True, "تم اعتماد طلب التغيير / Change request approved"
+
+    def reject(self, approver):
+        from django.utils import timezone
+
+        if self.status != "Submitted":
+            raise DjangoValidationError("Only a submitted change request can be rejected.")
+        self.status = "Rejected"
+        self.approved_by = approver
+        self.decided_at = timezone.now()
+        self.save(update_fields=["status", "approved_by", "decided_at"])
+        return True, "تم رفض طلب التغيير / Change request rejected"

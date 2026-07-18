@@ -475,6 +475,7 @@ class Payroll(models.Model):
                     continue
                 JournalEntry.objects.create(
                     company=company,
+                    branch=self.employee.branch,
                     entry_number=f"PAYROLL-{self.pk}-{i+1}",
                     posting_date=post_date,
                     reference=f"Payroll {self.employee} ({self.pay_period_start} to {self.pay_period_end})",
