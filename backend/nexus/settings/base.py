@@ -280,6 +280,7 @@ CELERY_TIMEZONE = "UTC"
 
 # ── DRF ──────────────────────────────────────────
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",

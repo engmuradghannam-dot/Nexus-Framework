@@ -329,7 +329,12 @@ class JournalEntryLine(models.Model):
     journal_entry = models.ForeignKey(
         JournalEntry, on_delete=models.CASCADE, related_name="lines"
     )
-    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    account = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="journal_lines",
+        help_text="PROTECT: an account carrying posted journal lines cannot "
+        "be deleted — doing so would erase ledger history and unbalance the "
+        "entries that reference it.",
+    )
     debit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     credit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     description = models.TextField(blank=True)

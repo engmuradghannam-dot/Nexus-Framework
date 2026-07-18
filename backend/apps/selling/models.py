@@ -142,7 +142,9 @@ class SalesOrder(models.Model):
         Company, on_delete=models.CASCADE, related_name="sales_orders"
     )
     customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="sales_orders"
+        Customer, on_delete=models.PROTECT, related_name="sales_orders",
+        help_text="PROTECT: a customer with sales orders cannot be deleted — "
+        "the orders are a business record of the relationship.",
     )
     so_number = models.CharField(max_length=100, unique=True)
     transaction_date = models.DateField()
@@ -445,7 +447,11 @@ class SalesOrderItem(models.Model):
     sales_order = models.ForeignKey(
         SalesOrder, on_delete=models.CASCADE, related_name="items"
     )
-    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    item = models.ForeignKey(
+        Item, on_delete=models.PROTECT,
+        help_text="PROTECT: an item that appears on a sales order line cannot "
+        "be deleted — the order is a business record of what was sold.",
+    )
     qty = models.DecimalField(
         max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
     )

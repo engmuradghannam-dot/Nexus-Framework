@@ -306,7 +306,12 @@ class StockEntry(models.Model):
     ]
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
+    warehouse = models.ForeignKey(
+        Warehouse, on_delete=models.PROTECT,
+        help_text="PROTECT: a warehouse with stock movements cannot be deleted "
+        "— its StockEntry rows are the record of everything that moved through "
+        "it, and a movement with no warehouse is meaningless.",
+    )
     bin_location = models.ForeignKey(
         "core.BinLocation", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="stock_entries",
@@ -318,7 +323,11 @@ class StockEntry(models.Model):
     target_warehouse = models.ForeignKey(
         Warehouse, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
-    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    item = models.ForeignKey(
+        Item, on_delete=models.PROTECT,
+        help_text="PROTECT: an item with stock movements cannot be deleted — "
+        "its StockEntry rows are the audit trail of every receipt and issue.",
+    )
     entry_type = models.CharField(max_length=50, choices=ENTRY_TYPES)
     transaction_date = models.DateTimeField(auto_now_add=True)
     quantity = models.DecimalField(

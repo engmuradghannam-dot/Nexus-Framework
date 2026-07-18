@@ -113,7 +113,9 @@ class PurchaseOrder(models.Model):
         Company, on_delete=models.CASCADE, related_name="purchase_orders"
     )
     supplier = models.ForeignKey(
-        Supplier, on_delete=models.CASCADE, related_name="purchase_orders"
+        Supplier, on_delete=models.PROTECT, related_name="purchase_orders",
+        help_text="PROTECT: a supplier with purchase orders cannot be deleted "
+        "— the orders are procurement history.",
     )
     po_number = models.CharField(max_length=100, unique=True)
     transaction_date = models.DateField()
