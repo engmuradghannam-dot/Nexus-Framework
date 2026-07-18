@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.core.workflow import run_side_effect, validate_transition
 
-from .models import StockReservation  # noqa: F401
+from .models import CommissionRule, CustomerTier, StockReservation  # noqa: F401
 from .models import Customer, SalesOrder, SalesOrderItem, SalesPayment, SalesTaxCharge
 
 SO_TRANSITIONS = {
@@ -119,4 +119,16 @@ class StockReservationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StockReservation
+        fields = "__all__"
+
+
+class CustomerTierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerTier
+        fields = "__all__"
+
+
+class CommissionRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommissionRule
         fields = "__all__"

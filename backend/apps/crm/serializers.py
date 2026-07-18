@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import Lead, Opportunity
+from .models import LeadScoringRule, Lead, Opportunity
 
 
 class LeadSerializer(serializers.ModelSerializer):
@@ -28,3 +28,9 @@ class OpportunitySerializer(serializers.ModelSerializer):
             except DjangoValidationError as exc:
                 raise serializers.ValidationError({"status": exc.messages[0]})
         return data
+
+
+class LeadScoringRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LeadScoringRule
+        fields = "__all__"

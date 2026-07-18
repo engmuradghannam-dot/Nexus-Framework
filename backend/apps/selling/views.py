@@ -5,9 +5,13 @@ from rest_framework.response import Response
 
 from apps.core.mixins import CompanyScopedMixin, LockAfterSubmitMixin
 
-from .models import StockReservation  # noqa: F401
+from .models import CommissionRule, CustomerTier, StockReservation  # noqa: F401
 from .models import Customer, SalesOrder, SalesOrderItem, SalesPayment, SalesTaxCharge
-from .serializers import StockReservationSerializer  # noqa: F401
+from .serializers import (  # noqa: F401
+    CommissionRuleSerializer,
+    CustomerTierSerializer,
+    StockReservationSerializer,
+)
 from .serializers import (
     CustomerSerializer,
     SalesOrderItemSerializer,
@@ -27,6 +31,19 @@ class SalesOrderViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     queryset = SalesOrder.objects.all()
     serializer_class = SalesOrderSerializer
     company_field = "company"
+    @action(detail=True, methods=["get"])
+    def commission(self, request, pk=None):
+        """CRM-CTRL-004: commission at whatever rate Sales configured."""
+        order = self.get_object()
+        rule = order.commission_rule()
+        return Response({
+            "so_number": order.so_number,
+            "grand_total": str(order.grand_total),
+            "rule": str(rule) if rule else None,
+            "rate_percent": str(rule.rate_percent) if rule else None,
+            "amount": str(order.commission_amount),
+        })
+
     @action(detail=True, methods=["get"])
     def availability(self, request, pk=None):
         """SAL-RULE-002/004: what this order can commit and what must wait."""
@@ -106,3 +123,19 @@ class SalesPaymentViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     serializer_class = SalesPaymentSerializer
     filterset_fields = ["sales_order"]
     company_field = "sales_order__company"
+
+
+class CustomerTierViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """SAL-RULE-005: Sales enters the tier thresholds here."""
+
+    queryset = CustomerTier.objects.select_related("company")
+    serializer_class = CustomerTierSerializer
+    company_field = "company"
+
+
+class CommissionRuleViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """CRM-CTRL-004: Sales enters the commission rates here."""
+
+    queryset = CommissionRule.objects.select_related("company", "sales_person", "tier")
+    serializer_class = CommissionRuleSerializer
+    company_field = "company"

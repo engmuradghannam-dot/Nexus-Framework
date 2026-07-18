@@ -9,6 +9,10 @@ from apps.core.mixins import CompanyScopedMixin, LockAfterSubmitMixin
 
 from .models import (
     GoodsReceipt,
+    LatePenaltyTerm,
+    SupplierScore,
+    SupplierScorecard,
+    SupplierScorecardCriterion,
     PurchaseRequisition,
     PurchaseRequisitionItem,
     GoodsReceiptItem,
@@ -20,6 +24,10 @@ from .models import (
 )
 from .serializers import (
     GoodsReceiptItemSerializer,
+    LatePenaltyTermSerializer,
+    SupplierScoreSerializer,
+    SupplierScorecardCriterionSerializer,
+    SupplierScorecardSerializer,
     PurchaseRequisitionItemSerializer,
     PurchaseRequisitionSerializer,
     GoodsReceiptSerializer,
@@ -55,6 +63,17 @@ class PurchaseOrderViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
         if user is not None and serializer.instance.created_by_id is None:
             serializer.instance.created_by = user
             serializer.instance.save(update_fields=["created_by"])
+
+    @action(detail=True, methods=["get"])
+    def late_penalty(self, request, pk=None):
+        """PRC-RULE-003: penalty under whatever terms Procurement agreed."""
+        order = self.get_object()
+        return Response({
+            "po_number": order.po_number,
+            "required_by": order.required_by,
+            "days_late": order.days_to_required_by * -1 if order.days_to_required_by else 0,
+            "penalty": str(order.late_penalty()),
+        })
 
     @action(detail=True, methods=["get"])
     def three_way_match(self, request, pk=None):
@@ -237,3 +256,34 @@ class ProcurementAlertViewSet(viewsets.ViewSet):
             "deliveries_due": deliveries,
             "contracts_expiring": contracts,
         })
+
+
+class SupplierScorecardCriterionViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """PRC-CTRL-003: Procurement enters the criteria and weights here."""
+
+    queryset = SupplierScorecardCriterion.objects.select_related("company")
+    serializer_class = SupplierScorecardCriterionSerializer
+    company_field = "company"
+
+
+class SupplierScorecardViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = SupplierScorecard.objects.select_related("supplier").prefetch_related("scores")
+    serializer_class = SupplierScorecardSerializer
+    filterset_fields = ["supplier"]
+    company_field = "supplier__company"
+
+
+class SupplierScoreViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    queryset = SupplierScore.objects.select_related("criterion")
+    serializer_class = SupplierScoreSerializer
+    filterset_fields = ["scorecard"]
+    company_field = "scorecard__supplier__company"
+
+
+class LatePenaltyTermViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """PRC-RULE-003: Procurement enters the contractual terms here."""
+
+    queryset = LatePenaltyTerm.objects.select_related("company", "supplier")
+    serializer_class = LatePenaltyTermSerializer
+    filterset_fields = ["supplier"]
+    company_field = "company"

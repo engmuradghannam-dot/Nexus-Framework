@@ -307,6 +307,39 @@ class PurchaseOrder(models.Model):
                 f"'{budget.name}'."
             )
 
+    def late_penalty(self, delivered_on=None):
+        """PRC-RULE-003: the penalty this late delivery attracts.
+
+        Returns 0 when no term is configured — silence in a contract means no
+        penalty, not a default one.
+        """
+        from datetime import date
+
+        if not self.required_by:
+            return Decimal(0)
+        delivered_on = delivered_on or date.today()
+        days_late = (delivered_on - self.required_by).days
+        if days_late <= 0:
+            return Decimal(0)
+        term = (
+            LatePenaltyTerm.objects.filter(
+                company=self.company, supplier=self.supplier, is_active=True
+            ).first()
+            or LatePenaltyTerm.objects.filter(
+                company=self.company, supplier__isnull=True, is_active=True
+            ).first()
+        )
+        if term is None:
+            return Decimal(0)
+        chargeable = max(days_late - term.grace_days, 0)
+        if chargeable <= 0:
+            return Decimal(0)
+        pct = min(
+            Decimal(chargeable) * Decimal(term.percent_per_day),
+            Decimal(term.max_percent),
+        )
+        return (Decimal(self.grand_total or 0) * pct / 100).quantize(Decimal("0.01"))
+
     def check_price_variance(self, threshold=Decimal("10")):
         """PRC-RULE-004: flag lines whose unit price moved more than `threshold`
         percent against the last submitted PO to this supplier for the same item.
@@ -752,3 +785,145 @@ class PurchaseRequisitionItem(models.Model):
 
     def __str__(self):
         return f"{self.item.item_code} x{self.qty}"
+
+
+class SupplierScorecardCriterion(models.Model):
+    """PRC-CTRL-003: what a supplier is scored on, as Procurement defines it.
+
+    The spec asks for a quarterly scorecard and names no criteria and no
+    weights. Those are a procurement judgement — what matters differs by what
+    you buy — so they're entered here rather than assumed in code.
+    """
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="scorecard_criteria"
+    )
+    name = models.CharField(max_length=100)
+    weight = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        help_text="Relative weight. Scores are normalised by the total weight, "
+        "so these need not sum to 100.",
+    )
+    max_score = models.PositiveSmallIntegerField(default=5)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-weight", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "name"], name="unique_scorecard_criterion_per_company"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} (weight {self.weight})"
+
+
+class SupplierScorecard(models.Model):
+    """One periodic evaluation of one supplier."""
+
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.CASCADE, related_name="scorecards"
+    )
+    period_start = models.DateField()
+    period_end = models.DateField()
+    evaluated_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="supplier_evaluations",
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-period_end", "-id"]
+
+    def __str__(self):
+        return f"{self.supplier.name} {self.period_start}–{self.period_end}"
+
+    @property
+    def weighted_score(self):
+        """Percentage score against the criteria and weights Procurement set.
+
+        Returns None when nothing has been scored — an unscored card has no
+        score, which is not the same as scoring zero.
+        """
+        lines = list(self.scores.select_related("criterion"))
+        if not lines:
+            return None
+        total_weight = sum((Decimal(l.criterion.weight) for l in lines), Decimal(0))
+        if total_weight <= 0:
+            return None
+        earned = sum(
+            (
+                Decimal(l.score) / Decimal(l.criterion.max_score)
+                * Decimal(l.criterion.weight)
+                for l in lines
+            ),
+            Decimal(0),
+        )
+        return (earned / total_weight * 100).quantize(Decimal("0.01"))
+
+
+class SupplierScore(models.Model):
+    scorecard = models.ForeignKey(
+        SupplierScorecard, on_delete=models.CASCADE, related_name="scores"
+    )
+    criterion = models.ForeignKey(
+        SupplierScorecardCriterion, on_delete=models.CASCADE, related_name="scores"
+    )
+    score = models.DecimalField(max_digits=6, decimal_places=2)
+    comment = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["scorecard", "criterion"], name="unique_score_per_criterion"
+            )
+        ]
+
+    def clean(self):
+        if self.score < 0 or self.score > self.criterion.max_score:
+            raise DjangoValidationError(
+                {"score": f"Score must be between 0 and {self.criterion.max_score}."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+
+class LatePenaltyTerm(models.Model):
+    """PRC-RULE-003: late-delivery penalty terms, as Procurement agrees them.
+
+    The spec says 'calculate penalty per contract terms' and defines no terms —
+    correctly, since they're contractual. A supplier-specific term overrides the
+    company default; a supplier with neither has no penalty, because none was
+    agreed.
+    """
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="late_penalty_terms"
+    )
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="penalty_terms",
+        help_text="Blank makes this the company-wide default.",
+    )
+    percent_per_day = models.DecimalField(
+        max_digits=6, decimal_places=3,
+        help_text="Percent of order value charged per day late.",
+    )
+    grace_days = models.PositiveIntegerField(default=0)
+    max_percent = models.DecimalField(
+        max_digits=6, decimal_places=2, default=Decimal("100"),
+        help_text="Cap on the total penalty, as a percent of order value.",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-supplier_id"]
+
+    def __str__(self):
+        scope = self.supplier.name if self.supplier else "default"
+        return f"{scope}: {self.percent_per_day}%/day after {self.grace_days}d"

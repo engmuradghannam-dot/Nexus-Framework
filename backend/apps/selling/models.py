@@ -49,6 +49,11 @@ class Customer(models.Model):
     CONSENT_MARKETING = "marketing"
     CONSENT_DATA_PROCESSING = "data_processing"
 
+    tier = models.ForeignKey(
+        "CustomerTier", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="customers",
+        help_text="SAL-RULE-005: maintained by recalculate_tier().",
+    )
     marketing_consent = models.BooleanField(
         default=False,
         help_text="CRM-CTRL-005: explicit opt-in. Defaults to False — consent "
@@ -60,6 +65,42 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+
+    def revenue_since(self, months):
+        """Delivered/invoiced value over a trailing window."""
+        from datetime import date, timedelta
+
+        from django.db.models import Sum
+
+        cutoff = date.today() - timedelta(days=int(30.44 * months))
+        total = SalesOrder.objects.filter(
+            customer=self, transaction_date__gte=cutoff,
+        ).exclude(status__in=["Draft", "Cancelled"]).aggregate(
+            t=Sum("grand_total")
+        )["t"]
+        return total or Decimal(0)
+
+    def qualifying_tier(self):
+        """SAL-RULE-005: the highest tier this customer's revenue reaches.
+
+        Returns None when no tier is configured, or when revenue reaches none of
+        them — a customer who qualifies for nothing has no tier rather than
+        being forced into the lowest one.
+        """
+        tiers = CustomerTier.objects.filter(company=self.company, is_active=True)
+        for tier in tiers.order_by("-min_annual_revenue"):
+            if self.revenue_since(tier.window_months) >= Decimal(tier.min_annual_revenue):
+                return tier
+        return None
+
+    def recalculate_tier(self):
+        """SAL-RULE-005. Only ever moves the customer to what they currently
+        qualify for; it never invents a tier where none is configured."""
+        new_tier = self.qualifying_tier()
+        if new_tier != self.tier:
+            self.tier = new_tier
+            self.save(update_fields=["tier"])
+        return self.tier
 
     def grant_consent(self, kind, actor=None):
         """CRM-CTRL-005: record an opt-in, with who and when."""
@@ -204,6 +245,41 @@ class SalesOrder(models.Model):
         return (Decimal(self.discount or 0) / Decimal(self.total_amount) * 100).quantize(
             Decimal("0.01")
         )
+
+    def commission_rule(self):
+        """CRM-CTRL-004: the most specific active rule that fits this order."""
+        rules = CommissionRule.objects.filter(
+            company=self.company, is_active=True,
+            min_order_value__lte=Decimal(self.grand_total or 0),
+        )
+        customer_tier_id = self.customer.tier_id
+        for filters in (
+            {"sales_person": self.sales_person, "tier_id": customer_tier_id},
+            {"sales_person": self.sales_person, "tier__isnull": True},
+            {"sales_person__isnull": True, "tier_id": customer_tier_id},
+            {"sales_person__isnull": True, "tier__isnull": True},
+        ):
+            if filters.get("sales_person") is None and "sales_person" in filters:
+                continue
+            match = rules.filter(**filters).order_by("-min_order_value").first()
+            if match:
+                return match
+        return None
+
+    @property
+    def commission_amount(self):
+        """CRM-CTRL-004: commission earned, at whatever rate Sales configured.
+
+        Returns 0 when no rule matches — not a default rate. There is no such
+        thing as a fallback commission percentage; inventing one would put money
+        in someone's pay that nobody agreed to.
+        """
+        rule = self.commission_rule()
+        if rule is None:
+            return Decimal(0)
+        return (
+            Decimal(self.grand_total or 0) * Decimal(rule.rate_percent) / 100
+        ).quantize(Decimal("0.01"))
 
     def check_credit_limit(self):
         """CRM-CTRL-001 / SAL-CTRL-001: block confirmation when the customer's
@@ -477,3 +553,83 @@ class ConsentLog(models.Model):
     def __str__(self):
         verb = "granted" if self.granted else "withdrew"
         return f"{self.customer.name} {verb} {self.consent_type}"
+
+
+class CustomerTier(models.Model):
+    """SAL-RULE-005: the loyalty tiers, as Sales defines them.
+
+    The spec says a customer is upgraded when they 'exceed the annual
+    threshold' and names no threshold — because the thresholds are Sales' to
+    set, not the code's to invent. This is where they set them.
+
+    A company with no tiers configured has no tiering, and nothing changes.
+    """
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="customer_tiers"
+    )
+    name = models.CharField(max_length=50)
+    min_annual_revenue = models.DecimalField(
+        max_digits=18, decimal_places=2,
+        help_text="Revenue over the trailing window at or above which this tier applies.",
+    )
+    discount_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        help_text="Standing discount this tier earns. Informational — SAL-CTRL-004 "
+        "still governs what needs approval.",
+    )
+    window_months = models.PositiveIntegerField(
+        default=12, help_text="How far back 'annual' reaches for this tier."
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-min_annual_revenue"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "name"], name="unique_customer_tier_per_company"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} (≥ {self.min_annual_revenue})"
+
+
+class CommissionRule(models.Model):
+    """CRM-CTRL-004: commission rates, as Sales defines them.
+
+    The spec asks for commission to be 'calculated per policy' and states no
+    policy. Rates are a compensation decision; hardcoding a guess would put an
+    invented number into someone's pay.
+
+    Rules resolve most-specific-first: a rule naming this salesperson beats a
+    tier-wide rule, which beats the company-wide catch-all.
+    """
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="commission_rules"
+    )
+    name = models.CharField(max_length=100)
+    sales_person = models.ForeignKey(
+        "hr.Employee", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="commission_rules",
+        help_text="Blank means the rule applies to everyone.",
+    )
+    tier = models.ForeignKey(
+        CustomerTier, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="commission_rules",
+        help_text="Blank means it applies regardless of customer tier.",
+    )
+    rate_percent = models.DecimalField(max_digits=6, decimal_places=3)
+    min_order_value = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0,
+        help_text="Orders below this earn nothing under this rule.",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-min_order_value"]
+
+    def __str__(self):
+        scope = self.sales_person or "everyone"
+        return f"{self.name}: {self.rate_percent}% for {scope}"

@@ -5,6 +5,10 @@ from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import (
     GoodsReceipt,
+    LatePenaltyTerm,
+    SupplierScore,
+    SupplierScorecard,
+    SupplierScorecardCriterion,
     PurchaseRequisition,
     PurchaseRequisitionItem,
     GoodsReceiptItem,
@@ -120,4 +124,34 @@ class PurchaseRequisitionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseRequisition
+        fields = "__all__"
+
+
+class SupplierScorecardCriterionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupplierScorecardCriterion
+        fields = "__all__"
+
+
+class SupplierScoreSerializer(serializers.ModelSerializer):
+    criterion_name = serializers.CharField(source="criterion.name", read_only=True)
+
+    class Meta:
+        model = SupplierScore
+        fields = "__all__"
+
+
+class SupplierScorecardSerializer(serializers.ModelSerializer):
+    scores = SupplierScoreSerializer(many=True, read_only=True)
+    weighted_score = serializers.ReadOnlyField()
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+
+    class Meta:
+        model = SupplierScorecard
+        fields = "__all__"
+
+
+class LatePenaltyTermSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LatePenaltyTerm
         fields = "__all__"
