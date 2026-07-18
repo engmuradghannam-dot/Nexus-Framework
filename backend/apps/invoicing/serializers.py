@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.core.nested import NestedLineItemsMixin
+
 from .models import Invoice, InvoiceItem
 
 
@@ -8,10 +10,19 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         model = InvoiceItem
         fields = "__all__"
         read_only_fields = ["amount", "tax_amount"]
+        extra_kwargs = {
+            # Supplied by the parent when nested; required when posted standalone.
+            "invoice": {"required": False},
+        }
 
 
-class InvoiceSerializer(serializers.ModelSerializer):
-    line_items = InvoiceItemSerializer(many=True, read_only=True)
+class InvoiceSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
+    line_items = InvoiceItemSerializer(many=True, required=False)
+
+    lines_field = "line_items"
+    lines_model = InvoiceItem
+    lines_parent = "invoice"
+    editable_statuses = ("draft",)  # posted/cancelled invoices are immutable
     creditable_remaining = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
     outstanding = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
     base_total = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)

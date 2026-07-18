@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.nested import NestedLineItemsMixin
+
 from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import (
@@ -40,6 +42,7 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseOrderItem
         fields = "__all__"
+        extra_kwargs = {"purchase_order": {"required": False}}
 
 
 class PurchaseTaxChargeSerializer(serializers.ModelSerializer):
@@ -54,11 +57,16 @@ class PurchasePaymentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class PurchaseOrderSerializer(serializers.ModelSerializer):
+class PurchaseOrderSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
     total_tax = serializers.ReadOnlyField()
     total_paid = serializers.ReadOnlyField()
     outstanding_amount = serializers.ReadOnlyField()
+    items = PurchaseOrderItemSerializer(many=True, required=False)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+
+    lines_field = "items"
+    lines_model = PurchaseOrderItem
+    lines_parent = "purchase_order"
     warehouse_name = serializers.CharField(source="warehouse.name", read_only=True, default="")
 
     class Meta:

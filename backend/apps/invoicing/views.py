@@ -6,8 +6,8 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import CreditNote, Invoice, Payment
-from .serializers import CreditNoteSerializer, InvoiceSerializer, PaymentSerializer
+from .models import InvoiceItem, CreditNote, Invoice, Payment
+from .serializers import InvoiceItemSerializer, CreditNoteSerializer, InvoiceSerializer, PaymentSerializer
 from apps.core.mixins import CompanyScopedMixin
 from apps.tenants.mixins import TenantScopedMixin
 
@@ -156,3 +156,38 @@ class PaymentViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ReadOnlyMod
         qs = super().get_queryset()
         inv = self.request.query_params.get("invoice")
         return qs.filter(invoice=inv) if inv else qs
+
+
+class InvoiceItemViewSet(TenantScopedMixin, CompanyScopedMixin, viewsets.ModelViewSet):
+    """Standalone line editing.
+
+    Lines are normally sent nested inside the invoice, but there was no way to
+    touch an individual line at all — no endpoint existed. This gives the UI a
+    handle on one row without resubmitting the whole document.
+    """
+
+    queryset = InvoiceItem.objects.select_related("invoice", "item")
+    serializer_class = InvoiceItemSerializer
+    filterset_fields = ["invoice"]
+    company_field = "invoice__company"
+    tenant_field = "invoice__tenant"
+
+    def _assert_editable(self, invoice):
+        from rest_framework.exceptions import PermissionDenied
+
+        if invoice and invoice.status != "draft":
+            raise PermissionDenied(
+                f"Cannot change lines on a {invoice.status} invoice."
+            )
+
+    def perform_create(self, serializer):
+        self._assert_editable(serializer.validated_data.get("invoice"))
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._assert_editable(serializer.instance.invoice)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._assert_editable(instance.invoice)
+        instance.delete()

@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.nested import NestedLineItemsMixin
+
 from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import CommissionRule, CustomerTier, StockReservation  # noqa: F401
@@ -57,6 +59,7 @@ class SalesOrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalesOrderItem
         fields = "__all__"
+        extra_kwargs = {"sales_order": {"required": False}}
 
 
 class SalesTaxChargeSerializer(serializers.ModelSerializer):
@@ -71,11 +74,16 @@ class SalesPaymentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class SalesOrderSerializer(serializers.ModelSerializer):
+class SalesOrderSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
+    items = SalesOrderItemSerializer(many=True, required=False)
     total_tax = serializers.ReadOnlyField()
     total_paid = serializers.ReadOnlyField()
     outstanding_amount = serializers.ReadOnlyField()
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+
+    lines_field = "items"
+    lines_model = SalesOrderItem
+    lines_parent = "sales_order"
     warehouse_name = serializers.CharField(source="warehouse.name", read_only=True, default="")
 
     class Meta:
