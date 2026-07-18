@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from apps.core.mixins import CompanyScopedMixin, LockAfterSubmitMixin
 
 from .models import (
+    RFQ,
+    SupplierQuotation,
     GoodsReceipt,
     LatePenaltyTerm,
     SupplierScore,
@@ -23,6 +25,8 @@ from .models import (
     Supplier,
 )
 from .serializers import (
+    RFQSerializer,
+    SupplierQuotationSerializer,
     GoodsReceiptItemSerializer,
     LatePenaltyTermSerializer,
     SupplierScoreSerializer,
@@ -287,3 +291,50 @@ class LatePenaltyTermViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
     serializer_class = LatePenaltyTermSerializer
     filterset_fields = ["supplier"]
     company_field = "company"
+
+
+class RFQViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """Request for Quotation: source from several suppliers, compare, award."""
+
+    queryset = RFQ.objects.select_related("company", "branch", "warehouse").prefetch_related("items", "quotations")
+    serializer_class = RFQSerializer
+    filterset_fields = ["company", "status", "branch"]
+    company_field = "company"
+
+    @action(detail=True, methods=["get"])
+    def compare(self, request, pk=None):
+        """PRC: side-by-side comparison of received quotes, ranked by total."""
+        rfq = self.get_object()
+        return Response({
+            "rfq_number": rfq.rfq_number,
+            "status": rfq.status,
+            "quotes": rfq.compare_quotations(),
+        })
+
+    @action(detail=True, methods=["post"])
+    def award(self, request, pk=None):
+        """Award to one quotation (quotation_id) and raise a draft PO from it."""
+        rfq = self.get_object()
+        qid = request.data.get("quotation_id")
+        quotation = SupplierQuotation.objects.filter(pk=qid, rfq=rfq).first()
+        if quotation is None:
+            return Response({"detail": "quotation_id not found for this RFQ."}, status=400)
+        try:
+            po = rfq.award(quotation)
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=400)
+        return Response({
+            "detail": "RFQ awarded.",
+            "purchase_order_id": po.id,
+            "po_number": po.po_number,
+            "total": str(po.total_amount),
+        })
+
+
+class SupplierQuotationViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """A supplier's response to an RFQ, with priced lines."""
+
+    queryset = SupplierQuotation.objects.select_related("rfq", "supplier").prefetch_related("lines")
+    serializer_class = SupplierQuotationSerializer
+    filterset_fields = ["rfq", "supplier", "status"]
+    company_field = "rfq__company"

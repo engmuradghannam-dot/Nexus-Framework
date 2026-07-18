@@ -444,6 +444,18 @@ export const buyingApi = {
   removeTaxCharge: (id) => API.delete(`/buying/purchase-tax-charges/${id}/`),
   payments: (poId) => list(API.get('/buying/purchase-payments/', { params: { purchase_order: poId } })),
   addPayment: (p) => data(API.post('/buying/purchase-payments/', p)),
+  // ── RFQ sourcing cycle ──
+  rfqs: (filters) => list(API.get('/buying/rfqs/', { params: { page_size: 200, ...filters } })),
+  getRfq: (id) => data(API.get(`/buying/rfqs/${id}/`)),
+  createRfq: (p) => data(API.post('/buying/rfqs/', p)),
+  updateRfq: (id, p) => data(API.patch(`/buying/rfqs/${id}/`, p)),
+  deleteRfq: (id) => API.delete(`/buying/rfqs/${id}/`),
+  quotations: (rfqId) => list(API.get('/buying/supplier-quotations/', { params: { rfq: rfqId, page_size: 100 } })),
+  createQuotation: (p) => data(API.post('/buying/supplier-quotations/', p)),
+  compareRfq: (id) => data(API.get(`/buying/rfqs/${id}/compare/`)),
+  awardRfq: (id, quotationId) => data(API.post(`/buying/rfqs/${id}/award/`, { quotation_id: quotationId })),
+  suppliers: () => list(API.get('/buying/suppliers/', { params: { page_size: 200 } })),
+  itemsList: () => list(API.get('/inventory/items/', { params: { page_size: 500 } })),
 }
 
 // ════════ HR: employees, departments, leave, payroll ════════

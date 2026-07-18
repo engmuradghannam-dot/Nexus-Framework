@@ -1,91 +1,160 @@
 // pages/Purchasing/PurchasingPage.tsx
-import { useEffect, useMemo, useState } from 'react';
-import { ShoppingBag, Plus, RefreshCw, Send, CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ShoppingBag, Plus, RefreshCw, Award, BarChart3, Trash2 } from 'lucide-react';
 import { FluentCommandBar } from '../../components/FluentUI/FluentCommandBar';
+import { FluentCard } from '../../components/FluentUI/FluentCard';
 import { FluentTable } from '../../components/FluentUI/FluentTable';
-import { FluentStatsCard } from '../../components/FluentUI/FluentStatsCard';
 import { FluentBadge } from '../../components/FluentUI/FluentBadge';
 import { FluentPanel } from '../../components/FluentUI/FluentPanel';
-import { FluentFormField, FluentInput } from '../../components/FluentUI';
-import { purchasingApi } from '../../services/api';
+import { FluentFormField, FluentInput, FluentSelect } from '../../components/FluentUI';
+import { buyingApi } from '../../services/api';
 
-const TABS = [
-  { id: 'rfq', label: 'طلبات عروض الأسعار', action: 'تحويل لأمر شراء' },
-  { id: 'po', label: 'أوامر الشراء', action: 'فاتورة + استلام' },
-];
-const fmt = (n: any) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n: any) => n == null ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const STATUS: Record<string, any> = {
+  Draft: 'default', Sent: 'info', Quoted: 'warning', Awarded: 'success', Cancelled: 'danger',
+};
 
 export default function PurchasingPage() {
-  const [docs, setDocs] = useState<any[]>([]);
-  const [tab, setTab] = useState('rfq');
-  const [showPanel, setShowPanel] = useState(false);
-  const [form, setForm] = useState<any>({});
+  const [rfqs, setRfqs] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [showRfq, setShowRfq] = useState(false);
+  const [rfqForm, setRfqForm] = useState<any>({ lines: [{}] });
+  const [selected, setSelected] = useState<any>(null);
+  const [comparison, setComparison] = useState<any>(null);
+  const [showQuote, setShowQuote] = useState(false);
+  const [quoteForm, setQuoteForm] = useState<any>({});
   const [msg, setMsg] = useState('');
 
-  const reload = () => purchasingApi.list().then(setDocs).catch(() => {});
-  useEffect(reload, []);
-  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
-  const rows = useMemo(() => docs.filter((d) => d.doc_type === tab), [docs, tab]);
-  const meta = TABS.find((t) => t.id === tab)!;
+  const reload = () => buyingApi.rfqs().then(setRfqs).catch(() => setRfqs([]));
+  useEffect(() => {
+    reload();
+    buyingApi.itemsList().then(setItems).catch(() => {});
+    buyingApi.suppliers().then(setSuppliers).catch(() => {});
+  }, []);
 
-  const openNew = () => { setForm({ doc_type: tab, date: new Date().toISOString().slice(0, 10) }); setShowPanel(true); };
-  const save = async () => { try { await purchasingApi.create({ ...form, doc_type: tab }); setShowPanel(false); reload(); } catch { alert('تعذّر الحفظ.'); } };
-  const process = async (id: number) => {
-    try { const r = await purchasingApi.process(id); setMsg(r.message); reload(); setTimeout(() => setMsg(''), 4500); }
-    catch (e: any) { setMsg(e?.response?.data?.message || 'تعذّر'); setTimeout(() => setMsg(''), 4000); }
+  const addLine = () => setRfqForm((f: any) => ({ ...f, lines: [...(f.lines || []), {}] }));
+  const setLine = (i: number, k: string, v: any) => setRfqForm((f: any) => {
+    const lines = [...f.lines]; lines[i] = { ...lines[i], [k]: v }; return { ...f, lines };
+  });
+
+  const saveRfq = async () => {
+    try {
+      const payload = {
+        rfq_number: rfqForm.rfq_number, transaction_date: rfqForm.transaction_date,
+        response_deadline: rfqForm.response_deadline || null,
+        items: (rfqForm.lines || []).filter((l: any) => l.item && l.qty)
+          .map((l: any) => ({ item: Number(l.item), qty: l.qty, target_rate: l.target_rate || null })),
+      };
+      await buyingApi.createRfq(payload);
+      setShowRfq(false); setRfqForm({ lines: [{}] }); setMsg('تم إنشاء طلب عرض الأسعار'); reload();
+    } catch { setMsg('تعذّر الحفظ — تأكد من الرقم والبنود'); }
+  };
+
+  const openCompare = async (rfq: any) => {
+    setSelected(rfq);
+    const c = await buyingApi.compareRfq(rfq.id).catch(() => null);
+    setComparison(c);
+  };
+
+  const award = async (quotationId: number) => {
+    if (!selected) return;
+    try {
+      const r = await buyingApi.awardRfq(selected.id, quotationId);
+      setMsg(`تمت الترسية → أمر شراء ${r.po_number} بإجمالي ${fmt(r.total)}`);
+      setComparison(null); setSelected(null); reload();
+    } catch { setMsg('تعذّرت الترسية'); }
   };
 
   return (
     <div className="min-h-full" dir="rtl">
-      <FluentCommandBar title="دورة الشراء" subtitle="Purchasing — RFQ → أمر شراء → فاتورة شراء + استلام"
+      <FluentCommandBar title="دورة الشراء" subtitle="Purchasing — طلب عرض أسعار (RFQ) ← مقارنة الموردين ← ترسية ← أمر شراء ← استلام"
         commands={[
           { id: 'refresh', label: 'تحديث', icon: <RefreshCw size={16} />, variant: 'secondary', onClick: reload },
-          { id: 'new', label: 'مستند جديد', icon: <Plus size={16} />, variant: 'primary', onClick: openNew },
+          { id: 'new', label: 'طلب عرض أسعار', icon: <Plus size={16} />, variant: 'primary', onClick: () => { setRfqForm({ lines: [{}], transaction_date: new Date().toISOString().slice(0, 10) }); setShowRfq(true); } },
         ]} />
+
       <div className="p-6 space-y-6">
-        {msg && <div className="flex items-center gap-2 rounded-md border border-[#107c10]/30 bg-[#f3faf3] px-4 py-2 text-sm text-[#107c10]"><CheckCircle size={16} /> {msg}</div>}
-        <div className="grid grid-cols-2 gap-4">
-          {TABS.map((t) => <FluentStatsCard key={t.id} title={t.label} value={docs.filter((d) => d.doc_type === t.id).length} icon={<ShoppingBag size={20} />} color="blue" />)}
-        </div>
-        <div className="flex gap-1 border-b border-[#e1dfdd]">
-          {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-4 py-2 text-sm border-b-2 -mb-px ${tab === t.id ? 'border-[#0078d4] text-[#0078d4] font-medium' : 'border-transparent text-[#605e5c]'}`}>{t.label}</button>
-          ))}
-        </div>
+        {msg && <div className="bg-[#dff6dd] text-[#0b6a0b] text-sm px-4 py-2 rounded-sm">{msg}</div>}
+
         <FluentTable
-          title={meta.label}
-          subtitle={`${rows.length} مستند`}
+          title="طلبات عروض الأسعار"
+          subtitle="أرسل الطلب لعدة موردين، قارن عروضهم على الإجمالي وآجال التسليم، ثم رسِّ الأفضل"
           columns={[
-            { key: 'number', label: 'الرقم', sortable: true },
-            { key: 'supplier_name', label: 'المورّد' },
-            { key: 'date', label: 'التاريخ', sortable: true },
-            { key: 'item_name', label: 'الصنف' },
-            { key: 'quantity', label: 'الكمية' },
-            { key: 'total', label: 'الإجمالي', render: (v: any) => fmt(v) },
-            { key: 'status', label: 'الحالة', render: (v: string) => <FluentBadge label={v === 'draft' ? 'مسودة' : v === 'sent' ? 'مُرسل' : 'محوّل'} variant={v === 'draft' ? 'warning' : 'success'} size="small" /> },
-            { key: '__act', label: '', render: (_: any, row: any) => row.status !== 'converted'
-              ? <button onClick={(e) => { e.stopPropagation(); process(row.id); }} className="flex items-center gap-1 text-xs text-white bg-[#0078d4] px-2 py-1 rounded hover:bg-[#106ebe]"><Send size={12} /> {meta.action}</button>
-              : <span className="text-xs text-[#107c10]">✓ {row.linked_ref}</span> },
+            { key: 'rfq_number', label: 'الرقم' },
+            { key: 'transaction_date', label: 'التاريخ' },
+            { key: 'quotation_count', label: 'عروض', render: (v: number) => <FluentBadge label={`${v || 0}`} variant="info" size="small" /> },
+            { key: 'status', label: 'الحالة', render: (v: string) => <FluentBadge label={v} variant={STATUS[v] || 'default'} size="small" /> },
+            { key: '__cmp', label: '', render: (_: any, r: any) => (
+              <button onClick={(e) => { e.stopPropagation(); openCompare(r); }} className="flex items-center gap-1 text-[#0078d4] hover:bg-[#eff6fc] px-2 py-1 rounded text-xs">
+                <BarChart3 size={14} /> قارن ورسِّ
+              </button>
+            ) },
           ]}
-          data={rows}
+          data={rfqs}
+          emptyMessage="لا طلبات عروض أسعار بعد — ابدأ بإنشاء طلب"
         />
+
+        {selected && comparison && (
+          <FluentCard>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-sm text-[#323130]">مقارنة عروض {selected.rfq_number}</div>
+              <button onClick={() => { setSelected(null); setComparison(null); }} className="text-xs text-[#605e5c] hover:underline">إغلاق</button>
+            </div>
+            {comparison.quotes?.length ? (
+              <div className="space-y-2">
+                <p className="text-xs text-[#605e5c]">مرتّبة بالإجمalي. الأرخص ليس دائماً الأفضل — انظر آجال التسليم وشروط الدفع.</p>
+                {comparison.quotes.map((q: any) => (
+                  <div key={q.quotation_id} className={`flex items-center justify-between border rounded-sm p-3 ${q.is_lowest_total ? 'border-[#0b6a0b]/40 bg-[#f3faf3]' : 'border-[#e1dfdd]'}`}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{q.supplier}</span>
+                        {q.is_lowest_total && <FluentBadge label="الأقل إجمالاً" variant="success" size="small" />}
+                      </div>
+                      <div className="text-xs text-[#605e5c] mt-0.5">
+                        تسليم {q.lead_time_days ?? '—'} يوم · {q.payment_terms || '—'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-sm">{fmt(q.total)}</span>
+                      {selected.status !== 'Awarded' && (
+                        <button onClick={() => award(q.quotation_id)} className="flex items-center gap-1 bg-[#0078d4] text-white text-xs px-3 py-1.5 rounded hover:bg-[#106ebe]">
+                          <Award size={14} /> رسِّ
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-sm text-[#605e5c]">لا عروض مستلمة بعد لهذا الطلب.</p>}
+          </FluentCard>
+        )}
       </div>
-      <FluentPanel isOpen={showPanel} onClose={() => setShowPanel(false)} title={`${meta.label} — مستند جديد`}
+
+      <FluentPanel isOpen={showRfq} onClose={() => setShowRfq(false)} title="طلب عرض أسعار جديد"
         footer={<div className="flex gap-2 justify-end">
-          <button onClick={() => setShowPanel(false)} className="px-4 py-2 text-sm text-[#323130] border border-[#8a8886] rounded-sm hover:bg-[#f3f2f1]">إلغاء</button>
-          <button onClick={save} className="px-4 py-2 text-sm text-white bg-[#0078d4] rounded-sm hover:bg-[#106ebe]">حفظ</button>
+          <button onClick={() => setShowRfq(false)} className="px-4 py-2 text-sm border border-[#8a8886] rounded-sm hover:bg-[#f3f2f1]">إلغاء</button>
+          <button onClick={saveRfq} className="px-4 py-2 text-sm text-white bg-[#0078d4] rounded-sm hover:bg-[#106ebe]">حفظ</button>
         </div>}>
         <div className="space-y-3">
-          <FluentFormField label="رقم المستند"><FluentInput value={form.number || ''} onChange={(e) => set('number', e.target.value)} placeholder={tab === 'rfq' ? 'RFQ-0003' : 'PO-0003'} /></FluentFormField>
-          <FluentFormField label="المورّد"><FluentInput value={form.supplier_name || ''} onChange={(e) => set('supplier_name', e.target.value)} /></FluentFormField>
-          <FluentFormField label="التاريخ"><FluentInput type="date" value={form.date || ''} onChange={(e) => set('date', e.target.value)} /></FluentFormField>
-          <FluentFormField label="رمز الصنف"><FluentInput value={form.item_code || ''} onChange={(e) => set('item_code', e.target.value)} placeholder="IT-1001" /></FluentFormField>
-          <FluentFormField label="اسم الصنف"><FluentInput value={form.item_name || ''} onChange={(e) => set('item_name', e.target.value)} /></FluentFormField>
-          <FluentFormField label="الكمية"><FluentInput type="number" value={form.quantity || ''} onChange={(e) => set('quantity', e.target.value)} /></FluentFormField>
-          <FluentFormField label="سعر الوحدة"><FluentInput type="number" value={form.unit_price || ''} onChange={(e) => set('unit_price', e.target.value)} /></FluentFormField>
-          <FluentFormField label="المستودع"><FluentInput value={form.warehouse || ''} onChange={(e) => set('warehouse', e.target.value)} /></FluentFormField>
-          <p className="text-xs text-[#605e5c]">RFQ → يتحوّل لأمر شراء. أمر الشراء → ينشئ فاتورة شراء (ترحيل محاسبي) + استلام مخزني.</p>
+          <FluentFormField label="رقم الطلب"><FluentInput value={rfqForm.rfq_number || ''} onChange={(e) => setRfqForm((f: any) => ({ ...f, rfq_number: e.target.value }))} placeholder="RFQ-0001" /></FluentFormField>
+          <FluentFormField label="التاريخ"><FluentInput type="date" value={rfqForm.transaction_date || ''} onChange={(e) => setRfqForm((f: any) => ({ ...f, transaction_date: e.target.value }))} /></FluentFormField>
+          <FluentFormField label="آخر موعد للردود"><FluentInput type="date" value={rfqForm.response_deadline || ''} onChange={(e) => setRfqForm((f: any) => ({ ...f, response_deadline: e.target.value }))} /></FluentFormField>
+          <div className="border-t border-[#e1dfdd] pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">البنود المطلوبة</span>
+              <button onClick={addLine} className="text-xs text-[#0078d4] hover:underline flex items-center gap-1"><Plus size={12} /> بند</button>
+            </div>
+            {(rfqForm.lines || []).map((l: any, i: number) => (
+              <div key={i} className="flex gap-2 mb-2">
+                <FluentSelect value={l.item || ''} onChange={(e) => setLine(i, 'item', e.target.value)} className="flex-1">
+                  <option value="">— الصنف —</option>
+                  {items.map((it) => <option key={it.id} value={it.id}>{it.item_name}</option>)}
+                </FluentSelect>
+                <FluentInput type="number" value={l.qty || ''} onChange={(e) => setLine(i, 'qty', e.target.value)} placeholder="كمية" className="w-24" />
+              </div>
+            ))}
+          </div>
         </div>
       </FluentPanel>
     </div>

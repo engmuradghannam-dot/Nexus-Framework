@@ -929,3 +929,207 @@ class LatePenaltyTerm(models.Model):
     def __str__(self):
         scope = self.supplier.name if self.supplier else "default"
         return f"{scope}: {self.percent_per_day}%/day after {self.grace_days}d"
+
+
+class RFQ(models.Model):
+    """Request for Quotation — the sourcing step before committing to a PO.
+
+    Mirrors the standard procurement cycle (Odoo/SAP): a buyer sends one RFQ to
+    several suppliers, each returns a quotation with their own price, lead time
+    and terms, the buyer compares them on TOTAL cost — not unit price alone —
+    and the winning quote becomes a purchase order.
+
+    Buying previously jumped straight to the PO, so the sourcing and the
+    competition between suppliers happened outside the system, and the record of
+    who was asked and what they offered was lost.
+    """
+
+    STATUS_CHOICES = [
+        ("Draft", "Draft"),            # being prepared, not sent
+        ("Sent", "Sent"),              # issued to suppliers, awaiting quotes
+        ("Quoted", "Quoted"),          # at least one quote received
+        ("Awarded", "Awarded"),        # a quote was chosen and a PO raised
+        ("Cancelled", "Cancelled"),
+    ]
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="rfqs")
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.SET_NULL, null=True, blank=True)
+    rfq_number = models.CharField(max_length=100, unique=True)
+    transaction_date = models.DateField()
+    response_deadline = models.DateField(
+        null=True, blank=True,
+        help_text="Date by which suppliers should return their quotes.",
+    )
+    requisition = models.ForeignKey(
+        PurchaseRequisition, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="rfqs",
+        help_text="The requisition this RFQ sources, if it came from one.",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Draft")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-transaction_date", "-id"]
+
+    def __str__(self):
+        return self.rfq_number
+
+    def compare_quotations(self):
+        """Side-by-side comparison of every received quote.
+
+        Returns one entry per supplier quotation, ranked by total cost. The
+        cheapest total is flagged, but lead time and terms are returned too, so
+        the decision isn't made on unit price alone — the whole point of an RFQ
+        is that the lowest number isn't always the best deal.
+        """
+        quotes = list(
+            self.quotations.filter(status="Received").select_related("supplier")
+        )
+        rows = []
+        for q in quotes:
+            rows.append({
+                "quotation_id": q.id,
+                "supplier": q.supplier.name,
+                "total": q.total_amount,
+                "lead_time_days": q.lead_time_days,
+                "payment_terms": q.payment_terms,
+                "valid_until": q.valid_until,
+            })
+        rows.sort(key=lambda r: (r["total"] if r["total"] is not None else Decimal("9" * 18)))
+        for i, row in enumerate(rows):
+            row["is_lowest_total"] = (i == 0)
+        return rows
+
+    def award(self, quotation, approved_by=None):
+        """Award the RFQ to one quotation and raise a draft PO from it.
+
+        The PO is a Draft — PRC-CTRL-005 still requires an approver with the
+        right authority before it can be submitted. Winning the RFQ settles who
+        supplies and at what price; it doesn't authorise the spend.
+        """
+        if quotation.rfq_id != self.id:
+            raise DjangoValidationError("That quotation belongs to a different RFQ.")
+        if quotation.status != "Received":
+            raise DjangoValidationError("Only a received quotation can be awarded.")
+        if self.status == "Awarded":
+            raise DjangoValidationError("This RFQ has already been awarded.")
+
+        with transaction.atomic():
+            po = PurchaseOrder.objects.create(
+                company=self.company,
+                supplier=quotation.supplier,
+                branch=self.branch,
+                warehouse=self.warehouse,
+                po_number=f"PO-{self.rfq_number}",
+                transaction_date=self.transaction_date,
+                status="Draft",
+            )
+            for line in quotation.lines.select_related("rfq_line__item"):
+                PurchaseOrderItem.objects.create(
+                    purchase_order=po,
+                    item=line.rfq_line.item,
+                    qty=line.rfq_line.qty,
+                    rate=line.unit_price,
+                )
+            po.recalculate_totals()
+            quotation.status = "Awarded"
+            quotation.save(update_fields=["status"])
+            self.status = "Awarded"
+            self.save(update_fields=["status"])
+        return po
+
+
+class RFQItem(models.Model):
+    """A line on an RFQ: what we're asking suppliers to quote, and how much."""
+
+    rfq = models.ForeignKey(RFQ, on_delete=models.CASCADE, related_name="items")
+    item = models.ForeignKey(
+        "inventory.Item", on_delete=models.PROTECT, related_name="rfq_lines"
+    )
+    qty = models.DecimalField(
+        max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    target_rate = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True,
+        help_text="Optional expected/target price, for reference only.",
+    )
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.item.item_code} x{self.qty}"
+
+
+class SupplierQuotation(models.Model):
+    """One supplier's response to an RFQ — their price, lead time and terms.
+
+    Several of these hang off one RFQ, one per invited supplier, which is what
+    makes a real comparison possible.
+    """
+
+    STATUS_CHOICES = [
+        ("Pending", "Pending"),        # invited, no response yet
+        ("Received", "Received"),      # quote entered, comparable
+        ("Awarded", "Awarded"),        # chosen; became a PO
+        ("Declined", "Declined"),      # supplier declined or we rejected it
+    ]
+    rfq = models.ForeignKey(RFQ, on_delete=models.CASCADE, related_name="quotations")
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.PROTECT, related_name="quotations"
+    )
+    quote_number = models.CharField(max_length=100, blank=True)
+    quote_date = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    lead_time_days = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Days from order to delivery the supplier promises.",
+    )
+    payment_terms = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["rfq", "id"]
+        unique_together = ["rfq", "supplier"]
+
+    def __str__(self):
+        return f"{self.supplier.name} → {self.rfq.rfq_number}"
+
+    @property
+    def total_amount(self):
+        """Sum of this quote's priced lines. None when nothing is priced yet —
+        an unpriced quote has no total, which is not the same as a total of 0."""
+        lines = list(self.lines.all())
+        priced = [l for l in lines if l.unit_price is not None]
+        if not priced:
+            return None
+        return sum((Decimal(l.unit_price) * Decimal(l.rfq_line.qty) for l in priced), Decimal(0))
+
+
+class SupplierQuotationLine(models.Model):
+    """One supplier's price for one RFQ line.
+
+    Ties back to the RFQItem so every supplier is quoting the same requirement,
+    which is what makes the totals comparable.
+    """
+
+    quotation = models.ForeignKey(
+        SupplierQuotation, on_delete=models.CASCADE, related_name="lines"
+    )
+    rfq_line = models.ForeignKey(
+        RFQItem, on_delete=models.CASCADE, related_name="quotation_lines"
+    )
+    unit_price = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True,
+        help_text="This supplier's unit price for the RFQ line.",
+    )
+
+    class Meta:
+        ordering = ["id"]
+        unique_together = ["quotation", "rfq_line"]
+
+    def __str__(self):
+        return f"{self.rfq_line.item.item_code} @ {self.unit_price}"

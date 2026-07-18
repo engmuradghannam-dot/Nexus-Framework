@@ -20,7 +20,11 @@ from .models import (
     PurchaseOrderItem,
     PurchasePayment,
     PurchaseTaxCharge,
+    RFQ,
+    RFQItem,
     Supplier,
+    SupplierQuotation,
+    SupplierQuotationLine,
 )
 
 PO_TRANSITIONS = {
@@ -166,4 +170,61 @@ class SupplierScorecardSerializer(serializers.ModelSerializer):
 class LatePenaltyTermSerializer(serializers.ModelSerializer):
     class Meta:
         model = LatePenaltyTerm
+        fields = "__all__"
+
+
+class RFQItemSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.item_name", read_only=True)
+    item_code = serializers.CharField(source="item.item_code", read_only=True)
+    rfq = serializers.PrimaryKeyRelatedField(queryset=RFQ.objects.all(), required=False)
+
+    class Meta:
+        model = RFQItem
+        fields = "__all__"
+
+
+class RFQSerializer(NestedLineItemsMixin, CompanyConsistencyMixin, serializers.ModelSerializer):
+    items = RFQItemSerializer(many=True, required=False)
+    quotation_count = serializers.SerializerMethodField()
+
+    lines_field = "items"
+    lines_model = RFQItem
+    lines_parent = "rfq"
+    editable_statuses = ("Draft",)
+
+    class Meta:
+        model = RFQ
+        fields = "__all__"
+
+    def get_quotation_count(self, obj):
+        return obj.quotations.count()
+
+
+class SupplierQuotationLineSerializer(serializers.ModelSerializer):
+    item_code = serializers.CharField(source="rfq_line.item.item_code", read_only=True)
+    qty = serializers.DecimalField(source="rfq_line.qty", max_digits=18, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = SupplierQuotationLine
+        fields = "__all__"
+        extra_kwargs = {"quotation": {"required": False}}
+        # The (quotation, rfq_line) unique_together generates a validator that
+        # requires 'quotation' to be present — but when nested, the parent
+        # doesn't exist yet, so we drop it. The DB constraint still enforces
+        # uniqueness.
+        validators = []
+
+
+class SupplierQuotationSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
+    lines = SupplierQuotationLineSerializer(many=True, required=False)
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    total_amount = serializers.ReadOnlyField()
+
+    lines_field = "lines"
+    lines_model = SupplierQuotationLine
+    lines_parent = "quotation"
+    editable_statuses = ("Pending", "Received")
+
+    class Meta:
+        model = SupplierQuotation
         fields = "__all__"

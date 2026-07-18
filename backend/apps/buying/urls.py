@@ -2,6 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    RFQViewSet,
+    SupplierQuotationViewSet,
     LatePenaltyTermViewSet,
     SupplierScoreViewSet,
     SupplierScorecardCriterionViewSet,
@@ -26,6 +28,8 @@ router.register(r"purchase-tax-charges", PurchaseTaxChargeViewSet)
 router.register(r"purchase-payments", PurchasePaymentViewSet)
 router.register(r"goods-receipts", GoodsReceiptViewSet)
 router.register(r"goods-receipt-items", GoodsReceiptItemViewSet)
+router.register(r"rfqs", RFQViewSet)
+router.register(r"supplier-quotations", SupplierQuotationViewSet)
 router.register(r"purchase-requisitions", PurchaseRequisitionViewSet)
 router.register(r"purchase-requisition-items", PurchaseRequisitionItemViewSet)
 router.register(r"scorecard-criteria", SupplierScorecardCriterionViewSet)
