@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.consistency import CompanyConsistencyMixin
+
 from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import (
@@ -26,7 +28,7 @@ class ItemGroupSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ItemSerializer(serializers.ModelSerializer):
+class ItemSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
     stock_quantity = serializers.ReadOnlyField()
     item_group_name = serializers.CharField(source="item_group.name", read_only=True, default="")
 
@@ -35,7 +37,7 @@ class ItemSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class StockEntrySerializer(serializers.ModelSerializer):
+class StockEntrySerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.item_name", read_only=True)
     item_code = serializers.CharField(source="item.item_code", read_only=True)
     warehouse_name = serializers.CharField(source="warehouse.name", read_only=True, default="")
@@ -45,6 +47,7 @@ class StockEntrySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def validate(self, data):
+        data = super().validate(data)
         entry_type = data.get("entry_type", getattr(self.instance, "entry_type", None))
         item = data.get("item", getattr(self.instance, "item", None))
         quantity = data.get("quantity", getattr(self.instance, "quantity", None))

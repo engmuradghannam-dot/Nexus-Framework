@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.consistency import CompanyConsistencyMixin
+
 from apps.core.nested import NestedLineItemsMixin
 
 from apps.core.workflow import run_side_effect, validate_transition
@@ -42,17 +44,19 @@ class _DuplicatePartyMixin:
                 })
 
 
-class CustomerSerializer(_DuplicatePartyMixin, serializers.ModelSerializer):
+class CustomerSerializer(CompanyConsistencyMixin, _DuplicatePartyMixin, serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = "__all__"
 
     def validate(self, data):
+        data = super().validate(data)
         self._check_duplicates(data, Customer)
         return data
 
 
-class SalesOrderItemSerializer(serializers.ModelSerializer):
+class SalesOrderItemSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
+    owner_field = "sales_order"
     item_name = serializers.CharField(source="item.item_name", read_only=True)
     item_code = serializers.CharField(source="item.item_code", read_only=True)
 
@@ -74,7 +78,7 @@ class SalesPaymentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class SalesOrderSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
+class SalesOrderSerializer(CompanyConsistencyMixin, NestedLineItemsMixin, serializers.ModelSerializer):
     items = SalesOrderItemSerializer(many=True, required=False)
     total_tax = serializers.ReadOnlyField()
     total_paid = serializers.ReadOnlyField()
@@ -91,6 +95,7 @@ class SalesOrderSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
         fields = "__all__"
 
     def validate(self, data):
+        data = super().validate(data)
         new_status = data.get("status")
         if self.instance and new_status and new_status != self.instance.status:
             validate_transition(SO_TRANSITIONS, self.instance.status, new_status)

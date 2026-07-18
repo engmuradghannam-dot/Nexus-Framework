@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.consistency import CompanyConsistencyMixin
+
 from apps.core.nested import NestedLineItemsMixin
 
 from apps.core.workflow import run_side_effect, validate_transition
@@ -35,7 +37,8 @@ class SupplierSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+class PurchaseOrderItemSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
+    owner_field = "purchase_order"
     item_name = serializers.CharField(source="item.item_name", read_only=True)
     item_code = serializers.CharField(source="item.item_code", read_only=True)
 
@@ -57,7 +60,7 @@ class PurchasePaymentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class PurchaseOrderSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
+class PurchaseOrderSerializer(CompanyConsistencyMixin, NestedLineItemsMixin, serializers.ModelSerializer):
     total_tax = serializers.ReadOnlyField()
     total_paid = serializers.ReadOnlyField()
     outstanding_amount = serializers.ReadOnlyField()
@@ -74,6 +77,7 @@ class PurchaseOrderSerializer(NestedLineItemsMixin, serializers.ModelSerializer)
         fields = "__all__"
 
     def validate(self, data):
+        data = super().validate(data)
         new_status = data.get("status")
         if self.instance and new_status and new_status != self.instance.status:
             validate_transition(PO_TRANSITIONS, self.instance.status, new_status)
@@ -108,7 +112,7 @@ class GoodsReceiptItemSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class GoodsReceiptSerializer(serializers.ModelSerializer):
+class GoodsReceiptSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
     items = GoodsReceiptItemSerializer(many=True, read_only=True)
     po_number = serializers.CharField(source="purchase_order.po_number", read_only=True)
 

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.core.consistency import CompanyConsistencyMixin
+
 from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import BOM, BOMItem, JobCard, QualityInspection, QualityInspectionParameter, WorkOrder
@@ -18,7 +20,7 @@ class BOMItemSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class BOMSerializer(serializers.ModelSerializer):
+class BOMSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
     items = BOMItemSerializer(many=True, read_only=True)
     raw_materials_cost = serializers.ReadOnlyField()
     total_cost = serializers.ReadOnlyField()
@@ -28,12 +30,13 @@ class BOMSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class WorkOrderSerializer(serializers.ModelSerializer):
+class WorkOrderSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
     class Meta:
         model = WorkOrder
         fields = "__all__"
 
     def validate(self, data):
+        data = super().validate(data)
         new_status = data.get("status")
         if self.instance and new_status and new_status != self.instance.status:
             validate_transition(WO_TRANSITIONS, self.instance.status, new_status)

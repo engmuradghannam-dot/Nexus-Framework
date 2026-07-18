@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.consistency import CompanyConsistencyMixin
+
 from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import Account, Budget, CostCenter, JournalEntry, JournalEntryLine
@@ -29,12 +31,13 @@ class JournalEntryLineSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class JournalEntrySerializer(serializers.ModelSerializer):
+class JournalEntrySerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
     class Meta:
         model = JournalEntry
         fields = "__all__"
 
     def validate(self, data):
+        data = super().validate(data)
         debit_account = data.get(
             "debit_account", getattr(self.instance, "debit_account", None)
         )
@@ -99,7 +102,7 @@ class CostCenterSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class BudgetSerializer(serializers.ModelSerializer):
+class BudgetSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
     variance = serializers.ReadOnlyField()
     variance_percentage = serializers.ReadOnlyField()
 
@@ -108,6 +111,7 @@ class BudgetSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def validate(self, data):
+        data = super().validate(data)
         start = data.get("start_date", getattr(self.instance, "start_date", None))
         end = data.get("end_date", getattr(self.instance, "end_date", None))
         if start and end and end < start:

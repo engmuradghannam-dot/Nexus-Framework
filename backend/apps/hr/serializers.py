@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.consistency import CompanyConsistencyMixin
+
 from apps.core.workflow import run_side_effect, validate_transition
 
 from .models import (  # noqa: F401
@@ -82,7 +84,7 @@ class SalaryVisibilityMixin:
         return data
 
 
-class EmployeeSerializer(SalaryVisibilityMixin, serializers.ModelSerializer):
+class EmployeeSerializer(CompanyConsistencyMixin, SalaryVisibilityMixin, serializers.ModelSerializer):
     department_name = serializers.CharField(source="department.name", read_only=True, default="")
     full_name = serializers.SerializerMethodField()
 
@@ -90,6 +92,7 @@ class EmployeeSerializer(SalaryVisibilityMixin, serializers.ModelSerializer):
 
     def validate(self, data):
         """HR-CTRL-002 is preventive: refuse the activation itself."""
+        data = super().validate(data)
         new_status = data.get("status", getattr(self.instance, "status", None))
         if new_status == "Active":
             probe = self.instance or Employee(**{

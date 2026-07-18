@@ -1,11 +1,14 @@
 from rest_framework import serializers
 
+from apps.core.consistency import CompanyConsistencyMixin
+
 from apps.core.nested import NestedLineItemsMixin
 
 from .models import Invoice, InvoiceItem
 
 
-class InvoiceItemSerializer(serializers.ModelSerializer):
+class InvoiceItemSerializer(CompanyConsistencyMixin, serializers.ModelSerializer):
+    owner_field = "invoice"
     class Meta:
         model = InvoiceItem
         fields = "__all__"
@@ -16,7 +19,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         }
 
 
-class InvoiceSerializer(NestedLineItemsMixin, serializers.ModelSerializer):
+class InvoiceSerializer(CompanyConsistencyMixin, NestedLineItemsMixin, serializers.ModelSerializer):
     line_items = InvoiceItemSerializer(many=True, required=False)
 
     lines_field = "line_items"
