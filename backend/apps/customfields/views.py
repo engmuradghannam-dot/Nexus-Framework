@@ -6,8 +6,12 @@ from rest_framework.response import Response
 from apps.tenants.mixins import TenantScopedMixin
 
 from .engine import FormulaError, evaluate_formula, resolve_lookup
-from .models import CustomField, CustomFieldValue
-from .serializers import CustomFieldSerializer, CustomFieldValueSerializer
+from .models import CustomControl, CustomControlRow, CustomField, CustomFieldValue
+from .serializers import (
+    CustomControlSerializer,
+    CustomFieldSerializer,
+    CustomFieldValueSerializer,
+)
 
 
 class CustomFieldViewSet(TenantScopedMixin, viewsets.ModelViewSet):
@@ -110,3 +114,88 @@ class CustomFieldValueViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         self._reject_if_computed(serializer.instance.field)
         serializer.save()
+
+
+class CustomControlViewSet(TenantScopedMixin, viewsets.ModelViewSet):
+    """Define controls — named groups of fields (sections or repeating tables)
+    — for any module, no code required."""
+
+    queryset = CustomControl.objects.filter(is_active=True).prefetch_related("fields")
+    serializer_class = CustomControlSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["module", "layout"]
+    pagination_class = None
+
+    def _compute_row(self, fields, stored):
+        """A row's values with formula/lookup fields computed from the row's
+        own stored inputs."""
+        out = {}
+        for f in fields:
+            if f.field_type == "formula":
+                try:
+                    out[f.field_key] = str(evaluate_formula(f.formula, stored))
+                except FormulaError as exc:
+                    out[f.field_key] = None
+            elif f.field_type == "lookup":
+                val = resolve_lookup(f, stored)
+                out[f.field_key] = str(val) if val is not None else None
+            else:
+                out[f.field_key] = stored.get(f.field_key)
+        return out
+
+    @action(detail=True, methods=["get", "post"],
+            url_path=r"records/(?P<record_id>[^/]+)")
+    def rows(self, request, pk=None, record_id=None):
+        """Read or replace the rows of a repeating control for one record.
+
+        GET  returns each row with formula/lookup fields computed.
+        POST accepts {"rows": [{field_key: value, ...}, ...]} and replaces the
+             control's rows for this record atomically. Computed fields in the
+             payload are ignored — they're derived, never stored.
+        """
+        from django.db import transaction
+
+        control = self.get_object()
+        fields = list(control.fields.filter(is_active=True).order_by("order", "id"))
+
+        if control.layout != "table":
+            return Response(
+                {"detail": "Rows apply only to a repeating (table) control."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if request.method == "POST":
+            incoming = request.data.get("rows", [])
+            with transaction.atomic():
+                CustomControlRow.objects.filter(
+                    control=control, record_id=str(record_id)
+                ).delete()  # cascades to that row's values
+                for idx, row_data in enumerate(incoming):
+                    row = CustomControlRow.objects.create(
+                        control=control, record_id=str(record_id), row_index=idx,
+                    )
+                    for f in fields:
+                        if f.is_computed:
+                            continue
+                        if f.field_key in row_data:
+                            CustomFieldValue.objects.create(
+                                field=f, record_id=str(record_id), row=row,
+                                value=row_data[f.field_key],
+                            )
+
+        rows_out = []
+        for row in CustomControlRow.objects.filter(
+            control=control, record_id=str(record_id)
+        ).order_by("row_index").prefetch_related("values__field"):
+            stored = {v.field.field_key: v.value for v in row.values.all()}
+            rows_out.append({"row_index": row.row_index, **self._compute_row(fields, stored)})
+
+        return Response({
+            "control": control.control_key,
+            "layout": control.layout,
+            "record_id": record_id,
+            "fields": [{"field_key": f.field_key, "label": f.label,
+                        "label_ar": f.label_ar, "field_type": f.field_type,
+                        "computed": f.is_computed} for f in fields],
+            "rows": rows_out,
+        })

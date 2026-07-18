@@ -289,6 +289,12 @@ export const customFieldsApi = {
   recordValues: (module, recordId) => data(API.get(`/customfields/fields/records/${module}/${recordId}/`)),
   // Save a record's input field values ({field_key: value}); computed fields are ignored server-side:
   saveRecordValues: (module, recordId, values) => data(API.post(`/customfields/fields/records/${module}/${recordId}/`, values)),
+  // ── Controls: grouped fields (section) or repeating tables of rows ──
+  listControls: (module) => data(API.get('/customfields/controls/', { params: module ? { module } : {} })),
+  createControl: (payload) => data(API.post('/customfields/controls/', payload)),
+  removeControl: (id) => API.delete(`/customfields/controls/${id}/`),
+  controlRows: (id, recordId) => data(API.get(`/customfields/controls/${id}/records/${recordId}/`)),
+  saveControlRows: (id, recordId, rows) => data(API.post(`/customfields/controls/${id}/records/${recordId}/`, { rows })),
 }
 
 // ════════ Pricing rules ════════
