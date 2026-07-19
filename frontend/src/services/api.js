@@ -188,6 +188,8 @@ export const accountingApi = {
 // ════════ Audit trail ════════
 export const auditApi = {
   logs: (params = {}) => list(API.get('/audit/logs/', { params: { page_size: 200, ...params } })),
+  // CDPOS/CDHDR change documents — queryable field-level history
+  changeDocs: (params = {}) => list(API.get('/audit/change-documents/', { params: { page_size: 200, ...params } })),
 }
 
 // ════════ Invoicing ════════
