@@ -82,6 +82,72 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(created, many=True)
         return Response(serializer.data)
 
+
+    @action(detail=False, methods=['get'])
+    def attendance_report(self, request):
+        from django.db.models import Count
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
+
+        attendances = Attendance.objects.all()
+        if month and year:
+            attendances = attendances.filter(date__year=year, date__month=month)
+
+        report = attendances.values('status').annotate(count=Count('id'))
+        total = attendances.count()
+
+        return Response({
+            "period": f"{year}-{month}" if month and year else "all",
+            "total_records": total,
+            "breakdown": list(report),
+            "present_rate": next((r['count'] for r in report if r['status'] == 'present'), 0) / total * 100 if total else 0
+        })
+
+    @action(detail=True, methods=['get'])
+    def leave_balance(self, request, pk=None):
+        employee = self.get_object()
+        leave_types = LeaveType.objects.all()
+        balances = []
+        for lt in leave_types:
+            used = LeaveRequest.objects.filter(employee=employee, leave_type=lt, status='approved').count()
+            balances.append({
+                "leave_type": lt.name,
+                "entitled": lt.days_per_year,
+                "used": used,
+                "remaining": lt.days_per_year - used
+            })
+        return Response({"employee": employee.full_name, "balances": balances})
+
+    @action(detail=False, methods=['get'])
+    def overtime_tracking(self, request):
+        # Calculate overtime based on attendance hours
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
+
+        attendances = Attendance.objects.filter(status='present')
+        if month and year:
+            attendances = attendances.filter(date__year=year, date__month=month)
+
+        overtime_data = []
+        for emp in Employee.objects.filter(status='active'):
+            emp_attendances = attendances.filter(employee=emp)
+            total_hours = 0
+            for att in emp_attendances:
+                if att.check_in and att.check_out:
+                    from datetime import datetime
+                    check_in = datetime.combine(att.date, att.check_in)
+                    check_out = datetime.combine(att.date, att.check_out)
+                    hours = (check_out - check_in).total_seconds() / 3600
+                    total_hours += max(0, hours - 8)  # overtime only
+
+            overtime_data.append({
+                "employee": emp.full_name,
+                "overtime_hours": round(total_hours, 2)
+            })
+
+        return Response({"month": month, "year": year, "overtime": overtime_data})
+
+
 class LeaveTypeViewSet(viewsets.ModelViewSet):
     queryset = LeaveType.objects.all()
     serializer_class = LeaveTypeSerializer

@@ -8,6 +8,7 @@ from .models import (
     AccountType, ChartOfAccounts, JournalEntry, JournalEntryLine,
     Invoice, InvoiceItem, Payment, FinancialReport
 )
+import uuid
 from .serializers import (
     AccountTypeSerializer, ChartOfAccountsSerializer, JournalEntrySerializer,
     JournalEntryLineSerializer, InvoiceSerializer, InvoiceItemSerializer,
@@ -178,6 +179,116 @@ class PaymentViewSet(viewsets.ModelViewSet):
             invoice.save()
 
         return Response({"status": "completed"})
+
+
+    @action(detail=False, methods=['post'])
+    def recurring_invoice(self, request):
+        invoice_id = request.data.get('invoice_id')
+        frequency = request.data.get('frequency', 'monthly')  # monthly, quarterly, yearly
+
+        if invoice_id:
+            try:
+                original = Invoice.objects.get(id=invoice_id)
+                from datetime import timedelta
+
+                intervals = {'monthly': 30, 'quarterly': 90, 'yearly': 365}
+                days = intervals.get(frequency, 30)
+
+                new_invoice = Invoice.objects.create(
+                    invoice_number=f"INV-{uuid.uuid4().hex[:8].upper()}",
+                    company=original.company,
+                    branch=original.branch,
+                    invoice_type=original.invoice_type,
+                    customer_name=original.customer_name,
+                    customer_email=original.customer_email,
+                    date=original.date + timedelta(days=days),
+                    due_date=original.due_date + timedelta(days=days),
+                    subtotal=original.subtotal,
+                    tax_rate=original.tax_rate,
+                    discount=original.discount,
+                    total=original.total,
+                    notes=f"Recurring invoice ({frequency}) based on {original.invoice_number}"
+                )
+
+                # Copy items
+                for item in original.items.all():
+                    InvoiceItem.objects.create(
+                        invoice=new_invoice,
+                        description=item.description,
+                        quantity=item.quantity,
+                        unit_price=item.unit_price,
+                        total=item.total
+                    )
+
+                serializer = self.get_serializer(new_invoice)
+                return Response({"status": "created", "invoice": serializer.data})
+            except Invoice.DoesNotExist:
+                return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "invoice_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'])
+    def bank_reconcile(self, request):
+        account_id = request.data.get('account_id')
+        statement_balance = request.data.get('statement_balance', 0)
+
+        if account_id:
+            try:
+                account = ChartOfAccounts.objects.get(id=account_id)
+                book_balance = account.current_balance
+                difference = book_balance - statement_balance
+
+                return Response({
+                    "account": account.name,
+                    "book_balance": book_balance,
+                    "statement_balance": statement_balance,
+                    "difference": difference,
+                    "reconciled": abs(difference) < 0.01
+                })
+            except ChartOfAccounts.DoesNotExist:
+                return Response({"error": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "account_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def multi_currency(self, request):
+        # Return exchange rates and multi-currency summary
+        currencies = ChartOfAccounts.objects.values('currency').annotate(
+            count=models.Count('id'),
+            total_balance=models.Sum('current_balance')
+        )
+        return Response({
+            "base_currency": "USD",
+            "exchange_rates": {
+                "USD": 1.0,
+                "EUR": 0.85,
+                "GBP": 0.73,
+                "SAR": 3.75,
+                "AED": 3.67
+            },
+            "accounts_by_currency": list(currencies)
+        })
+
+    @action(detail=False, methods=['get'])
+    def tax_report(self, request):
+        from datetime import date
+        year = request.query_params.get('year', date.today().year)
+
+        invoices = Invoice.objects.filter(date__year=year)
+        total_tax = sum(i.tax_amount for i in invoices)
+        total_sales = sum(i.subtotal for i in invoices.filter(invoice_type='sales'))
+        total_purchases = sum(i.subtotal for i in invoices.filter(invoice_type='purchase'))
+
+        return Response({
+            "year": year,
+            "total_tax_collected": total_tax,
+            "total_sales": total_sales,
+            "total_purchases": total_purchases,
+            "taxable_amount": total_sales - total_purchases,
+            "tax_by_quarter": [
+                {"quarter": f"Q{i}", "tax": sum(i.tax_amount for i in invoices.filter(date__quarter=i))}
+                for i in range(1, 5)
+            ]
+        })
+
 
 class FinancialReportViewSet(viewsets.ModelViewSet):
     queryset = FinancialReport.objects.all()

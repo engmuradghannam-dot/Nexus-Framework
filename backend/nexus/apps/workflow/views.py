@@ -100,6 +100,84 @@ class ApprovalRequestViewSet(viewsets.ModelViewSet):
 
         return Response({"status": "rejected"})
 
+
+    @action(detail=True, methods=['post'])
+    def conditional_check(self, request, pk=None):
+        approval = self.get_object()
+        step = approval.current_step
+
+        if step.condition_field and step.condition_value:
+            # Check condition on content_object
+            obj = approval.content_object
+            field_value = getattr(obj, step.condition_field, None)
+            condition_met = str(field_value) == step.condition_value
+
+            return Response({
+                "condition_met": condition_met,
+                "field": step.condition_field,
+                "expected": step.condition_value,
+                "actual": field_value
+            })
+        return Response({"condition_met": True, "reason": "no condition set"})
+
+    @action(detail=True, methods=['post'])
+    def auto_escalate(self, request, pk=None):
+        approval = self.get_object()
+        step = approval.current_step
+
+        if step.auto_approve_after > 0:
+            from datetime import timedelta
+            deadline = approval.created_at + timedelta(hours=step.auto_approve_after)
+            if timezone.now() > deadline:
+                ApprovalAction.objects.create(
+                    request=approval,
+                    step=step,
+                    actor=request.user,
+                    action='approved',
+                    comments='Auto-approved after deadline'
+                )
+                approval.status = 'approved'
+                approval.completed_at = timezone.now()
+                approval.save()
+                return Response({"status": "auto-approved"})
+            return Response({"status": "pending", "deadline": deadline})
+        return Response({"error": "auto-escalation not configured"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def delegate(self, request, pk=None):
+        approval = self.get_object()
+        delegate_to_id = request.data.get('user_id')
+        if delegate_to_id:
+            from django.contrib.auth.models import User
+            try:
+                delegate = User.objects.get(id=delegate_to_id)
+                ApprovalAction.objects.create(
+                    request=approval,
+                    step=approval.current_step,
+                    actor=request.user,
+                    action='delegated',
+                    comments=f'Delegated to {delegate.username}'
+                )
+                approval.current_step.approvers.add(delegate)
+                return Response({"status": "delegated", "to": delegate.username})
+            except User.DoesNotExist:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "user_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'])
+    def send_reminder(self, request):
+        request_id = request.data.get('request_id')
+        if request_id:
+            approval = ApprovalRequest.objects.get(id=request_id)
+            approvers = approval.current_step.approvers.all()
+            return Response({
+                "status": "reminders sent",
+                "approvers": [u.username for u in approvers],
+                "request": approval.title
+            })
+        return Response({"error": "request_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class ApprovalActionViewSet(viewsets.ModelViewSet):
     queryset = ApprovalAction.objects.all()
     serializer_class = ApprovalActionSerializer

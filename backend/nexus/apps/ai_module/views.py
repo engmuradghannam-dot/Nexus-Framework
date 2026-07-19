@@ -103,6 +103,67 @@ class AIConversationViewSet(viewsets.ModelViewSet):
         # Send first message
         return self.send_message(request, pk=conversation.id)
 
+
+    @action(detail=True, methods=['post'])
+    def stream_message(self, request, pk=None):
+        conversation = self.get_object()
+        content = request.data.get('content', '')
+        if not content:
+            return Response({"error": "content required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save user message
+        AIMessage.objects.create(conversation=conversation, role='user', content=content)
+
+        # Return streaming response placeholder
+        return Response({
+            "status": "streaming",
+            "conversation_id": conversation.id,
+            "message": "Use WebSocket for streaming"
+        })
+
+    @action(detail=True, methods=['post'])
+    def switch_model(self, request, pk=None):
+        conversation = self.get_object()
+        model_id = request.data.get('model_id')
+        if model_id:
+            try:
+                model = AIModel.objects.get(id=model_id)
+                conversation.model = model
+                conversation.save()
+                return Response({"status": "model switched", "model": model.name})
+            except AIModel.DoesNotExist:
+                return Response({"error": "Model not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "model_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def export_conversation(self, request, pk=None):
+        conversation = self.get_object()
+        messages = conversation.messages.all()
+        data = {
+            "title": conversation.title,
+            "model": conversation.model.name,
+            "created_at": conversation.created_at,
+            "messages": [{"role": m.role, "content": m.content, "timestamp": m.created_at} for m in messages]
+        }
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def usage_stats(self, request):
+        from django.db.models import Count, Sum
+        stats = AIMessage.objects.aggregate(
+            total_messages=Count('id'),
+            total_tokens=Sum('tokens_used')
+        )
+        by_model = AIMessage.objects.values('conversation__model__name').annotate(
+            count=Count('id'),
+            tokens=Sum('tokens_used')
+        )
+        return Response({
+            "overall": stats,
+            "by_model": list(by_model)
+        })
+
+
 class AIMessageViewSet(viewsets.ModelViewSet):
     queryset = AIMessage.objects.all()
     serializer_class = AIMessageSerializer

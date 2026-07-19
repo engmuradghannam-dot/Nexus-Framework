@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
+from django.db.models import Q
 from .models import Company, Branch, Warehouse, SubWarehouse, Department, HRProfile
 from .serializers import (
     CompanySerializer, BranchSerializer, WarehouseSerializer,
@@ -55,6 +56,37 @@ class SubWarehouseViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(sub_warehouses, many=True)
             return Response(serializer.data)
         return Response({"error": "warehouse_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        query = request.query_params.get('q', '')
+        companies = Company.objects.filter(
+            models.Q(name__icontains=query) | 
+            models.Q(description__icontains=query) |
+            models.Q(address__icontains=query)
+        )
+        serializer = self.get_serializer(companies, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def export_csv(self, request):
+        import csv
+        from django.http import HttpResponse
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="companies.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Name', 'Description', 'Address', 'Created'])
+        for company in Company.objects.all():
+            writer.writerow([company.id, company.name, company.description, company.address, company.created_at])
+        return response
+
+    @action(detail=False, methods=['post'])
+    def bulk_delete(self, request):
+        ids = request.data.get('ids', [])
+        deleted = Company.objects.filter(id__in=ids).delete()
+        return Response({"deleted": deleted[0]})
+
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()

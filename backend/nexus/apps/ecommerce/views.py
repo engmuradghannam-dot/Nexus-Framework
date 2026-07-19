@@ -98,6 +98,72 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.save()
         return Response({"status": "updated"})
 
+
+    @action(detail=True, methods=['post'])
+    def online_payment(self, request, pk=None):
+        order = self.get_object()
+        payment_method = request.data.get('payment_method', 'card')
+        # Simulate payment processing
+        payment = Payment.objects.create(
+            payment_number=f"PAY-{uuid.uuid4().hex[:8].upper()}",
+            company=order.customer,
+            invoice=None,
+            amount=order.total,
+            method=payment_method,
+            status='completed',
+            date=timezone.now().date()
+        )
+        order.payment_status = 'paid'
+        order.status = 'confirmed'
+        order.save()
+        return Response({"status": "paid", "payment_id": payment.id})
+
+    @action(detail=True, methods=['get'])
+    def shipping_track(self, request, pk=None):
+        order = self.get_object()
+        # Simulate shipping tracking
+        return Response({
+            "order": order.order_number,
+            "status": order.status,
+            "tracking_number": f"TRK-{order.id:06d}",
+            "estimated_delivery": "2026-08-01",
+            "history": [
+                {"status": "Order Placed", "date": order.created_at},
+                {"status": "Processing", "date": order.updated_at},
+                {"status": "Shipped", "date": None}
+            ]
+        })
+
+    @action(detail=False, methods=['get'])
+    def customer_portal(self, request):
+        customer_id = request.query_params.get('customer_id')
+        if customer_id:
+            orders = Order.objects.filter(customer_id=customer_id)
+            total_spent = sum(o.total for o in orders)
+            return Response({
+                "customer_id": customer_id,
+                "total_orders": orders.count(),
+                "total_spent": total_spent,
+                "recent_orders": OrderSerializer(orders[:5], many=True).data
+            })
+        return Response({"error": "customer_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def apply_discount(self, request, pk=None):
+        order = self.get_object()
+        discount_code = request.data.get('code', '')
+        # Simulate discount codes
+        discounts = {'SAVE10': 0.10, 'SAVE20': 0.20, 'HALF': 0.50}
+        discount_rate = discounts.get(discount_code.upper(), 0)
+
+        if discount_rate > 0:
+            order.discount = order.subtotal * discount_rate
+            order.total = order.subtotal + order.tax_amount - order.discount
+            order.save()
+            return Response({"status": "applied", "discount": order.discount, "new_total": order.total})
+        return Response({"error": "Invalid discount code"}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class POSessionViewSet(viewsets.ModelViewSet):
     queryset = POSession.objects.all()
     serializer_class = POSessionSerializer
