@@ -42,7 +42,7 @@ class WorkCenterViewSet(CompanyScopedViewSet):
 class BOMViewSet(CompanyScopedViewSet):
     queryset = BOM.objects.all()
     serializer_class = BOMSerializer
-    company_field = "product__company"
+    company_field = "company"
 
     @action(detail=False, methods=['get'])
     def by_product(self, request):
@@ -94,13 +94,13 @@ class BOMViewSet(CompanyScopedViewSet):
 class BOMItemViewSet(CompanyScopedViewSet):
     queryset = BOMItem.objects.all()
     serializer_class = BOMItemSerializer
-    company_field = "bom__product__company"
+    company_field = "bom__company"
 
 
 class RoutingViewSet(CompanyScopedViewSet):
     queryset = Routing.objects.all()
     serializer_class = RoutingSerializer
-    company_field = "product__company"
+    company_field = "company"
 
     @action(detail=False, methods=['get'])
     def by_product(self, request):
@@ -145,7 +145,7 @@ class RoutingViewSet(CompanyScopedViewSet):
 class RoutingOperationViewSet(CompanyScopedViewSet):
     queryset = RoutingOperation.objects.all()
     serializer_class = RoutingOperationSerializer
-    company_field = "routing__product__company"
+    company_field = "routing__company"
 
 
 class ManufacturingOrderViewSet(CompanyScopedViewSet):

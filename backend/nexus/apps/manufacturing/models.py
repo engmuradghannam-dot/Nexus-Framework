@@ -32,6 +32,7 @@ class WorkCenter(models.Model):
 class BOM(models.Model):
     """Bill of Materials"""
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='boms')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='boms', null=True, blank=True)
     version = models.CharField(max_length=20, default='1.0')
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
@@ -86,6 +87,7 @@ class BOMItem(models.Model):
 class Routing(models.Model):
     """Production routing / operations sequence"""
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='routings')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='routings', null=True, blank=True)
     name = models.CharField(max_length=255)
     version = models.CharField(max_length=20, default='1.0')
     is_active = models.BooleanField(default=True)
