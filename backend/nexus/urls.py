@@ -1,6 +1,8 @@
 """Nexus Framework URL Configuration"""
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from graphene_django.views import GraphQLView
+from nexus.apps.api_infra.schema import schema
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -17,4 +19,5 @@ urlpatterns = [
     path('api/accounting/', include('nexus.apps.accounting.urls')),
     path('api/infra/', include('nexus.apps.api_infra.urls')),
     path('api/docs/', include('nexus.yasg')),
+    path('api/graphql/', GraphQLView.as_view(graphiql=True, schema=schema)),
 ]

@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'channels',
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
@@ -71,6 +72,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'nexus.wsgi.application'
+ASGI_APPLICATION = 'nexus.asgi.application'
 
 # Database
 DATABASES = {
@@ -202,4 +204,22 @@ REST_FRAMEWORK = {
 ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+}
+
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_VERSIONING_CLASS': 'nexus.apps.api_infra.versioning.NexusURLPathVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1', 'v2', 'v3'],
+    'VERSION_PARAM': 'version',
 }
