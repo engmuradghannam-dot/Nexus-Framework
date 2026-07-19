@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'nexus.apps.ecommerce',
     'nexus.apps.workflow',
     'nexus.apps.permissions',
+    'nexus.apps.accounting',
 ]
 
 MIDDLEWARE = [

@@ -60,4 +60,13 @@ export const getFieldPermissions = () => api.get('/permissions/field-permissions
 export const getRecordPermissions = () => api.get('/permissions/record-permissions/');
 export const getPermissionAudit = () => api.get('/permissions/audit/');
 
+
+// Accounting
+export const getChartOfAccounts = () => api.get('/accounting/chart-of-accounts/');
+export const getJournalEntries = () => api.get('/accounting/journal-entries/');
+export const getInvoices = () => api.get('/accounting/invoices/');
+export const getPayments = () => api.get('/accounting/payments/');
+export const getFinancialReports = () => api.get('/accounting/financial-reports/');
+export const getInvoiceStats = () => api.get('/accounting/invoices/dashboard_stats/');
+
 export default api;

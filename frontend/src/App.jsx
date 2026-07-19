@@ -13,6 +13,7 @@ import HR from './pages/HR';
 import POS from './pages/POS';
 import Workflow from './pages/Workflow';
 import Permissions from './pages/Permissions';
+import Accounting from './pages/Accounting';
 
 const theme = createTheme({
   palette: {
@@ -39,6 +40,7 @@ function App() {
             <Route path="/pos" element={<POS />} />
             <Route path="/workflow" element={<Workflow />} />
             <Route path="/permissions" element={<Permissions />} />
+            <Route path="/accounting" element={<Accounting />} />
           </Routes>
         </Layout>
       </BrowserRouter>
