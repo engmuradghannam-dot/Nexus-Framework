@@ -92,6 +92,7 @@ const navGroups: NavGroup[] = [
       { path: '/roles', icon: Shield, label: 'الأدوار والصلاحيات' },
       { path: '/security', icon: ShieldCheck, label: 'الأمان (2FA)' },
       { path: '/audit', icon: History, label: 'سجل التدقيق' },
+      { path: '/approvals', icon: ClipboardCheck, label: 'الموافقات' },
       { path: '/automation', icon: ClockIcon2, label: 'الأتمتة (مهام/Webhooks)' },
       { path: '/reports', icon: FileBarChart, label: 'منشئ التقارير' },
       { path: '/notifications', icon: Mail, label: 'البريد والرسائل' },

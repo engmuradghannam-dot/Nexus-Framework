@@ -489,3 +489,15 @@ export const crmApi = {
   createOpportunity: (p) => data(API.post('/crm/opportunities/', p)),
   updateOpportunity: (id, p) => data(API.patch(`/crm/opportunities/${id}/`, p)),
 }
+
+// ════════ Approvals — multi-level release strategies ════════
+export const approvalsApi = {
+  strategies: () => list(API.get('/approvals/strategies/')),
+  createStrategy: (p) => data(API.post('/approvals/strategies/', p)),
+  removeStrategy: (id) => API.delete(`/approvals/strategies/${id}/`),
+  pending: () => data(API.get('/approvals/requests/pending/')),
+  requests: (filters) => list(API.get('/approvals/requests/', { params: filters })),
+  getRequest: (id) => data(API.get(`/approvals/requests/${id}/`)),
+  act: (id, approve, comment) => data(API.post(`/approvals/requests/${id}/act/`, { approve, comment })),
+  roles: () => list(API.get('/rbac/roles/', { params: { page_size: 200 } })),
+}
