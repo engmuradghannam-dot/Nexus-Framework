@@ -472,3 +472,6 @@ class AccountingPeriod(models.Model):
         self.status = "open"
         self.closed_at = None
         self.save(update_fields=["status", "closed_at"])
+
+# Parallel ledgers (additive — see parallel_ledgers.py)
+from .parallel_ledgers import Ledger, LedgerPosting, post_to_ledgers  # noqa: E402,F401
