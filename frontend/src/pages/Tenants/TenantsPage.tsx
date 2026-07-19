@@ -69,6 +69,9 @@ export default function TenantsPage() {
             { key: 'subdomain', label: 'النطاق الفرعي', render: (v: string) => v ? `${v}.nexus.app` : '—' },
             { key: 'plan', label: 'الباقة', render: (v: string) => { const m = planMeta[v]; return m ? <FluentBadge label={m.label} variant={m.variant} size="small" /> : v; } },
             { key: 'user_count', label: 'المستخدمون' },
+            { key: 'isolation', label: 'عزل البيانات', render: (v: string, r: any) => v === 'dedicated'
+              ? <FluentBadge label={`قاعدة خاصة (${r.db_alias})`} variant="success" size="small" />
+              : <FluentBadge label="قاعدة مشتركة" variant="default" size="small" /> },
             { key: 'is_active', label: 'الحالة', render: (v: boolean) => <FluentBadge label={v ? 'نشط' : 'معطّل'} variant={v ? 'success' : 'error'} size="small" /> },
           ]}
           data={tenants}
@@ -92,6 +95,16 @@ export default function TenantsPage() {
               <option value="enterprise">مؤسسي</option>
             </FluentSelect>
           </FluentFormField>
+          <div className="rounded-sm border border-[#e1dfdd] bg-[#faf9f8] p-3 space-y-2">
+            <FluentFormField label="قاعدة بيانات خاصة (اختياري)">
+              <FluentInput value={form.database_url || ''} onChange={(e) => set('database_url', e.target.value)} placeholder="postgres://user:pass@host/db" />
+            </FluentFormField>
+            <p className="text-xs text-[#605e5c] leading-relaxed">
+              اتركها فارغة ليستخدم المستأجر القاعدة المشتركة (عزل بالصفوف). عيّنها لتخصيص قاعدة فيزيائية منفصلة له.
+              بعد الحفظ، شغّل <code className="bg-white px-1 rounded">provision_tenant_db &lt;id&gt;</code> من الخادم لإنشاء الجداول فيها.
+              لأمانها، لا تُعرض القيمة بعد الحفظ — تظهر حالة العزل فقط.
+            </p>
+          </div>
           <p className="text-xs text-[#605e5c]">كل مستأجر بياناته معزولة تماماً — المستخدمون يرون بيانات مؤسستهم فقط.</p>
         </div>
       </FluentPanel>

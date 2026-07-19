@@ -77,3 +77,41 @@ class TestRegistration:
     def test_shared_tenant_registration_is_noop(self):
         t = Tenant.objects.create(name="S", slug="s", subdomain="s")
         assert register_tenant_db(t) == "default"
+
+
+@pytest.mark.django_db
+class TestTenantSerializerSafety:
+    """The isolation status is visible; the database DSN (with credentials) is
+    never echoed back."""
+
+    def _admin_client(self, django_user_model):
+        from rest_framework.test import APIClient
+        admin = django_user_model.objects.create_superuser(email="a@x.com", password="x")
+        c = APIClient()
+        c.force_authenticate(admin)
+        return c
+
+    def test_isolation_status_is_exposed(self, django_user_model):
+        c = self._admin_client(django_user_model)
+        t = Tenant.objects.create(name="S", slug="s2", subdomain="s2")
+        r = c.get(f"/api/tenancy/tenants/{t.id}/")
+        assert r.data["isolation"] == "shared"
+        assert r.data["db_alias"] == "default"
+        assert r.data["has_dedicated_db"] is False
+
+    def test_setting_database_url_flips_to_dedicated(self, django_user_model):
+        c = self._admin_client(django_user_model)
+        t = Tenant.objects.create(name="D", slug="d2", subdomain="d2")
+        r = c.patch(f"/api/tenancy/tenants/{t.id}/",
+                    {"database_url": "postgres://u:secret@h/db"}, format="json")
+        assert r.data["isolation"] == "dedicated"
+        assert r.data["db_alias"] == f"tenant_{t.id}"
+
+    def test_dsn_is_never_returned(self, django_user_model):
+        c = self._admin_client(django_user_model)
+        t = Tenant.objects.create(name="D", slug="d3", subdomain="d3")
+        r = c.patch(f"/api/tenancy/tenants/{t.id}/",
+                    {"database_url": "postgres://u:secret@h/db"}, format="json")
+        # The credential-bearing DSN must not appear anywhere in the response.
+        assert "secret" not in str(r.data)
+        assert "database_url" not in r.data
