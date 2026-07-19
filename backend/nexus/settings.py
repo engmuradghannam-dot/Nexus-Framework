@@ -9,8 +9,16 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+# Fail loud in production instead of running with a known-insecure key.
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only'
+    else:
+        raise RuntimeError("SECRET_KEY environment variable is required in production")
+
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
 
 # Application definition
@@ -35,8 +43,6 @@ INSTALLED_APPS = [
     'nexus.apps.permissions',
     'nexus.apps.accounting',
     'nexus.apps.api_infra',
-    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]
 
 MIDDLEWARE = [
@@ -57,9 +63,7 @@ ROOT_URLCONF = 'nexus.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -67,13 +71,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-],
+            ],
         },
     },
-    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]
 
 WSGI_APPLICATION = 'nexus.wsgi.application'
@@ -83,11 +83,13 @@ ASGI_APPLICATION = 'nexus.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'nexus',
+        'NAME': os.getenv('DB_NAME', 'nexus'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
+        'CONN_MAX_AGE': 600,
+        'ATOMIC_REQUESTS': True,
     }
 }
 
@@ -108,8 +110,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]
 
 # Internationalization
@@ -126,30 +126,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Security headers (enable in production)
-# SECURE_SSL_REDIRECT = True
-# SECURE_HSTS_SECONDS = 31536000
-# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# SECURE_HSTS_PRELOAD = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
-# SESSION_COOKIE_HTTPONLY = True
-# CSRF_COOKIE_HTTPONLY = True
-# X_FRAME_OPTIONS = 'DENY'
-# SECURE_BROWSER_XSS_FILTER = True
-# SECURE_CONTENT_TYPE_NOSNIFF = True
+# Security headers — active whenever DEBUG is off (i.e. in production)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
 
-# Database connection pooling
-DATABASES['default'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-]['CONN_MAX_AGE'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-] = 600
-DATABASES['default'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-]['ATOMIC_REQUESTS'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-] = True
+# Database connection pooling handled inline in DATABASES above.
 
 # Logging
 LOGGING = {
@@ -168,16 +160,12 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-],
+            'handlers': ['file', 'console'],
             'level': 'INFO',
             'propagate': True,
         },
         'nexus': {
-            'handlers': ['file', 'console'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-],
+            'handlers': ['file', 'console'],
             'level': 'INFO',
             'propagate': True,
         },
@@ -186,40 +174,30 @@ LOGGING = {
 
 # Email configuration (optional)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# EMAIL_HOST = os.getenv('EMAIL_HOST', '')
-# EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-# EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
-# EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-# EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
 # File upload limits
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 
-# Celery Configuration (when Redis is available)
-# CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
-# CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
-
-
 # CORS
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
 
-# DRF
+# DRF — single merged config (previously two REST_FRAMEWORK dicts, the second
+# silently overwrote the first and wiped auth/permissions/pagination).
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
-        'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-],
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-        'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
-    'nexus.apps.api_infra.tenancy.TenantMiddleware',
-],
+    ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_VERSIONING_CLASS': 'nexus.apps.api_infra.versioning.NexusURLPathVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1', 'v2', 'v3'],
+    'VERSION_PARAM': 'version',
 }
-
 
 CHANNEL_LAYERS = {
     'default': {
@@ -228,12 +206,4 @@ CHANNEL_LAYERS = {
             'hosts': [('127.0.0.1', 6379)],
         },
     },
-}
-
-
-REST_FRAMEWORK = {
-    'DEFAULT_VERSIONING_CLASS': 'nexus.apps.api_infra.versioning.NexusURLPathVersioning',
-    'DEFAULT_VERSION': 'v1',
-    'ALLOWED_VERSIONS': ['v1', 'v2', 'v3'],
-    'VERSION_PARAM': 'version',
 }

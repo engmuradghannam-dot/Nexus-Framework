@@ -19,7 +19,7 @@ services:
 
   backend:
     build: ./backend
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./backend:/app
     ports:
@@ -34,13 +34,11 @@ services:
 
   frontend:
     build: ./frontend
-    ports:
-      - "3000:3000"
+    command: npm start
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000/api
+    ports:
+      - "3000:3000"
     depends_on:
       - backend
 

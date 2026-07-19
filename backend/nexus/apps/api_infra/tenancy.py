@@ -1,15 +1,26 @@
+"""
+Tenancy — lightweight, FK/membership based.
+
+Previously this imported django_tenants (TenantMixin/DomainMixin, schema_context,
+connection.set_tenant) but the project was NEVER configured for it (no
+TENANT_MODEL, SHARED_APPS/TENANT_APPS, or DB router), so the app crashed on
+boot. Every domain model already isolates by a `company` FK, so tenancy here is
+plain models + membership; data isolation is enforced by
+`nexus.apps.api_infra.scoping.CompanyScopedViewSet`.
+
+If you later want true schema-per-tenant isolation, re-introduce django_tenants
+deliberately and configure it end-to-end — don't leave it half-wired.
+"""
 from django.db import models
 from django.contrib.auth.models import User
-from django.db import connection
-from django_tenants.models import TenantMixin, DomainMixin
-from django_tenants.utils import schema_context
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
-class Tenant(TenantMixin):
-    """Multi-tenant schema model"""
+
+class Tenant(models.Model):
+    """A customer workspace. `schema_name` is kept as a stable slug identifier."""
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     schema_name = models.CharField(max_length=63, unique=True)
@@ -17,8 +28,6 @@ class Tenant(TenantMixin):
     created_on = models.DateField(auto_now_add=True)
     paid_until = models.DateField(null=True, blank=True)
     plan = models.CharField(max_length=50, default='free')
-    auto_create_schema = True
-    auto_drop_schema = True
 
     class Meta:
         ordering = ['-created_on']
@@ -26,19 +35,23 @@ class Tenant(TenantMixin):
     def __str__(self):
         return f"{self.name} ({self.schema_name})"
 
-class Domain(DomainMixin):
-    """Domain routing for tenants"""
-    pass
+
+class Domain(models.Model):
+    """Domain routing for tenants."""
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='domains')
+    domain = models.CharField(max_length=253, unique=True)
+    is_primary = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.domain
+
 
 class TenantUser(models.Model):
-    """Link users to tenants with roles"""
+    """Link users to tenants with roles."""
     ROLE_CHOICES = [
-        ('owner', 'Owner'),
-        ('admin', 'Admin'),
-        ('manager', 'Manager'),
-        ('user', 'User'),
+        ('owner', 'Owner'), ('admin', 'Admin'),
+        ('manager', 'Manager'), ('user', 'User'),
     ]
-
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='users')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tenants')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
@@ -52,8 +65,16 @@ class TenantUser(models.Model):
         return f"{self.user.username} @ {self.tenant.name}"
 
 
+def user_is_member(user, tenant):
+    if not (user and user.is_authenticated):
+        return False
+    if user.is_superuser:
+        return True
+    return TenantUser.objects.filter(tenant=tenant, user=user, is_active=True).exists()
+
+
 class TenantViewSet(viewsets.ModelViewSet):
-    """Tenant management"""
+    """Tenant management — admin only."""
     queryset = Tenant.objects.all()
     permission_classes = [IsAdminUser]
 
@@ -61,93 +82,52 @@ class TenantViewSet(viewsets.ModelViewSet):
     def activate(self, request, pk=None):
         tenant = self.get_object()
         tenant.is_active = True
-        tenant.save()
+        tenant.save(update_fields=['is_active'])
         return Response({"status": "activated"})
 
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
         tenant = self.get_object()
         tenant.is_active = False
-        tenant.save()
+        tenant.save(update_fields=['is_active'])
         return Response({"status": "deactivated"})
-
-    @action(detail=True, methods=['post'])
-    def switch_schema(self, request, pk=None):
-        """Switch to tenant schema for current request"""
-        tenant = self.get_object()
-        with schema_context(tenant.schema_name):
-            # Test connection
-            from django.db import connection
-            cursor = connection.cursor()
-            cursor.execute("SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s", [tenant.schema_name])
-            exists = cursor.fetchone()
-            return Response({
-                "tenant": tenant.name,
-                "schema": tenant.schema_name,
-                "schema_exists": bool(exists),
-                "current_schema": connection.schema_name
-            })
-
-    @action(detail=True, methods=['get'])
-    def stats(self, request, pk=None):
-        tenant = self.get_object()
-        with schema_context(tenant.schema_name):
-            from nexus.apps.core.models import Company
-            from nexus.apps.hr.models import Employee
-            from nexus.apps.pmo.models import Project
-            from nexus.apps.accounting.models import Invoice
-
-            return Response({
-                "tenant": tenant.name,
-                "companies": Company.objects.count(),
-                "employees": Employee.objects.count(),
-                "projects": Project.objects.count(),
-                "invoices": Invoice.objects.count(),
-                "users": tenant.users.count()
-            })
 
     @action(detail=False, methods=['post'])
     def create_tenant(self, request):
-        """Create new tenant with schema"""
         name = request.data.get('name')
         schema = request.data.get('schema_name')
-
+        if not name or not schema:
+            return Response({"error": "name and schema_name required"},
+                            status=status.HTTP_400_BAD_REQUEST)
         if Tenant.objects.filter(schema_name=schema).exists():
-            return Response({"error": "Schema already exists"}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({"error": "Schema already exists"},
+                            status=status.HTTP_400_BAD_REQUEST)
         tenant = Tenant.objects.create(
-            name=name,
-            schema_name=schema,
-            plan=request.data.get('plan', 'free')
-        )
+            name=name, schema_name=schema, plan=request.data.get('plan', 'free'))
+        Domain.objects.create(tenant=tenant, domain=f"{schema}.nexus.local", is_primary=True)
+        return Response({"status": "created", "tenant_id": tenant.id,
+                         "schema": tenant.schema_name}, status=status.HTTP_201_CREATED)
 
-        # Create domain
-        Domain.objects.create(
-            tenant=tenant,
-            domain=f"{schema}.nexus.local",
-            is_primary=True
-        )
-
-        return Response({
-            "status": "created",
-            "tenant_id": tenant.id,
-            "schema": tenant.schema_name,
-            "domain": f"{schema}.nexus.local"
-        })
 
 class TenantUserViewSet(viewsets.ModelViewSet):
-    """Tenant user management"""
+    """Tenant membership management."""
     queryset = TenantUser.objects.all()
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # A user only sees memberships of tenants they belong to.
+        if self.request.user.is_superuser:
+            return TenantUser.objects.all()
+        my_tenants = TenantUser.objects.filter(
+            user=self.request.user, is_active=True).values_list('tenant_id', flat=True)
+        return TenantUser.objects.filter(tenant_id__in=my_tenants)
 
     @action(detail=False, methods=['get'])
     def my_tenants(self, request):
         tenants = TenantUser.objects.filter(user=request.user, is_active=True)
         return Response([{
-            "tenant_id": t.tenant.id,
-            "tenant_name": t.tenant.name,
-            "role": t.role,
-            "joined_at": t.joined_at
+            "tenant_id": t.tenant.id, "tenant_name": t.tenant.name,
+            "role": t.role, "joined_at": t.joined_at,
         } for t in tenants])
 
     @action(detail=False, methods=['post'])
@@ -155,59 +135,45 @@ class TenantUserViewSet(viewsets.ModelViewSet):
         tenant_id = request.data.get('tenant_id')
         user_id = request.data.get('user_id')
         role = request.data.get('role', 'user')
-
         try:
             tenant = Tenant.objects.get(id=tenant_id)
             user = User.objects.get(id=user_id)
-
-            # Check if inviter is owner/admin
-            inviter = TenantUser.objects.filter(tenant=tenant, user=request.user, role__in=['owner', 'admin']).first()
-            if not inviter:
-                return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
-
-            tu, created = TenantUser.objects.get_or_create(
-                tenant=tenant,
-                user=user,
-                defaults={'role': role}
-            )
-
-            return Response({
-                "status": "invited" if created else "already_member",
-                "user": user.username,
-                "role": role
-            })
         except Tenant.DoesNotExist:
             return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # Only an owner/admin of THIS tenant can invite.
+        inviter = TenantUser.objects.filter(
+            tenant=tenant, user=request.user, role__in=['owner', 'admin'], is_active=True).first()
+        if not (request.user.is_superuser or inviter):
+            return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
 
-# Middleware for tenant detection
+        tu, created = TenantUser.objects.get_or_create(
+            tenant=tenant, user=user, defaults={'role': role})
+        return Response({"status": "invited" if created else "already_member",
+                         "user": user.username, "role": role})
+
+
 class TenantMiddleware:
-    """Detect tenant from subdomain or header"""
+    """Attach request.tenant from subdomain or X-Tenant header — but ONLY if the
+    authenticated caller is a verified member. Never trust the header alone."""
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Get tenant from subdomain
+        request.tenant = None
         host = request.get_host()
         subdomain = host.split('.')[0]
+        identifier = request.META.get('HTTP_X_TENANT') or subdomain
 
-        # Or from header
-        tenant_header = request.META.get('HTTP_X_TENANT')
-
-        tenant_identifier = tenant_header or subdomain
-
-        if tenant_identifier and tenant_identifier != 'www':
+        if identifier and identifier != 'www':
             try:
-                tenant = Tenant.objects.get(schema_name=tenant_identifier, is_active=True)
-                request.tenant = tenant
-                connection.set_tenant(tenant)
+                tenant = Tenant.objects.get(schema_name=identifier, is_active=True)
             except Tenant.DoesNotExist:
-                request.tenant = None
-        else:
-            request.tenant = None
+                tenant = None
+            if tenant is not None and user_is_member(getattr(request, 'user', None), tenant):
+                request.tenant = tenant
 
-        response = self.get_response(request)
-        return response
+        return self.get_response(request)
