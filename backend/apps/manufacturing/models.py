@@ -722,3 +722,88 @@ class BatchConsumption(models.Model):
 
     def __str__(self):
         return f"{self.input_item.item_code} batch {self.input_batch_no} × {self.actual_qty}"
+
+
+class ScheduleSlot(models.Model):
+    """A booked time window for a work order on a workstation — finite-capacity
+    scheduling.
+
+    A workstation does one job at a time, so two slots on the same station may
+    not overlap. This is the difference between infinite-capacity planning (just
+    a due date) and finite-capacity scheduling (a real timeline the shop floor
+    can follow): booking checks for a clash and refuses it, and the scheduler can
+    find the earliest free window of a given length.
+    """
+
+    STATUS = [
+        ("planned", "Planned"),
+        ("in_progress", "In progress"),
+        ("done", "Done"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    company = models.ForeignKey(
+        "core.CompanyProfile", on_delete=models.CASCADE, related_name="schedule_slots"
+    )
+    workstation = models.ForeignKey(
+        Workstation, on_delete=models.CASCADE, related_name="schedule_slots"
+    )
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="schedule_slots"
+    )
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+    status = models.CharField(max_length=12, choices=STATUS, default="planned")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["workstation", "start"]
+        indexes = [models.Index(fields=["workstation", "start", "end"])]
+
+    def __str__(self):
+        return f"{self.workstation.code}: {self.work_order.wo_number} [{self.start:%Y-%m-%d %H:%M}]"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        if self.end <= self.start:
+            raise DjangoValidationError("A slot must end after it starts.")
+        if self.overlaps_existing():
+            raise DjangoValidationError(
+                f"Workstation {self.workstation.code} is already booked in that window."
+            )
+
+    def overlaps_existing(self):
+        """Whether this slot clashes with another active slot on the same
+        station. Two windows overlap iff each starts before the other ends."""
+        clashing = ScheduleSlot.objects.filter(
+            workstation=self.workstation, start__lt=self.end, end__gt=self.start,
+        ).exclude(status="cancelled")
+        if self.pk:
+            clashing = clashing.exclude(pk=self.pk)
+        return clashing.exists()
+
+    def save(self, *args, **kwargs):
+        # Enforce the no-overlap invariant on every write, not just via API.
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def earliest_free_window(cls, workstation, duration, not_before):
+        """The earliest start time at which `workstation` is free for `duration`
+        (a timedelta) with no clash, at or after `not_before`.
+
+        Walks the station's booked slots in order, returning the first gap long
+        enough — the core of finite-capacity scheduling.
+        """
+        cursor = not_before
+        slots = list(
+            cls.objects.filter(workstation=workstation, end__gt=not_before)
+            .exclude(status="cancelled").order_by("start")
+        )
+        for slot in slots:
+            if slot.start - cursor >= duration:
+                return cursor  # a big-enough gap opens before this slot
+            if slot.end > cursor:
+                cursor = slot.end  # jump past this booking
+        return cursor  # free from here on

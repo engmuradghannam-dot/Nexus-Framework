@@ -9,6 +9,7 @@ from .views import (
     QualityInspectionViewSet,
     WorkOrderViewSet,
     ProductionBatchViewSet,
+    ScheduleSlotViewSet,
 )
 
 router = DefaultRouter()
@@ -19,6 +20,7 @@ router.register(r"job-cards", JobCardViewSet)
 router.register(r"quality-inspections", QualityInspectionViewSet)
 router.register(r"quality-inspection-parameters", QualityInspectionParameterViewSet)
 router.register(r"production-batches", ProductionBatchViewSet)
+router.register(r"schedule-slots", ScheduleSlotViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),

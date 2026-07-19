@@ -16,7 +16,9 @@ from .models import (
     ProductionBatch,
     QualityInspection,
     QualityInspectionParameter,
+    ScheduleSlot,
     WorkOrder,
+    Workstation,
 )
 from .serializers import (
     BOMItemSerializer,
@@ -25,6 +27,7 @@ from .serializers import (
     ProductionBatchSerializer,
     QualityInspectionParameterSerializer,
     QualityInspectionSerializer,
+    ScheduleSlotSerializer,
     WorkOrderSerializer,
 )
 
@@ -249,3 +252,35 @@ class ProductionBatchViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(consumptions__input_item_id=item_id)
         qs = qs.distinct()
         return Response(self.get_serializer(qs, many=True).data)
+
+
+class ScheduleSlotViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    """Finite-capacity scheduling: book work orders on workstations without
+    overlaps, and ask for the earliest free window."""
+
+    queryset = ScheduleSlot.objects.select_related("workstation", "work_order")
+    serializer_class = ScheduleSlotSerializer
+    company_field = "company"
+    filterset_fields = ["workstation", "work_order", "status", "company"]
+
+    @action(detail=False, methods=["get"])
+    def earliest_free(self, request):
+        """The earliest free window on a station. Query: ?workstation=<id>
+        &minutes=<n>&not_before=<iso>. Defaults not_before to now."""
+        from datetime import timedelta
+        from django.utils import timezone
+        from django.utils.dateparse import parse_datetime
+
+        ws_id = request.query_params.get("workstation")
+        minutes = request.query_params.get("minutes")
+        if not ws_id or not minutes:
+            return Response({"detail": "workstation and minutes are required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        ws = Workstation.objects.filter(pk=ws_id).first()
+        if ws is None:
+            return Response({"detail": "workstation not found."},
+                            status=status.HTTP_404_NOT_FOUND)
+        nb_raw = request.query_params.get("not_before")
+        not_before = parse_datetime(nb_raw) if nb_raw else timezone.now()
+        start = ScheduleSlot.earliest_free_window(ws, timedelta(minutes=int(minutes)), not_before)
+        return Response({"workstation": ws.code, "earliest_start": start.isoformat()})

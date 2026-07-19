@@ -4,7 +4,7 @@ from apps.core.consistency import CompanyConsistencyMixin
 
 from apps.core.workflow import run_side_effect, validate_transition
 
-from .models import BOM, BOMItem, JobCard, QualityInspection, QualityInspectionParameter, WorkOrder, ProductionBatch, BatchConsumption
+from .models import BOM, BOMItem, JobCard, QualityInspection, QualityInspectionParameter, WorkOrder, ProductionBatch, BatchConsumption, ScheduleSlot, Workstation
 
 WO_TRANSITIONS = {
     "Draft": {"In Progress", "Cancelled"},
@@ -103,3 +103,26 @@ class ProductionBatchSerializer(serializers.ModelSerializer):
                   "output_item_code", "output_batch_no", "output_qty",
                   "output_potency", "manufactured_on", "consumptions"]
         read_only_fields = ["manufactured_on"]
+
+
+class ScheduleSlotSerializer(serializers.ModelSerializer):
+    workstation_code = serializers.CharField(source="workstation.code", read_only=True)
+    wo_number = serializers.CharField(source="work_order.wo_number", read_only=True)
+
+    class Meta:
+        model = ScheduleSlot
+        fields = ["id", "company", "workstation", "workstation_code", "work_order",
+                  "wo_number", "start", "end", "status", "created_at"]
+        read_only_fields = ["created_at"]
+
+    def validate(self, attrs):
+        # Surface the model's overlap check as a clean DRF error.
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        instance = ScheduleSlot(**{k: v for k, v in attrs.items()})
+        if self.instance:
+            instance.pk = self.instance.pk
+        try:
+            instance.clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages[0])
+        return attrs
