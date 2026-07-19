@@ -1,73 +1,30 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import User
 from django.db.models import Q
+
+from nexus.apps.api_infra.scoping import CompanyScopedViewSet, user_company_ids
 from .models import Company, Branch, Warehouse, SubWarehouse, Department, HRProfile
 from .serializers import (
     CompanySerializer, BranchSerializer, WarehouseSerializer,
     SubWarehouseSerializer, DepartmentSerializer, HRProfileSerializer, UserSerializer
 )
 
-class CompanyViewSet(viewsets.ModelViewSet):
+
+class CompanyViewSet(CompanyScopedViewSet):
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
-    permission_classes = [IsAuthenticated]
-
-class BranchViewSet(viewsets.ModelViewSet):
-    queryset = Branch.objects.all()
-    serializer_class = BranchSerializer
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=False, methods=['get'])
-    def by_company(self, request):
-        company_id = request.query_params.get('company_id')
-        if company_id:
-            branches = Branch.objects.filter(company_id=company_id)
-            serializer = self.get_serializer(branches, many=True)
-            return Response(serializer.data)
-        return Response({"error": "company_id required"}, status=status.HTTP_400_BAD_REQUEST)
-
-class WarehouseViewSet(viewsets.ModelViewSet):
-    queryset = Warehouse.objects.all()
-    serializer_class = WarehouseSerializer
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=False, methods=['get'])
-    def by_branch(self, request):
-        branch_id = request.query_params.get('branch_id')
-        if branch_id:
-            warehouses = Warehouse.objects.filter(branch_id=branch_id)
-            serializer = self.get_serializer(warehouses, many=True)
-            return Response(serializer.data)
-        return Response({"error": "branch_id required"}, status=status.HTTP_400_BAD_REQUEST)
-
-class SubWarehouseViewSet(viewsets.ModelViewSet):
-    queryset = SubWarehouse.objects.all()
-    serializer_class = SubWarehouseSerializer
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=False, methods=['get'])
-    def by_warehouse(self, request):
-        warehouse_id = request.query_params.get('warehouse_id')
-        if warehouse_id:
-            sub_warehouses = SubWarehouse.objects.filter(warehouse_id=warehouse_id)
-            serializer = self.get_serializer(sub_warehouses, many=True)
-            return Response(serializer.data)
-        return Response({"error": "warehouse_id required"}, status=status.HTTP_400_BAD_REQUEST)
-
+    company_field = "id"   # the Company IS the scope key
 
     @action(detail=False, methods=['get'])
     def search(self, request):
         query = request.query_params.get('q', '')
-        companies = Company.objects.filter(
-            models.Q(name__icontains=query) | 
-            models.Q(description__icontains=query) |
-            models.Q(address__icontains=query)
-        )
-        serializer = self.get_serializer(companies, many=True)
-        return Response(serializer.data)
+        companies = self.get_queryset().filter(
+            Q(name__icontains=query) | Q(description__icontains=query) |
+            Q(address__icontains=query))
+        return Response(self.get_serializer(companies, many=True).data)
 
     @action(detail=False, methods=['post'])
     def export_csv(self, request):
@@ -77,54 +34,103 @@ class SubWarehouseViewSet(viewsets.ModelViewSet):
         response['Content-Disposition'] = 'attachment; filename="companies.csv"'
         writer = csv.writer(response)
         writer.writerow(['ID', 'Name', 'Description', 'Address', 'Created'])
-        for company in Company.objects.all():
-            writer.writerow([company.id, company.name, company.description, company.address, company.created_at])
+        for c in self.get_queryset():
+            writer.writerow([c.id, c.name, c.description, c.address, c.created_at])
         return response
 
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
         ids = request.data.get('ids', [])
-        deleted = Company.objects.filter(id__in=ids).delete()
+        deleted = self.get_queryset().filter(id__in=ids).delete()
         return Response({"deleted": deleted[0]})
 
 
+class BranchViewSet(CompanyScopedViewSet):
+    queryset = Branch.objects.all()
+    serializer_class = BranchSerializer
+    company_field = "company"
+
+    @action(detail=False, methods=['get'])
+    def by_company(self, request):
+        return Response(self.get_serializer(self.get_queryset(), many=True).data)
+
+
+class WarehouseViewSet(CompanyScopedViewSet):
+    queryset = Warehouse.objects.all()
+    serializer_class = WarehouseSerializer
+    company_field = "branch__company"
+
+    @action(detail=False, methods=['get'])
+    def by_branch(self, request):
+        branch_id = request.query_params.get('branch_id')
+        if not branch_id:
+            return Response({"error": "branch_id required"}, status=status.HTTP_400_BAD_REQUEST)
+        warehouses = self.get_queryset().filter(branch_id=branch_id)
+        return Response(self.get_serializer(warehouses, many=True).data)
+
+
+class SubWarehouseViewSet(CompanyScopedViewSet):
+    queryset = SubWarehouse.objects.all()
+    serializer_class = SubWarehouseSerializer
+    company_field = "warehouse__branch__company"
+
+    @action(detail=False, methods=['get'])
+    def by_warehouse(self, request):
+        warehouse_id = request.query_params.get('warehouse_id')
+        if not warehouse_id:
+            return Response({"error": "warehouse_id required"}, status=status.HTTP_400_BAD_REQUEST)
+        subs = self.get_queryset().filter(warehouse_id=warehouse_id)
+        return Response(self.get_serializer(subs, many=True).data)
+
+
 class DepartmentViewSet(viewsets.ModelViewSet):
+    """Shared lookup — no company FK on the model."""
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     permission_classes = [IsAuthenticated]
 
-class HRProfileViewSet(viewsets.ModelViewSet):
+
+class HRProfileViewSet(CompanyScopedViewSet):
     queryset = HRProfile.objects.all()
     serializer_class = HRProfileSerializer
-    permission_classes = [IsAuthenticated]
+    company_field = "branch__company"
 
     @action(detail=False, methods=['get'])
     def me(self, request):
         try:
             profile = HRProfile.objects.get(user=request.user)
-            serializer = self.get_serializer(profile)
-            return Response(serializer.data)
         except HRProfile.DoesNotExist:
             return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(self.get_serializer(profile).data)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
     def update_permissions(self, request):
         user_id = request.data.get('user_id')
         permissions = request.data.get('permissions', {})
         try:
             profile = HRProfile.objects.get(user_id=user_id)
-            profile.permissions = permissions
-            profile.save()
-            return Response({"status": "permissions updated"})
         except HRProfile.DoesNotExist:
             return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        profile.permissions = permissions
+        profile.save(update_fields=['permissions'])
+        return Response({"status": "permissions updated"})
+
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return User.objects.all()
+        allowed = user_company_ids(user)
+        if not allowed:
+            return User.objects.filter(id=user.id)
+        return User.objects.filter(
+            hr_profile__branch__company_id__in=allowed).distinct() | User.objects.filter(id=user.id)
+
     @action(detail=False, methods=['get'])
     def current(self, request):
-        serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
+        return Response(self.get_serializer(request.user).data)
