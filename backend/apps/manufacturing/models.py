@@ -90,6 +90,22 @@ class BOMItem(models.Model):
     )
     uom = models.CharField(max_length=50, default="Unit")
     rate = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    # When set, the qty above is the NOMINAL (100%-potency) requirement, and the
+    # actual amount drawn from a batch is scaled up by that batch's potency
+    # shortfall — a 95%-potency batch supplies less active per kg, so more kg are
+    # consumed to hit the same active quantity. Off by default: ordinary BOMs
+    # consume exactly qty.
+    is_potency_managed = models.BooleanField(default=False)
+
+    def potency_adjusted_qty(self, batch_potency):
+        """The physical quantity to consume from a batch of the given potency to
+        deliver this line's nominal active quantity."""
+        if not self.is_potency_managed:
+            return Decimal(self.qty)
+        potency = Decimal(batch_potency or 100)
+        if potency <= 0:
+            return Decimal(self.qty)
+        return (Decimal(self.qty) * Decimal(100) / potency).quantize(Decimal("0.0001"))
 
 
 class WorkOrder(models.Model):
@@ -316,6 +332,63 @@ class WorkOrder(models.Model):
             )
             self.produced_qty = good_qty
             self.status = "Completed"
+
+    def produce_batch(self, output_batch_no, input_batches, output_qty=None):
+        """Produce a traced batch: consume specified input batches (adjusting for
+        each batch's potency where the BOM line manages it) and record the full
+        genealogy on a ProductionBatch.
+
+        input_batches maps a BOM item id to (batch_no, potency). Returns the
+        ProductionBatch. This is the formulation/traceability path — the plain
+        complete_production() above stays untouched for non-batch manufacturing.
+        """
+        from apps.inventory.models import ItemBatch, StockEntry
+
+        if not self.bom:
+            raise DjangoValidationError("Batch production needs a BOM.")
+        out_qty = Decimal(output_qty if output_qty is not None else self.qty_to_produce)
+
+        with transaction.atomic():
+            pb = ProductionBatch.objects.create(
+                company=self.company, work_order=self,
+                output_item=self.item_to_manufacture,
+                output_batch_no=output_batch_no, output_qty=out_qty,
+            )
+            for bom_item in self.bom.items.select_related("item"):
+                spec = input_batches.get(bom_item.id)
+                if spec is None:
+                    raise DjangoValidationError(
+                        f"No input batch given for {bom_item.item.item_code}."
+                    )
+                batch_no, potency = spec
+                potency = Decimal(potency or 100)
+                nominal = Decimal(bom_item.qty)
+                actual = bom_item.potency_adjusted_qty(potency)
+                # Draw the physical quantity from the named batch.
+                batch = ItemBatch.objects.filter(
+                    item=bom_item.item, batch_no=batch_no
+                ).first()
+                if batch is None:
+                    raise DjangoValidationError(
+                        f"Batch {batch_no} of {bom_item.item.item_code} not found."
+                    )
+                if Decimal(batch.quantity) < actual:
+                    raise DjangoValidationError(
+                        f"Batch {batch_no} has {batch.quantity}, needs {actual}."
+                    )
+                batch.quantity = Decimal(batch.quantity) - actual
+                batch.save(update_fields=["quantity"])
+                BatchConsumption.objects.create(
+                    production_batch=pb, input_item=bom_item.item,
+                    input_batch_no=batch_no, nominal_qty=nominal,
+                    actual_qty=actual, batch_potency=potency,
+                )
+            # Create the output batch in stock.
+            ItemBatch.objects.update_or_create(
+                item=self.item_to_manufacture, batch_no=output_batch_no,
+                defaults={"quantity": out_qty, "warehouse": self.warehouse},
+            )
+        return pb
 
     def __str__(self):
         return self.wo_number
@@ -585,3 +658,67 @@ class MaintenanceLog(models.Model):
 
     def __str__(self):
         return f"{self.workstation.code} serviced {self.performed_on}"
+
+
+class ProductionBatch(models.Model):
+    """A traced production run: the output batch of a work order, and the record
+    of which input batches were consumed to make it (genealogy).
+
+    This is what lets a manufacturer answer a recall question — 'which finished
+    batches contain raw batch X?' — in both directions, and it's the backbone of
+    formulation manufacturing where potency has to be reconciled per batch.
+    """
+
+    company = models.ForeignKey(
+        "core.CompanyProfile", on_delete=models.CASCADE, related_name="production_batches"
+    )
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="production_batches"
+    )
+    output_item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name="+")
+    output_batch_no = models.CharField(max_length=100)
+    output_qty = models.DecimalField(max_digits=18, decimal_places=2)
+    # The measured potency of the finished batch, once assayed. Null until tested.
+    output_potency = models.DecimalField(
+        max_digits=7, decimal_places=4, null=True, blank=True,
+        help_text="Assayed strength of the finished batch, as % of nominal.",
+    )
+    manufactured_on = models.DateField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-manufactured_on", "-id"]
+        unique_together = ["output_item", "output_batch_no"]
+
+    def __str__(self):
+        return f"{self.output_item.item_code} batch {self.output_batch_no}"
+
+    def trace_inputs(self):
+        """The input batches that went into this output batch — backward
+        genealogy, for recalls and audits."""
+        return list(self.consumptions.select_related("input_item"))
+
+
+class BatchConsumption(models.Model):
+    """One input batch consumed by a production batch, with the potency-adjusted
+    quantity actually drawn."""
+
+    production_batch = models.ForeignKey(
+        ProductionBatch, on_delete=models.CASCADE, related_name="consumptions"
+    )
+    input_item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name="+")
+    input_batch_no = models.CharField(max_length=100)
+    nominal_qty = models.DecimalField(
+        max_digits=18, decimal_places=4,
+        help_text="The recipe quantity before any potency adjustment.",
+    )
+    actual_qty = models.DecimalField(
+        max_digits=18, decimal_places=4,
+        help_text="The physical quantity drawn, after potency adjustment.",
+    )
+    batch_potency = models.DecimalField(max_digits=7, decimal_places=4, default=Decimal("100"))
+
+    class Meta:
+        ordering = ["production_batch", "id"]
+
+    def __str__(self):
+        return f"{self.input_item.item_code} batch {self.input_batch_no} × {self.actual_qty}"

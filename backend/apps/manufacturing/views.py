@@ -13,6 +13,7 @@ from .models import (
     BOMItem,
     JobCard,
     MaterialReservation,
+    ProductionBatch,
     QualityInspection,
     QualityInspectionParameter,
     WorkOrder,
@@ -21,6 +22,7 @@ from .serializers import (
     BOMItemSerializer,
     BOMSerializer,
     JobCardSerializer,
+    ProductionBatchSerializer,
     QualityInspectionParameterSerializer,
     QualityInspectionSerializer,
     WorkOrderSerializer,
@@ -80,6 +82,46 @@ class WorkOrderViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
             return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"success": ok, "message": message,
                          "reserved": wo.reservations.count()})
+
+    @action(detail=True, methods=["post"])
+    def produce_batch(self, request, pk=None):
+        """Produce a traced, potency-adjusted batch from this work order.
+
+        Body: {output_batch_no, output_qty?, inputs: {bom_item_id: {batch_no,
+        potency}}}. Consumes the named input batches (scaling potency-managed
+        lines by each batch's assay) and records the full genealogy.
+        """
+        wo = self.get_object()
+        output_batch_no = request.data.get("output_batch_no")
+        if not output_batch_no:
+            return Response({"detail": "output_batch_no is required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        raw_inputs = request.data.get("inputs", {})
+        # Normalise {id: {batch_no, potency}} into {int id: (batch_no, potency)}.
+        input_batches = {}
+        for key, spec in raw_inputs.items():
+            try:
+                bom_item_id = int(key)
+            except (TypeError, ValueError):
+                return Response({"detail": f"Invalid BOM item id '{key}'."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            input_batches[bom_item_id] = (spec.get("batch_no"), spec.get("potency", 100))
+        try:
+            pb = wo.produce_batch(
+                output_batch_no, input_batches,
+                output_qty=request.data.get("output_qty"),
+            )
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ProductionBatchSerializer(pb).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"])
+    def production_batches(self, request):
+        """All traced batches for the scoped company."""
+        qs = ProductionBatch.objects.filter(
+            work_order__in=self.get_queryset()
+        ).prefetch_related("consumptions__input_item").select_related("output_item", "work_order")
+        return Response(ProductionBatchSerializer(qs, many=True).data)
 
     @action(detail=True, methods=["get"])
     def yield_report(self, request, pk=None):
@@ -176,3 +218,34 @@ class QualityInspectionParameterViewSet(CompanyScopedMixin, viewsets.ModelViewSe
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["inspection"]
     company_field = "inspection__company"
+
+
+class ProductionBatchViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
+    """Read-only view of traced production batches, with genealogy.
+
+    Filterable by output_batch_no and output_item, so a recall can start from a
+    finished batch and read its inputs, or search by an input batch to find
+    every finished batch that consumed it (via the consumptions relation).
+    """
+
+    queryset = ProductionBatch.objects.prefetch_related(
+        "consumptions__input_item"
+    ).select_related("output_item", "work_order")
+    serializer_class = ProductionBatchSerializer
+    company_field = "company"
+    filterset_fields = ["output_item", "output_batch_no", "work_order", "company"]
+
+    @action(detail=False, methods=["get"])
+    def containing_batch(self, request):
+        """Forward trace for recalls: every production batch that consumed a
+        given input batch. Query: ?item=<id>&batch_no=<no>."""
+        item_id = request.query_params.get("item")
+        batch_no = request.query_params.get("batch_no")
+        if not batch_no:
+            return Response({"detail": "batch_no is required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        qs = self.get_queryset().filter(consumptions__input_batch_no=batch_no)
+        if item_id:
+            qs = qs.filter(consumptions__input_item_id=item_id)
+        qs = qs.distinct()
+        return Response(self.get_serializer(qs, many=True).data)

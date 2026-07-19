@@ -270,6 +270,17 @@ class ItemBatch(models.Model):
     warehouse = models.ForeignKey(
         Warehouse, on_delete=models.SET_NULL, null=True, blank=True
     )
+    # Potency / assay: the measured strength of the active ingredient in THIS
+    # batch, as a percentage of nominal. A raw material rarely assays at exactly
+    # 100%; a batch at 95% means you need proportionally more of it to deliver
+    # the same active quantity. Formulation manufacturing (chemical, pharma,
+    # food) depends on this — 100 by default keeps ordinary items unchanged.
+    potency = models.DecimalField(
+        max_digits=7, decimal_places=4, default=Decimal("100.0000"),
+        validators=[MinValueValidator(Decimal("0.0001"))],
+        help_text="Measured active strength of this batch, as % of nominal "
+        "(100 = exactly nominal). Used for potency-adjusted consumption.",
+    )
 
     class Meta:
         unique_together = ("item", "batch_no")

@@ -4,7 +4,7 @@ from apps.core.consistency import CompanyConsistencyMixin
 
 from apps.core.workflow import run_side_effect, validate_transition
 
-from .models import BOM, BOMItem, JobCard, QualityInspection, QualityInspectionParameter, WorkOrder
+from .models import BOM, BOMItem, JobCard, QualityInspection, QualityInspectionParameter, WorkOrder, ProductionBatch, BatchConsumption
 
 WO_TRANSITIONS = {
     "Draft": {"In Progress", "Cancelled"},
@@ -81,3 +81,25 @@ class QualityInspectionSerializer(serializers.ModelSerializer):
         model = QualityInspection
         fields = "__all__"
         read_only_fields = ["status"]
+
+
+class BatchConsumptionSerializer(serializers.ModelSerializer):
+    input_item_code = serializers.CharField(source="input_item.item_code", read_only=True)
+
+    class Meta:
+        model = BatchConsumption
+        fields = ["id", "input_item", "input_item_code", "input_batch_no",
+                  "nominal_qty", "actual_qty", "batch_potency"]
+
+
+class ProductionBatchSerializer(serializers.ModelSerializer):
+    consumptions = BatchConsumptionSerializer(many=True, read_only=True)
+    output_item_code = serializers.CharField(source="output_item.item_code", read_only=True)
+    wo_number = serializers.CharField(source="work_order.wo_number", read_only=True)
+
+    class Meta:
+        model = ProductionBatch
+        fields = ["id", "company", "work_order", "wo_number", "output_item",
+                  "output_item_code", "output_batch_no", "output_qty",
+                  "output_potency", "manufactured_on", "consumptions"]
+        read_only_fields = ["manufactured_on"]
