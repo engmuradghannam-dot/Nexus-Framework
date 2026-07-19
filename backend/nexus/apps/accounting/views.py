@@ -77,9 +77,13 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
         return Response({"error": "company_id required"}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'])
-    by_status = lambda self, request: Response(self.get_serializer(
-        JournalEntry.objects.filter(status=request.query_params.get('status')), many=True
-    ).data) if request.query_params.get('status') else Response({"error": "status required"}, status=status.HTTP_400_BAD_REQUEST)
+    def by_status(self, request):
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            entries = JournalEntry.objects.filter(status=status_filter)
+            serializer = self.get_serializer(entries, many=True)
+            return Response(serializer.data)
+        return Response({"error": "status required"}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'])
     def post_entry(self, request, pk=None):
