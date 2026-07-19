@@ -506,3 +506,16 @@ export const approvalsApi = {
   act: (id, approve, comment) => data(API.post(`/approvals/requests/${id}/act/`, { approve, comment })),
   roles: () => list(API.get('/rbac/roles/', { params: { page_size: 200 } })),
 }
+
+// ════════ Workflow — BPM state machines ════════
+export const workflowApi = {
+  workflows: () => list(API.get('/workflow/workflows/')),
+  createWorkflow: (p) => data(API.post('/workflow/workflows/', p)),
+  removeWorkflow: (id) => API.delete(`/workflow/workflows/${id}/`),
+  transitions: (id) => data(API.get(`/workflow/workflows/${id}/transitions/`)),
+  instances: (filters) => list(API.get('/workflow/instances/', { params: filters })),
+  getInstance: (id) => data(API.get(`/workflow/instances/${id}/`)),
+  available: (id) => data(API.get(`/workflow/instances/${id}/available/`)),
+  take: (id, transition, note) => data(API.post(`/workflow/instances/${id}/take/`, { transition, note })),
+  roles: () => list(API.get('/rbac/roles/', { params: { page_size: 200 } })),
+}

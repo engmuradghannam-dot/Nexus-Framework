@@ -53,6 +53,7 @@ const UOMPage = lazy(() => import('./pages/UOM/UOMPage'));
 const AutomationPage = lazy(() => import('./pages/Automation/AutomationPage'));
 const ApprovalsPage = lazy(() => import('./pages/Approvals/ApprovalsPage'));
 const AutomatedActionsPage = lazy(() => import('./pages/Automation/AutomatedActionsPage'));
+const WorkflowPage = lazy(() => import('./pages/Workflow/WorkflowPage'));
 const ReorderPage = lazy(() => import('./pages/Reorder/ReorderPage'));
 const ValuationPage = lazy(() => import('./pages/Valuation/ValuationPage'));
 const StockMovementsPage = lazy(() => import('./pages/StockMovements/StockMovementsPage'));
@@ -144,6 +145,7 @@ function App() {
                   <Route path="/automation" element={<AutomationPage />} />
                   <Route path="/approvals" element={<ApprovalsPage />} />
                   <Route path="/automated-actions" element={<AutomatedActionsPage />} />
+                  <Route path="/workflow" element={<WorkflowPage />} />
                   <Route path="/attendance" element={<AttendancePage />} />
                   <Route path="/inventory" element={<InventoryPage />} />
                   <Route path="/barcode" element={<BarcodePage />} />
