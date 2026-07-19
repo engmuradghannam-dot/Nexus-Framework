@@ -137,7 +137,7 @@ export default function ApprovalsPage() {
             {detail.steps?.map((st: any) => (
               <div key={st.id} className="flex items-center justify-between border border-[#e1dfdd] rounded-sm p-2">
                 <span className="text-sm">L{st.sequence} — {st.role_name}</span>
-                <FluentBadge label={STATUS_AR[st.decision] || st.decision} variant={STATUS[st.decision] || 'default'} size="small" />
+                <FluentBadge label={STATUS_AR[st.decision] || st.decision} variant={STATUS[st.decision] || 'neutral'} size="small" />
               </div>
             ))}
           </div>

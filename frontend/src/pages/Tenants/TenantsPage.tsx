@@ -10,7 +10,7 @@ import { FluentFormField, FluentInput, FluentSelect } from '../../components/Flu
 import { tenantsApi } from '../../services/api';
 
 const planMeta: Record<string, { label: string; variant: any }> = {
-  free: { label: 'مجاني', variant: 'default' },
+  free: { label: 'مجاني', variant: 'neutral' },
   pro: { label: 'احترافي', variant: 'info' },
   enterprise: { label: 'مؤسسي', variant: 'success' },
 };
@@ -71,7 +71,7 @@ export default function TenantsPage() {
             { key: 'user_count', label: 'المستخدمون' },
             { key: 'isolation', label: 'عزل البيانات', render: (v: string, r: any) => v === 'dedicated'
               ? <FluentBadge label={`قاعدة خاصة (${r.db_alias})`} variant="success" size="small" />
-              : <FluentBadge label="قاعدة مشتركة" variant="default" size="small" /> },
+              : <FluentBadge label="قاعدة مشتركة" variant="neutral" size="small" /> },
             { key: 'is_active', label: 'الحالة', render: (v: boolean) => <FluentBadge label={v ? 'نشط' : 'معطّل'} variant={v ? 'success' : 'error'} size="small" /> },
           ]}
           data={tenants}

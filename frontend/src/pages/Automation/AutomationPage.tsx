@@ -65,7 +65,7 @@ export default function AutomationPage() {
               { key: 'last_run', label: 'آخر تشغيل', render: dt },
               { key: 'next_run', label: 'التشغيل القادم', render: dt },
               { key: 'run_count', label: 'مرات التشغيل' },
-              { key: 'is_active', label: 'الحالة', render: (v: boolean) => <FluentBadge label={v ? 'نشطة' : 'متوقّفة'} variant={v ? 'success' : 'default'} size="small" /> },
+              { key: 'is_active', label: 'الحالة', render: (v: boolean) => <FluentBadge label={v ? 'نشطة' : 'متوقّفة'} variant={v ? 'success' : 'neutral'} size="small" /> },
               { key: '__run', label: '', render: (_: any, r: any) => <button onClick={(e) => { e.stopPropagation(); runJob(r.id); }} className="flex items-center gap-1 text-xs text-white bg-[#0078d4] px-2 py-1 rounded hover:bg-[#106ebe]"><Play size={12} /> شغّل الآن</button> },
             ]} data={jobs} />
         )}
@@ -76,7 +76,7 @@ export default function AutomationPage() {
               { key: 'event', label: 'الحدث', render: (v: string) => <code className="text-xs bg-[#f3f2f1] px-1.5 py-0.5 rounded">{v}</code> },
               { key: 'target_url', label: 'الوجهة', render: (v: string) => <span className="text-xs text-[#605e5c]">{(v || '').slice(0, 40)}</span> },
               { key: 'delivery_count', label: 'الإرساليات' },
-              { key: 'is_active', label: 'الحالة', render: (v: boolean) => <FluentBadge label={v ? 'نشط' : 'متوقّف'} variant={v ? 'success' : 'default'} size="small" /> },
+              { key: 'is_active', label: 'الحالة', render: (v: boolean) => <FluentBadge label={v ? 'نشط' : 'متوقّف'} variant={v ? 'success' : 'neutral'} size="small" /> },
               { key: '__t', label: '', render: (_: any, r: any) => <button onClick={(e) => { e.stopPropagation(); triggerWebhook(r.id); }} className="flex items-center gap-1 text-xs text-white bg-[#0078d4] px-2 py-1 rounded hover:bg-[#106ebe]"><Zap size={12} /> اختبار</button> },
             ]} data={webhooks} />
         )}

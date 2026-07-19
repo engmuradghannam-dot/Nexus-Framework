@@ -202,7 +202,7 @@ export default function InvoicingPage() {
           </FluentFormField>
           <FluentFormField label="نسبة الضريبة %"><FluentInput type="number" value={form.tax_rate ?? 15} onChange={(e) => set('tax_rate', e.target.value)} /></FluentFormField>
           <div className="rounded-md bg-[#f3f2f1] p-3 text-sm space-y-1">
-            <div className="flex justify-between text-[#605e5c]"><span>الضريبة ({rate}%)</span><span className="font-mono">{fmt(tax)}</span></div>
+            <div className="flex justify-between text-[#605e5c]"><span>الضريبة ({form.tax_rate ?? 15}%)</span><span className="font-mono">{fmt(tax)}</span></div>
             <div className="flex justify-between font-bold text-[#323130] border-t border-[#e1dfdd] pt-1"><span>الإجمالي</span><span className="font-mono">{fmt(sub + tax)}</span></div>
           </div>
           <p className="text-xs text-[#605e5c]">بعد الحفظ، اضغط «ترحيل» لإنشاء القيود المحاسبية تلقائياً في دفتر الأستاذ.</p>

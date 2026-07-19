@@ -60,7 +60,7 @@ export default function AutomatedActionsPage() {
                   <Zap size={15} className="text-[#0078d4]" />
                   <span className="font-medium text-sm">{a.name}</span>
                   <FluentBadge label={TRIGGERS.find((t) => t[0] === a.trigger)?.[1] || a.trigger} variant="info" size="small" />
-                  {!a.is_active && <FluentBadge label="معطّل" variant="default" size="small" />}
+                  {!a.is_active && <FluentBadge label="معطّل" variant="neutral" size="small" />}
                 </div>
                 <div className="text-xs text-[#605e5c] mt-1">
                   <span className="font-mono">{a.model_label}</span>

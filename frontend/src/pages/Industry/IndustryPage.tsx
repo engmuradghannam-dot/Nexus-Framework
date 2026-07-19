@@ -131,7 +131,7 @@ export default function IndustryPage() {
   };
 
   // Filter and search
-  let filteredData = displayData.filter(item => {
+  const filteredData = displayData.filter(item => {
     const matchesSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSector = !filters.sector || item.sector === filters.sector;
     const matchesStatus = !filters.status || item.status === filters.status;

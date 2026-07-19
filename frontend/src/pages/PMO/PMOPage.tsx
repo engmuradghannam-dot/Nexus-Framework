@@ -140,7 +140,7 @@ export default function PMOPage() {
     link.click();
   };
 
-  let filteredData = displayData.filter(item => {
+  const filteredData = displayData.filter(item => {
     const matchesSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = !filters.status || item.status === filters.status;
     const matchesPriority = !filters.priority || item.priority === filters.priority;
