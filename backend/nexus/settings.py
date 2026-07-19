@@ -28,6 +28,10 @@ INSTALLED_APPS = [
     'nexus.apps.industry',
     'nexus.apps.ai_module',
     'nexus.apps.regulatory',
+    'nexus.apps.hr',
+    'nexus.apps.ecommerce',
+    'nexus.apps.workflow',
+    'nexus.apps.permissions',
 ]
 
 MIDDLEWARE = [

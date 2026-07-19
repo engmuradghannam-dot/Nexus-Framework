@@ -9,6 +9,10 @@ import Inventory from './pages/Inventory';
 import Projects from './pages/Projects';
 import AIChat from './pages/AIChat';
 import Regulations from './pages/Regulations';
+import HR from './pages/HR';
+import POS from './pages/POS';
+import Workflow from './pages/Workflow';
+import Permissions from './pages/Permissions';
 
 const theme = createTheme({
   palette: {
@@ -31,6 +35,10 @@ function App() {
             <Route path="/projects" element={<Projects />} />
             <Route path="/ai" element={<AIChat />} />
             <Route path="/regulations" element={<Regulations />} />
+            <Route path="/hr" element={<HR />} />
+            <Route path="/pos" element={<POS />} />
+            <Route path="/workflow" element={<Workflow />} />
+            <Route path="/permissions" element={<Permissions />} />
           </Routes>
         </Layout>
       </BrowserRouter>

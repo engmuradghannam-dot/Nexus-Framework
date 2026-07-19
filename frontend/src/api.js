@@ -34,4 +34,30 @@ export const sendMessage = (id, content) => api.post(`/ai/conversations/${id}/se
 export const getRegulations = () => api.get('/regulatory/regulations/');
 export const getComplianceChecks = () => api.get('/regulatory/compliance-checks/');
 
+
+// HR
+export const getEmployees = () => api.get('/hr/employees/');
+export const getAttendance = () => api.get('/hr/attendance/');
+export const getLeaveRequests = () => api.get('/hr/leave-requests/');
+export const getPayrollRuns = () => api.get('/hr/payroll-runs/');
+
+// E-commerce/POS
+export const getCustomers = () => api.get('/ecommerce/customers/');
+export const getOrders = () => api.get('/ecommerce/orders/');
+export const getPOSSessions = () => api.get('/ecommerce/pos-sessions/');
+export const getPOSTransactions = () => api.get('/ecommerce/pos-transactions/');
+
+// Workflow
+export const getWorkflows = () => api.get('/workflow/workflows/');
+export const getApprovalRequests = () => api.get('/workflow/approval-requests/');
+export const approveRequest = (id, data) => api.post(`/workflow/approval-requests/${id}/approve/`, data);
+export const rejectRequest = (id, data) => api.post(`/workflow/approval-requests/${id}/reject/`, data);
+
+// Permissions
+export const getRoles = () => api.get('/permissions/roles/');
+export const getUserRoles = () => api.get('/permissions/user-roles/');
+export const getFieldPermissions = () => api.get('/permissions/field-permissions/');
+export const getRecordPermissions = () => api.get('/permissions/record-permissions/');
+export const getPermissionAudit = () => api.get('/permissions/audit/');
+
 export default api;
