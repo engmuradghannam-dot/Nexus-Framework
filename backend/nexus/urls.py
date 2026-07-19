@@ -15,5 +15,6 @@ urlpatterns = [
     path('api/workflow/', include('nexus.apps.workflow.urls')),
     path('api/permissions/', include('nexus.apps.permissions.urls')),
     path('api/accounting/', include('nexus.apps.accounting.urls')),
+    path('api/infra/', include('nexus.apps.api_infra.urls')),
     path('api/docs/', include('nexus.yasg')),
 ]
