@@ -10,4 +10,5 @@ urlpatterns = [
     path('api/ai/', include('nexus.apps.ai_module.urls')),
     path('api/regulatory/', include('nexus.apps.regulatory.urls')),
     path('api/core/', include('nexus.apps.core.urls')),
+    path('api/docs/', include('nexus.yasg')),
 ]

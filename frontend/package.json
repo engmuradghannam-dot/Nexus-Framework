@@ -7,6 +7,13 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "axios": "^1.6.2",
+    "@mui/material": "^5.14.0",
+    "@mui/icons-material": "^5.14.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@mui/x-data-grid": "^6.10.0",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^2.8.0",
     "react-scripts": "5.0.1"
   },
   "scripts": {
