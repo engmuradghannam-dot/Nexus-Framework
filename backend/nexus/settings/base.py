@@ -144,6 +144,7 @@ LOCAL_APPS = [
     "apps.pricing",
     "apps.uom",
     "apps.automation",
+    "apps.approvals",
     "apps.purchasing",
     "apps.reports",
     "apps.notifications",
