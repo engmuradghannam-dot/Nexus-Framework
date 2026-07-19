@@ -70,3 +70,20 @@ export const getFinancialReports = () => api.get('/accounting/financial-reports/
 export const getInvoiceStats = () => api.get('/accounting/invoices/dashboard_stats/');
 
 export default api;
+
+
+// Manufacturing
+export const getWorkCenters = () => api.get('/manufacturing/work-centers/');
+export const getBOMs = () => api.get('/manufacturing/boms/');
+export const getRoutings = () => api.get('/manufacturing/routings/');
+export const getManufacturingOrders = () => api.get('/manufacturing/manufacturing-orders/');
+export const createManufacturingOrder = (data) => api.post('/manufacturing/manufacturing-orders/', data);
+export const releaseOrder = (id) => api.post(`/manufacturing/manufacturing-orders/${id}/release/`);
+export const startOrder = (id) => api.post(`/manufacturing/manufacturing-orders/${id}/start/`);
+export const completeOrder = (id) => api.post(`/manufacturing/manufacturing-orders/${id}/complete/`);
+export const cancelOrder = (id) => api.post(`/manufacturing/manufacturing-orders/${id}/cancel/`);
+export const produceOrder = (id, data) => api.post(`/manufacturing/manufacturing-orders/${id}/produce/`, data);
+export const getMaterialRequisitions = () => api.get('/manufacturing/material-requisitions/');
+export const approveRequisition = (id) => api.post(`/manufacturing/material-requisitions/${id}/approve/`);
+export const issueRequisition = (id, data) => api.post(`/manufacturing/material-requisitions/${id}/issue/`, data);
+export const getManufacturingStats = () => api.get('/manufacturing/manufacturing-orders/dashboard_stats/');
