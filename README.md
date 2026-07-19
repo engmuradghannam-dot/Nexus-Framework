@@ -1,40 +1,70 @@
-# Nexus Framework
+# Nexus Framework ERP
 
-Enterprise Management System with Django REST API and React Frontend.
-
-## Modules
-- **Core**: Companies, Branches, Warehouses, Sub-Warehouses, Departments, HR Profiles with Permissions
-- **PMO**: Project Management - Projects, Tasks, Milestones
-- **Industry**: Products, Inventory with Auto-Reorder, Suppliers, Purchase Orders
-- **AI**: Groq API Integration - Conversations, Messages, Prompt Templates
-- **Regulatory**: Regulations, Compliance Checks
+A modern, open-source ERP system built with Django + React.
 
 ## Features
-- Google Maps location for Companies and Branches
-- Auto-reorder system based on warehouse inventory levels
-- Enhanced user permissions linked to HR department
-- Multi-agent AI chat with Groq API
 
-## Setup
+- **11 Modules**: Core, PMO, Industry, AI, Regulatory, HR, E-commerce, Workflow, Permissions, Accounting, API Infrastructure
+- **60 Models** with full CRUD operations
+- **397+ API Endpoints** (REST + GraphQL)
+- **11 React Pages** with Material-UI
+- **PWA Support** with offline capability
+- **Multi-tenancy** with company scoping
+- **Real-time** WebSocket support
+- **Advanced Security** with field-level and record-level permissions
 
-### Backend
+## Tech Stack
+
+- **Backend**: Django 4.2, Django REST Framework, PostgreSQL, Redis, Celery
+- **Frontend**: React 18, Material-UI, Recharts
+- **API**: REST + GraphQL + WebSocket
+- **DevOps**: Docker, Docker Compose, GitHub Actions
+
+## Quick Start
+
 ```bash
-cd backend
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+# Clone
+git clone https://github.com/engmuradghannam-dot/Nexus-Framework.git
+cd Nexus-Framework
+
+# Environment
+cp .env.example .env
+# Edit .env with your settings
+
+# Docker
+docker-compose up -d
+
+# Migrations
+docker-compose exec backend python manage.py migrate
+
+# Create superuser
+docker-compose exec backend python manage.py createsuperuser
+
+# Frontend
+cd frontend && npm install && npm start
 ```
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm start
-```
+## API Documentation
 
-## API Endpoints
-- `/api/core/` - Core module
-- `/api/pmo/` - PMO module
-- `/api/industry/` - Industry module
-- `/api/ai/` - AI module
-- `/api/regulatory/` - Regulatory module
+- REST API: `/api/docs/`
+- GraphQL: `/api/graphql/`
+
+## Modules
+
+| Module | Models | Endpoints | Description |
+|--------|--------|-----------|-------------|
+| Core | 6 | 44 | Companies, Branches, Warehouses |
+| PMO | 3 | 23 | Projects, Tasks, Milestones |
+| Industry | 6 | 37 | Products, Inventory, Suppliers |
+| AI | 4 | 26 | Groq AI Integration |
+| Regulatory | 2 | 14 | Compliance Tracking |
+| HR | 8 | 53 | Employees, Payroll, Attendance |
+| E-commerce | 9 | 41 | POS, Orders, Carts |
+| Workflow | 4 | 29 | Approval Engine |
+| Permissions | 5 | 32 | RBAC + Field/Record Level |
+| Accounting | 8 | 52 | Invoices, Journal Entries, Reports |
+| API Infra | 5 | 46 | Webhooks, File Upload, Batch Ops |
+
+## License
+
+MIT License - Free forever.
