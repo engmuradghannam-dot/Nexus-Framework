@@ -11,6 +11,8 @@ import json
 import time
 import uuid
 from .models import Webhook, WebhookDelivery, FileUpload, APIRequestLog, BatchOperation
+from .search import AdvancedSearchViewSet, AggregationAPIViewSet
+from .tenancy import TenantViewSet, TenantUserViewSet
 from .serializers import (
     WebhookSerializer, WebhookDeliverySerializer, FileUploadSerializer,
     APIRequestLogSerializer, BatchOperationSerializer

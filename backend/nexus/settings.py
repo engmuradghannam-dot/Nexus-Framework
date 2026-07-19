@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'nexus.apps.accounting',
     'nexus.apps.api_infra',
     'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]
 
 MIDDLEWARE = [
@@ -48,6 +49,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]
 
 ROOT_URLCONF = 'nexus.urls'
@@ -56,6 +58,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -65,10 +68,12 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ],
         },
     },
     'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]
 
 WSGI_APPLICATION = 'nexus.wsgi.application'
@@ -104,6 +109,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
     'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]
 
 # Internationalization
@@ -135,10 +141,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Database connection pooling
 DATABASES['default'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]['CONN_MAX_AGE'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ] = 600
 DATABASES['default'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ]['ATOMIC_REQUESTS'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ] = True
 
 # Logging
@@ -159,12 +169,14 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['file', 'console'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ],
             'level': 'INFO',
             'propagate': True,
         },
         'nexus': {
             'handlers': ['file', 'console'    'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ],
             'level': 'INFO',
             'propagate': True,
@@ -197,10 +209,12 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
         'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',
+    'nexus.apps.api_infra.tenancy.TenantMiddleware',
 ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
