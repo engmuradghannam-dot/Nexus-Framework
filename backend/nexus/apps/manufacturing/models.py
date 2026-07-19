@@ -1,6 +1,9 @@
+from django.core.validators import MinLengthValidator, MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from nexus.apps.core.models import Company, Branch, Warehouse
+from nexus.apps.core.utils import generate_code
+from nexus.apps.core.validators import alphanumeric_validator
 from nexus.apps.industry.models import Product
 
 
@@ -11,8 +14,8 @@ class WorkCenter(models.Model):
         ('inactive', 'Inactive'),
     ]
 
-    name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
+    code = models.CharField(max_length=50, unique=True, validators=[alphanumeric_validator])
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='work_centers')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='work_centers')
     description = models.TextField(blank=True)
@@ -159,7 +162,7 @@ class ManufacturingOrder(models.Model):
         ('urgent', 'Urgent'),
     ]
 
-    order_number = models.CharField(max_length=50, unique=True)
+    order_number = models.CharField(max_length=50, unique=True, blank=True)  # MO-YYYY-#####
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='manufacturing_orders')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='manufacturing_orders')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='manufacturing_orders')
@@ -185,8 +188,18 @@ class ManufacturingOrder(models.Model):
     class Meta:
         ordering = ['-created_at']
 
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            self.order_number = generate_code(ManufacturingOrder, 'order_number', 'MO')
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"MO-{self.order_number} ({self.product.name})"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.planned_start and self.planned_end and self.planned_end < self.planned_start:
+            raise ValidationError('Planned end must be on or after planned start')
 
     @property
     def completion_percentage(self):
@@ -261,7 +274,7 @@ class MaterialRequisition(models.Model):
         ('rejected', 'Rejected'),
     ]
 
-    requisition_number = models.CharField(max_length=50, unique=True)
+    requisition_number = models.CharField(max_length=50, unique=True, blank=True)  # MR-YYYY-#####
     manufacturing_order = models.ForeignKey(ManufacturingOrder, on_delete=models.CASCADE, related_name='requisitions')
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='material_requisitions')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
@@ -274,6 +287,11 @@ class MaterialRequisition(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.requisition_number:
+            self.requisition_number = generate_code(MaterialRequisition, 'requisition_number', 'MR')
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"MR-{self.requisition_number}"

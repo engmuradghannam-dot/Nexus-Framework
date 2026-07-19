@@ -12,6 +12,7 @@ A modern, open-source ERP system built with Django + React.
 - **Multi-tenancy** with company scoping
 - **Real-time** WebSocket support
 - **Advanced Security** with field-level and record-level permissions
+- **SAP-style document standards**: auto-numbered business documents (`JE-2026-00001`, `PO-2026-00001`, `MO-2026-00001`, `EMP-2026-00001`, ...), field-level validation (codes, names, phone/email, non-negative amounts, percentage ranges) on every master-data and transactional model, GL document balance checks (debit = credit before posting), and a universal CDHDR/CDPOS-style change log across master data and business documents
 
 ## Tech Stack
 

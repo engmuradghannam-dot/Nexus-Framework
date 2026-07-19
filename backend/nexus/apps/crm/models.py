@@ -106,10 +106,10 @@ class Customer(models.Model):
 
 class Contact(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='contacts')
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, validators=[MinLengthValidator(2)])
     title = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True)
-    phone = models.CharField(max_length=20, blank=True)
+    phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
     is_primary = models.BooleanField(default=False)
 
     def __str__(self):
@@ -141,11 +141,11 @@ class Opportunity(models.Model):
     STAGE_ORDER = ['qualification', 'needs_analysis', 'proposal', 'negotiation', 'closed_won', 'closed_lost']
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='opportunities')
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, validators=[MinLengthValidator(2)])
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES, default='qualification')
-    value = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    probability = models.PositiveSmallIntegerField(default=10)
-    discount_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    value = models.DecimalField(max_digits=15, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    probability = models.PositiveSmallIntegerField(default=10, validators=[MaxValueValidator(100)])
+    discount_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     expected_close_date = models.DateField(null=True, blank=True)
     assigned_to = models.ForeignKey('hr.Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='opportunities')
     last_activity_at = models.DateTimeField(default=timezone.now)

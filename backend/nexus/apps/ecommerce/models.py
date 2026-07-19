@@ -1,6 +1,9 @@
+from django.core.validators import MinLengthValidator, MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from nexus.apps.core.models import Company, Branch, Warehouse
+from nexus.apps.core.utils import generate_code
+from nexus.apps.core.validators import phone_validator
 from nexus.apps.industry.models import Product
 
 class ProductCatalog(models.Model):
@@ -23,9 +26,9 @@ class Customer(models.Model):
         ('business', 'Business'),
     ]
 
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     email = models.EmailField(blank=True)
-    phone = models.CharField(max_length=50, blank=True)
+    phone = models.CharField(max_length=50, blank=True, validators=[phone_validator])
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='individual')
     address = models.TextField(blank=True)
     tax_id = models.CharField(max_length=50, blank=True)
@@ -84,7 +87,7 @@ class Order(models.Model):
         ('refunded', 'Refunded'),
     ]
 
-    order_number = models.CharField(max_length=50, unique=True)
+    order_number = models.CharField(max_length=50, unique=True, blank=True)  # SO-YYYY-#####
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='orders')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
@@ -100,6 +103,11 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            self.order_number = generate_code(Order, 'order_number', 'SO')
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.order_number

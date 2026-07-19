@@ -58,7 +58,7 @@ class TaskViewSet(CompanyScopedViewSet):
     def timeline(self, request, pk=None):
         project = self.get_object()
         return Response({
-            'milestones': [{'name': m.name, 'date': m.due_date} for m in project.milestones.all()],
+            'milestones': [{'name': m.name, 'date': m.target_date} for m in project.milestones.all()],
             'tasks': [{'name': t.name, 'start': t.start_date, 'end': t.end_date} for t in project.tasks.all()],
         })
 

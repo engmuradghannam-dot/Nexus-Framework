@@ -96,8 +96,8 @@ class SalesOrder(models.Model):
 class SalesOrderItem(models.Model):
     order = models.ForeignKey(SalesOrder, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.DecimalField(max_digits=12, decimal_places=3, default=1)
-    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, default=1, validators=[MinValueValidator(Decimal('0.001'))])
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
 
     @property
     def total(self):
@@ -111,7 +111,7 @@ class Backorder(models.Model):
     """SAL-RULE-004 Backorder Creation."""
 
     order_item = models.ForeignKey(SalesOrderItem, on_delete=models.CASCADE, related_name='backorders')
-    quantity_pending = models.DecimalField(max_digits=12, decimal_places=3)
+    quantity_pending = models.DecimalField(max_digits=12, decimal_places=3, validators=[MinValueValidator(Decimal('0.001'))])
     created_at = models.DateTimeField(auto_now_add=True)
     fulfilled = models.BooleanField(default=False)
 
@@ -138,7 +138,7 @@ class Quotation(models.Model):
     quotation_id = models.CharField(max_length=50, unique=True, blank=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='quotations')
     valid_until = models.DateField(null=True, blank=True)
-    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     converted_order = models.ForeignKey(SalesOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name='source_quotation')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -161,7 +161,7 @@ class Invoice(models.Model):
     order = models.OneToOneField(SalesOrder, on_delete=models.CASCADE, related_name='invoice')
     issue_date = models.DateField(default=timezone.now)
     due_date = models.DateField(null=True, blank=True)
-    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
 
     def save(self, *args, **kwargs):

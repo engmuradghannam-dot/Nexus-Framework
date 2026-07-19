@@ -11,6 +11,7 @@ plain models + membership; data isolation is enforced by
 If you later want true schema-per-tenant isolation, re-introduce django_tenants
 deliberately and configure it end-to-end — don't leave it half-wired.
 """
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.contrib.auth.models import User
 from rest_framework import viewsets, status
@@ -18,12 +19,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
+from nexus.apps.core.validators import alphanumeric_validator
+
 
 class Tenant(models.Model):
     """A customer workspace. `schema_name` is kept as a stable slug identifier."""
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     description = models.TextField(blank=True)
-    schema_name = models.CharField(max_length=63, unique=True)
+    schema_name = models.CharField(max_length=63, unique=True, validators=[alphanumeric_validator])
     is_active = models.BooleanField(default=True)
     created_on = models.DateField(auto_now_add=True)
     paid_until = models.DateField(null=True, blank=True)

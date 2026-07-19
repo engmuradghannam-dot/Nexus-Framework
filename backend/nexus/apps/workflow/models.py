@@ -1,10 +1,11 @@
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 
 class Workflow(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     description = models.TextField(blank=True)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -22,7 +23,7 @@ class WorkflowStep(models.Model):
     ]
 
     workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='steps')
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     order = models.PositiveIntegerField(default=0)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES, default='approve')
     approvers = models.ManyToManyField(User, blank=True, related_name='workflow_steps')
@@ -57,7 +58,7 @@ class ApprovalRequest(models.Model):
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)

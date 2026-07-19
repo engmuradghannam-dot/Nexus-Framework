@@ -1,8 +1,9 @@
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.contrib.auth.models import User
 
 class AIModel(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     provider = models.CharField(max_length=100)
     model_id = models.CharField(max_length=255)
     description = models.TextField(blank=True)

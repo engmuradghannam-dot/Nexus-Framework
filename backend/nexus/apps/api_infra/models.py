@@ -1,3 +1,4 @@
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
@@ -27,7 +28,7 @@ class Webhook(models.Model):
         ('task.completed', 'Task Completed'),
     ]
 
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     url = models.URLField()
     events = models.JSONField(default=list, help_text="List of event names")
     secret = models.CharField(max_length=255, default=generate_webhook_secret)

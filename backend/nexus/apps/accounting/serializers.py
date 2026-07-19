@@ -27,6 +27,15 @@ class JournalEntryLineSerializer(serializers.ModelSerializer):
         model = JournalEntryLine
         fields = '__all__'
 
+    def validate(self, attrs):
+        debit = attrs.get('debit', getattr(self.instance, 'debit', 0))
+        credit = attrs.get('credit', getattr(self.instance, 'credit', 0))
+        if debit and credit:
+            raise serializers.ValidationError('A journal line cannot have both a debit and a credit amount')
+        if not debit and not credit:
+            raise serializers.ValidationError('A journal line must have a debit or a credit amount')
+        return attrs
+
 class JournalEntrySerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
@@ -37,9 +46,12 @@ class JournalEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = JournalEntry
         fields = '__all__'
+        read_only_fields = ['entry_number']
 
     def get_is_balanced(self, obj):
-        return obj.total_debit == obj.total_credit
+        # SAP FI-style GL document balance check - sums the actual lines
+        # rather than trusting the (possibly stale) header total fields.
+        return obj.is_balanced
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -56,9 +68,17 @@ class InvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
         fields = '__all__'
+        read_only_fields = ['invoice_number', 'tax_amount', 'total', 'balance_due']
 
     def get_payment_total(self, obj):
         return sum(p.amount for p in obj.payments.filter(status='completed'))
+
+    def validate(self, attrs):
+        date = attrs.get('date', getattr(self.instance, 'date', None))
+        due_date = attrs.get('due_date', getattr(self.instance, 'due_date', None))
+        if date and due_date and due_date < date:
+            raise serializers.ValidationError('Due date must be on or after the invoice date')
+        return attrs
 
 class PaymentSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)
@@ -68,6 +88,7 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = '__all__'
+        read_only_fields = ['payment_number']
 
 class FinancialReportSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)
@@ -76,3 +97,10 @@ class FinancialReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = FinancialReport
         fields = '__all__'
+
+    def validate(self, attrs):
+        period_start = attrs.get('period_start', getattr(self.instance, 'period_start', None))
+        period_end = attrs.get('period_end', getattr(self.instance, 'period_end', None))
+        if period_start and period_end and period_end < period_start:
+            raise serializers.ValidationError('Period end must be on or after period start')
+        return attrs

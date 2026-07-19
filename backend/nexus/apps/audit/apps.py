@@ -1,19 +1,38 @@
 from django.apps import AppConfig
 
 # Models tracked with full CDHDR/CDPOS-style change logging. This spans the
-# primary transactional and master-data records across every module.
+# primary transactional and master-data records across every module - the
+# same universal coverage philosophy as SAP change documents (CDHDR/CDPOS),
+# applied to every master-data and business-document model in the system.
 # Unknown paths are skipped (see _register_models) so this list stays safe to
 # extend even for apps/models that don't exist in every deployment.
 AUDITED_MODEL_PATHS = [
-    'accounting.JournalEntry', 'accounting.ChartOfAccounts',
-    'hr.Employee', 'hr.LeaveRequest',
+    # core - master data (BRN/WHS)
+    'core.Company', 'core.Branch', 'core.Warehouse', 'core.SubWarehouse', 'core.Department',
+    # hr - employee master data and payroll documents
+    'hr.Employee', 'hr.LeaveRequest', 'hr.SalaryStructure', 'hr.PayrollRun', 'hr.Payslip',
+    # accounting - GL/AP/AR documents
+    'accounting.ChartOfAccounts', 'accounting.JournalEntry', 'accounting.Invoice', 'accounting.Payment',
+    # industry - product/inventory master data and procurement documents
     'industry.Product', 'industry.Inventory', 'industry.Supplier', 'industry.PurchaseOrder',
+    # crm - customer master data and pipeline
     'crm.Customer', 'crm.Opportunity',
-    'sales.SalesOrder', 'sales.Invoice',
-    'pmo.Project',
-    'manufacturing.WorkCenter', 'manufacturing.BOM',
-    'core.Branch', 'core.Warehouse',
-    'workflow.ApprovalRequest',
+    # sales - sales documents
+    'sales.SalesOrder', 'sales.Invoice', 'sales.Quotation',
+    # pmo - project master data
+    'pmo.Project', 'pmo.Milestone',
+    # manufacturing - production master data and orders
+    'manufacturing.WorkCenter', 'manufacturing.BOM', 'manufacturing.ManufacturingOrder', 'manufacturing.MaterialRequisition',
+    # permissions - authorization master data (SAP PFCG-style role changes)
+    'permissions.Role', 'permissions.UserRole',
+    # workflow - approval engine
+    'workflow.Workflow', 'workflow.ApprovalRequest',
+    # ecommerce - orders
+    'ecommerce.Customer', 'ecommerce.Order',
+    # regulatory - compliance master data
+    'regulatory.Regulation',
+    # api_infra - tenant master data
+    'api_infra.Tenant',
 ]
 
 

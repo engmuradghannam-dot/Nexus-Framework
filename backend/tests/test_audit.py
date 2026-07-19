@@ -49,9 +49,21 @@ def test_delete_logs_full_snapshot():
 
 
 @pytest.mark.django_db
-def test_untracked_field_change_produces_no_header():
-    # Company is not in the audited model registry
-    from nexus.apps.core.models import Company
+def test_untracked_model_produces_no_header():
+    # AIModel is intentionally not in the audited model registry (internal/
+    # telemetry config, not a business document or master-data record)
+    from nexus.apps.ai_module.models import AIModel
     before_count = ChangeHeader.objects.count()
-    Company.objects.create(name='Untracked Co')
+    AIModel.objects.create(name='Untracked Model', provider='test', model_id='test-1')
     assert ChangeHeader.objects.count() == before_count
+
+
+@pytest.mark.django_db
+def test_company_master_data_is_tracked():
+    # core.Company is in the audited model registry (BRN master data)
+    from nexus.apps.core.models import Company
+    company = Company.objects.create(name='Tracked Co')
+
+    from django.contrib.contenttypes.models import ContentType
+    content_type = ContentType.objects.get_for_model(Company)
+    assert ChangeHeader.objects.filter(content_type=content_type, object_id=str(company.pk), change_type='I').exists()
