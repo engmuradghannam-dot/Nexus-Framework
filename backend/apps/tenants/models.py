@@ -10,6 +10,24 @@ class Tenant(models.Model):
     subdomain = models.CharField(max_length=80, blank=True, db_index=True)
     plan = models.CharField(max_length=12, choices=PLANS, default="free")
     is_active = models.BooleanField(default=True)
+
+    # Database-per-tenant. When database_url is set, this tenant's data lives in
+    # its own physical database, registered under db_alias at runtime. When it's
+    # blank, the tenant uses the shared default database (row-level isolation),
+    # so per-tenant databases can be adopted gradually, tenant by tenant, without
+    # migrating everyone at once.
+    database_url = models.CharField(
+        max_length=500, blank=True,
+        help_text="If set, this tenant's own database (e.g. postgres://…). "
+        "Blank means the shared default database.",
+    )
+
+    @property
+    def db_alias(self):
+        """The Django connection alias for this tenant's database, or 'default'
+        when it has no dedicated one."""
+        return f"tenant_{self.pk}" if self.database_url else "default"
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
