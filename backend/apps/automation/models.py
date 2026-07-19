@@ -128,3 +128,107 @@ class WebhookDelivery(models.Model):
     class Meta:
         db_table = "webhook_deliveries"
         ordering = ["-created_at"]
+
+
+class AutomatedAction(models.Model):
+    """A rule: on an event, if a condition holds, do something — no code.
+
+    Modelled on Odoo's automated actions. When a document of `model_label` fires
+    `trigger` (created, updated, or a field reaching a value), and the optional
+    condition passes, each of the action's steps runs — set a field, send a
+    notification, or fire a webhook. The condition is evaluated by a safe
+    comparator, never eval(); it can only read the record's own fields.
+    """
+
+    TRIGGERS = [
+        ("on_create", "On create"),
+        ("on_update", "On update"),
+        ("on_create_or_update", "On create or update"),
+    ]
+
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+    )
+    name = models.CharField(max_length=150)
+    model_label = models.CharField(
+        max_length=80, db_index=True,
+        help_text="Which model this watches, as 'app_label.ModelName'.",
+    )
+    trigger = models.CharField(max_length=20, choices=TRIGGERS, default="on_create")
+
+    # Optional condition: "<field> <op> <value>", e.g. "total > 10000".
+    condition_field = models.CharField(max_length=60, blank=True)
+    condition_operator = models.CharField(
+        max_length=4, blank=True,
+        help_text="One of ==, !=, >, >=, <, <=.",
+    )
+    condition_value = models.CharField(max_length=120, blank=True)
+
+    is_active = models.BooleanField(default=True)
+    run_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "automated_actions"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def condition_holds(self, instance):
+        """Whether this rule's condition passes for `instance`. No condition
+        means it always passes."""
+        if not self.condition_field or not self.condition_operator:
+            return True
+        from .actions import compare
+
+        actual = getattr(instance, self.condition_field, None)
+        return compare(actual, self.condition_operator, self.condition_value)
+
+    def run_on(self, instance, actor=None):
+        """Run every step against `instance`. Returns the list of results."""
+        results = []
+        for step in self.steps.filter(is_active=True).order_by("order"):
+            results.append(step.execute(instance, actor=actor))
+        AutomatedAction.objects.filter(pk=self.pk).update(run_count=self.run_count + 1)
+        return results
+
+
+class AutomatedActionStep(models.Model):
+    """One thing an automated action does when it fires."""
+
+    STEP_TYPES = [
+        ("set_field", "Set a field"),
+        ("notify", "Create a notification"),
+        ("webhook", "Fire a webhook"),
+    ]
+
+    action = models.ForeignKey(
+        AutomatedAction, on_delete=models.CASCADE, related_name="steps"
+    )
+    order = models.PositiveSmallIntegerField(default=0)
+    step_type = models.CharField(max_length=10, choices=STEP_TYPES)
+
+    # set_field
+    target_field = models.CharField(max_length=60, blank=True)
+    target_value = models.CharField(max_length=200, blank=True)
+    # notify
+    message = models.CharField(max_length=300, blank=True)
+    # webhook
+    webhook = models.ForeignKey(
+        Webhook, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "automated_action_steps"
+        ordering = ["action", "order"]
+
+    def __str__(self):
+        return f"{self.action.name} → {self.step_type}"
+
+    def execute(self, instance, actor=None):
+        from .actions import run_step
+
+        return run_step(self, instance, actor=actor)
