@@ -304,6 +304,19 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        # Anonymous callers are limited hard; authenticated users get a generous
+        # ceiling that still stops a runaway script or credential-stuffing loop.
+        "anon": "30/min",
+        "user": "1000/hour",
+        # A tight scope for the login endpoint, applied via ScopedRateThrottle,
+        # to blunt brute-force attempts.
+        "login": "10/min",
+    },
 }
 
 # ── SPECTACULAR (OpenAPI) ────────────────────────
