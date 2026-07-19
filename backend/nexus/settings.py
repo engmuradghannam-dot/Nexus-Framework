@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     'nexus.apps.accounting',
     'nexus.apps.manufacturing',
     'nexus.apps.api_infra',
+    'nexus.apps.crm',
+    'nexus.apps.sales',
+    'nexus.apps.audit',
 ]
 
 MIDDLEWARE = [
@@ -54,6 +57,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'nexus.apps.audit.middleware.AuditUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'nexus.apps.api_infra.middleware.APIRequestLogMiddleware',

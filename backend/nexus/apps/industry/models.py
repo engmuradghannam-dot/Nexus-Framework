@@ -25,6 +25,7 @@ class Inventory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventory')
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='inventory')
     quantity = models.PositiveIntegerField(default=0)
+    reserved_quantity = models.PositiveIntegerField(default=0)  # SAL-RULE-002 Stock Reservation
     min_reorder_level = models.PositiveIntegerField(default=10)
     reorder_quantity = models.PositiveIntegerField(default=50)
     last_reorder_date = models.DateField(null=True, blank=True)
@@ -40,6 +41,18 @@ class Inventory(models.Model):
     @property
     def needs_reorder(self):
         return self.quantity <= self.min_reorder_level
+
+    @property
+    def available_quantity(self):
+        return self.quantity - self.reserved_quantity
+
+    def reserve(self, quantity):
+        # SAL-RULE-002 Stock Reservation
+        from django.core.exceptions import ValidationError
+        if self.available_quantity < quantity:
+            raise ValidationError('Insufficient available stock to reserve')
+        self.reserved_quantity += quantity
+        self.save(update_fields=['reserved_quantity'])
 
 class Supplier(models.Model):
     name = models.CharField(max_length=255)

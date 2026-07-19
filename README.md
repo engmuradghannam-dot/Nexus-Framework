@@ -4,8 +4,8 @@ A modern, open-source ERP system built with Django + React.
 
 ## Features
 
-- **11 Modules**: Core, PMO, Industry, AI, Regulatory, HR, E-commerce, Workflow, Permissions, Accounting, API Infrastructure
-- **60 Models** with full CRUD operations
+- **14 Modules**: Core, PMO, Industry, AI, Regulatory, HR, E-commerce, Workflow, Permissions, Accounting, API Infrastructure, CRM, Sales, Audit
+- **60+ Models** with full CRUD operations
 - **397+ API Endpoints** (REST + GraphQL)
 - **11 React Pages** with Material-UI
 - **PWA Support** with offline capability
@@ -64,6 +64,9 @@ cd frontend && npm install && npm start
 | Permissions | 5 | 32 | RBAC + Field/Record Level |
 | Accounting | 8 | 52 | Invoices, Journal Entries, Reports |
 | API Infra | 5 | 46 | Webhooks, File Upload, Batch Ops |
+| CRM | 4 | - | Customers, Contacts, Opportunities, Lead Scoring |
+| Sales | 6 | - | Sales Orders, Quotations, Invoices, Deliveries, Backorders |
+| Audit | 2 | - | CDHDR/CDPOS-style change log (who/when/old-value/new-value) across core models |
 
 ## License
 
