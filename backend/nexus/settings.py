@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'nexus.apps.workflow',
     'nexus.apps.permissions',
     'nexus.apps.accounting',
+    'nexus.apps.manufacturing',
     'nexus.apps.api_infra',
 ]
 

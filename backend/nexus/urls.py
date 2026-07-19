@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/workflow/', include('nexus.apps.workflow.urls')),
     path('api/permissions/', include('nexus.apps.permissions.urls')),
     path('api/accounting/', include('nexus.apps.accounting.urls')),
+    path('api/manufacturing/', include('nexus.apps.manufacturing.urls')),
     path('api/infra/', include('nexus.apps.api_infra.urls')),
     path('api/docs/', include('nexus.yasg')),
     path('api/graphql/', GraphQLView.as_view(graphiql=True, schema=schema)),
