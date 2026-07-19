@@ -369,6 +369,9 @@ export const automationApi = {
   createWebhook: (p) => data(API.post('/automation/webhooks/', p)),
   triggerWebhook: (id, payload) => data(API.post(`/automation/webhooks/${id}/trigger/`, { payload })),
   deliveries: () => list(API.get('/automation/deliveries/', { params: { page_size: 200 } })),
+  actions: () => list(API.get('/automation/automated-actions/')),
+  createAction: (p) => data(API.post('/automation/automated-actions/', p)),
+  removeAction: (id) => API.delete(`/automation/automated-actions/${id}/`),
 }
 
 // ════════ Inventory: items, item groups, stock entries ════════

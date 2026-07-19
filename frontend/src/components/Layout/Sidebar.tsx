@@ -94,6 +94,7 @@ const navGroups: NavGroup[] = [
       { path: '/audit', icon: History, label: 'سجل التدقيق' },
       { path: '/approvals', icon: ClipboardCheck, label: 'الموافقات' },
       { path: '/automation', icon: ClockIcon2, label: 'الأتمتة (مهام/Webhooks)' },
+      { path: '/automated-actions', icon: ClockIcon2, label: 'الإجراءات التلقائية' },
       { path: '/reports', icon: FileBarChart, label: 'منشئ التقارير' },
       { path: '/notifications', icon: Mail, label: 'البريد والرسائل' },
       { path: '/settings', icon: Settings, label: 'الإعدادات العامة' },
