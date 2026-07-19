@@ -111,6 +111,13 @@ class DashboardStatsType(graphene.ObjectType):
     overdue_invoices = graphene.Int()
     low_stock_items = graphene.Int()
 
+class SalaryStatsType(graphene.ObjectType):
+    avg = graphene.Float()
+    min = graphene.Float()
+    max = graphene.Float()
+    total = graphene.Float()
+    count = graphene.Int()
+
 # ============ QUERIES ============
 class Query(graphene.ObjectType):
     # Single objects
@@ -163,13 +170,7 @@ class Query(graphene.ObjectType):
     dashboard_stats = graphene.Field(DashboardStatsType)
 
     # Aggregation
-    employee_salary_stats = graphene.Field(graphene.ObjectType,
-        avg=graphene.Float(),
-        min=graphene.Float(),
-        max=graphene.Float(),
-        total=graphene.Float(),
-        count=graphene.Int()
-    )
+    employee_salary_stats = graphene.Field(SalaryStatsType)
 
     # Search across all models
     global_search = graphene.List(graphene.String, query=graphene.String(required=True))
@@ -312,7 +313,7 @@ class Query(graphene.ObjectType):
             total=Sum('salary'),
             count=Count('id')
         )
-        return type('SalaryStats', (), stats)
+        return SalaryStatsType(**stats)
 
     def resolve_global_search(self, info, query):
         results = []

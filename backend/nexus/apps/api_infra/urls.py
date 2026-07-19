@@ -6,6 +6,7 @@ from .views import (
     WebhookViewSet, WebhookDeliveryViewSet, FileUploadViewSet,
     APIRequestLogViewSet, BatchOperationViewSet
 )
+from .tenancy import TenantViewSet, TenantUserViewSet
 
 router = DefaultRouter()
 router.register(r'webhooks', WebhookViewSet)
