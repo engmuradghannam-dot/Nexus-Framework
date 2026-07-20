@@ -37,7 +37,7 @@ class ComplianceCheck(models.Model):
 
     regulation = models.ForeignKey(Regulation, on_delete=models.CASCADE, related_name='checks')
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='compliance_checks')
-    checked_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    checked_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, db_constraint=False)
     result = models.CharField(max_length=20, choices=RESULT_CHOICES, default='pending')
     notes = models.TextField(blank=True)
     checked_at = models.DateTimeField(auto_now_add=True)

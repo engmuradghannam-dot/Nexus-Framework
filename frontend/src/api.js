@@ -8,6 +8,31 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
     withCredentials: true,
+    // Read Django's csrftoken cookie and echo it back as X-CSRFToken on
+    // unsafe requests (POST/PUT/PATCH/DELETE) - required by Django's CSRF
+    // protection when auth is session-cookie based, as it is here.
+    xsrfCookieName: 'csrftoken',
+    xsrfHeaderName: 'X-CSRFToken',
+    // axios only does this automatically for same-origin requests by
+    // default; the API is on a different origin (port) than the SPA.
+    withXSRFToken: true,
+});
+
+// DRF's default pagination wraps every list response as
+// {count, next, previous, results: [...]}. Pages here were written against
+// plain arrays, so unwrap that envelope transparently in one place rather
+// than touching every call site - and every DataGrid `rows={...}` prop that
+// currently receives an object instead of an array.
+api.interceptors.response.use((response) => {
+    const { data } = response;
+    if (
+        data && typeof data === 'object' && !Array.isArray(data) &&
+        Array.isArray(data.results) &&
+        ['count', 'next', 'previous'].every((key) => key in data)
+    ) {
+        response.data = data.results;
+    }
+    return response;
 });
 
 // Core
@@ -69,6 +94,7 @@ export const getPayments = () => api.get('/accounting/payments/');
 export const getFinancialReports = () => api.get('/accounting/financial-reports/');
 export const getInvoiceStats = () => api.get('/accounting/invoices/dashboard_stats/');
 
+export { api };
 export default api;
 
 

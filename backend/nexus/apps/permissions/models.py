@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True, validators=[MinLengthValidator(2)])
     description = models.TextField(blank=True)
-    django_permissions = models.ManyToManyField(DjangoPermission, blank=True)
+    django_permissions = models.ManyToManyField(DjangoPermission, blank=True, db_constraint=False)
     is_system = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -14,7 +14,7 @@ class Role(models.Model):
         return self.name
 
 class UserRole(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='nexus_roles')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='nexus_roles', db_constraint=False)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='users')
     branch = models.ForeignKey('core.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='user_roles')
     is_active = models.BooleanField(default=True)
@@ -36,7 +36,7 @@ class FieldPermission(models.Model):
     ]
 
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='field_permissions')
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, db_constraint=False)
     field_name = models.CharField(max_length=255)
     access_level = models.CharField(max_length=20, choices=ACCESS_CHOICES, default='read_write')
     condition = models.TextField(blank=True, help_text="JSON condition for when this applies")
@@ -57,7 +57,7 @@ class RecordPermission(models.Model):
     ]
 
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='record_permissions')
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, db_constraint=False)
     access_level = models.CharField(max_length=20, choices=ACCESS_CHOICES, default='view')
     filter_condition = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -69,7 +69,7 @@ class RecordPermission(models.Model):
         return f"{self.role.name} - {self.content_type.model} ({self.access_level})"
 
 class PermissionAudit(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='permission_audits')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='permission_audits', db_constraint=False)
     action = models.CharField(max_length=50)
     resource_type = models.CharField(max_length=100)
     resource_id = models.PositiveIntegerField(null=True, blank=True)

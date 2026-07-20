@@ -99,6 +99,11 @@ DATABASES = {
     }
 }
 
+# True database-per-tenant routing. Tenant databases are registered
+# dynamically at runtime (see api_infra.tenancy_router); this only needs the
+# `default` entry above to exist upfront.
+DATABASE_ROUTERS = ['nexus.apps.api_infra.tenancy_router.TenantDatabaseRouter']
+
 # Redis Cache
 CACHES = {
     'default': {
@@ -143,7 +148,15 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
+# The SPA runs on a different origin/port than the API (session-cookie auth,
+# not token auth), so it must read the csrftoken cookie itself and echo it
+# back as the X-CSRFToken header on unsafe requests - that's the whole point
+# of Django's double-submit-cookie CSRF scheme. HttpOnly would make that
+# cookie invisible to JS and break every POST/PUT/PATCH/DELETE from the SPA.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    'CSRF_TRUSTED_ORIGINS', 'http://localhost:3000,https://*.railway.app,https://*.up.railway.app'
+).split(',')
 X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
@@ -188,6 +201,10 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 
 # CORS
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,https://*.railway.app,https://*.up.railway.app').split(',')
+# The frontend sends requests with `withCredentials: true` (session-cookie
+# auth) - without this, django-cors-headers omits Access-Control-Allow-
+# Credentials entirely and browsers reject every cross-origin request.
+CORS_ALLOW_CREDENTIALS = True
 
 # DRF — single merged config (previously two REST_FRAMEWORK dicts, the second
 # silently overwrote the first and wiped auth/permissions/pagination).

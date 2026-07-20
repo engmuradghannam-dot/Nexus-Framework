@@ -15,7 +15,7 @@ class AIModel(models.Model):
         return f"{self.name} ({self.provider})"
 
 class AIConversation(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_conversations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_conversations', db_constraint=False)
     model = models.ForeignKey(AIModel, on_delete=models.CASCADE, related_name='conversations')
     title = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

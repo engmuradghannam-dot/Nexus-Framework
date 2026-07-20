@@ -18,6 +18,14 @@ class CompanyViewSet(CompanyScopedViewSet):
     serializer_class = CompanySerializer
     company_field = "id"   # the Company IS the scope key
 
+    def perform_create(self, serializer):
+        # CompanyScopedViewSet.perform_create() assumes the model being
+        # created has a `company` FK to read from validated_data - Company
+        # itself doesn't (it IS the scope key, via company_field="id"
+        # above), so that inherited logic always raised "company is
+        # required" here. A new company isn't scoped by an existing one.
+        serializer.save()
+
     @action(detail=False, methods=['get'])
     def search(self, request):
         query = request.query_params.get('q', '')

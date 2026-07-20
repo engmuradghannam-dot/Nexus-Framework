@@ -14,7 +14,7 @@ class Employee(models.Model):
         ('suspended', 'Suspended'),
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee', null=True, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee', null=True, blank=True, db_constraint=False)
     employee_id = models.CharField(max_length=50, unique=True, blank=True)  # EMP-YYYY-#####
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='employees')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='employees')

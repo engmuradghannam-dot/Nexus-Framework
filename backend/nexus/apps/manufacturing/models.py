@@ -40,7 +40,7 @@ class BOM(models.Model):
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, db_constraint=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -180,8 +180,8 @@ class ManufacturingOrder(models.Model):
     estimated_cost = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     actual_cost = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_manufacturing_orders')
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_manufacturing_orders')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_manufacturing_orders', db_constraint=False)
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_manufacturing_orders', db_constraint=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -250,7 +250,7 @@ class ManufacturingOrderOperation(models.Model):
     actual_setup_time = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     actual_run_time = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     notes = models.TextField(blank=True)
-    completed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    completed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, db_constraint=False)
 
     class Meta:
         ordering = ['sequence']
@@ -278,8 +278,8 @@ class MaterialRequisition(models.Model):
     manufacturing_order = models.ForeignKey(ManufacturingOrder, on_delete=models.CASCADE, related_name='requisitions')
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='material_requisitions')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='material_requisitions')
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_requisitions')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='material_requisitions', db_constraint=False)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_requisitions', db_constraint=False)
     approved_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

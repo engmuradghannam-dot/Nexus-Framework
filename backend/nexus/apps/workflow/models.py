@@ -7,7 +7,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 class Workflow(models.Model):
     name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     description = models.TextField(blank=True)
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True, db_constraint=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -26,7 +26,7 @@ class WorkflowStep(models.Model):
     name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     order = models.PositiveIntegerField(default=0)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES, default='approve')
-    approvers = models.ManyToManyField(User, blank=True, related_name='workflow_steps')
+    approvers = models.ManyToManyField(User, blank=True, related_name='workflow_steps', db_constraint=False)
     approver_role = models.CharField(max_length=100, blank=True)
     is_required = models.BooleanField(default=True)
     auto_approve_after = models.PositiveIntegerField(default=0, help_text="Hours to auto-approve")
@@ -50,11 +50,11 @@ class ApprovalRequest(models.Model):
 
     workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='requests')
     current_step = models.ForeignKey(WorkflowStep, on_delete=models.CASCADE, related_name='requests')
-    requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='approval_requests')
+    requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='approval_requests', db_constraint=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
     # Generic relation to the object being approved
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, db_constraint=False)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
 
@@ -79,7 +79,7 @@ class ApprovalAction(models.Model):
 
     request = models.ForeignKey(ApprovalRequest, on_delete=models.CASCADE, related_name='actions')
     step = models.ForeignKey(WorkflowStep, on_delete=models.CASCADE, related_name='actions')
-    actor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='approval_actions')
+    actor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='approval_actions', db_constraint=False)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     comments = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

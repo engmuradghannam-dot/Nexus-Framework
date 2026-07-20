@@ -65,7 +65,7 @@ class JournalEntry(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     total_debit = models.DecimalField(max_digits=15, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     total_credit = models.DecimalField(max_digits=15, decimal_places=2, default=0, validators=[MinValueValidator(0)])
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='journal_entries')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='journal_entries', db_constraint=False)
     created_at = models.DateTimeField(auto_now_add=True)
     posted_at = models.DateTimeField(null=True, blank=True)
 
@@ -238,7 +238,7 @@ class FinancialReport(models.Model):
     period_end = models.DateField()
     data = models.JSONField(default=dict)
     generated_at = models.DateTimeField(auto_now_add=True)
-    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, db_constraint=False)
 
     class Meta:
         ordering = ['-generated_at']

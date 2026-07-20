@@ -64,7 +64,7 @@ class Department(models.Model):
         return self.name
 
 class HRProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='hr_profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='hr_profile', db_constraint=False)
     employee_id = models.CharField(max_length=50, unique=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)

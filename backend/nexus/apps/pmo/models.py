@@ -43,7 +43,7 @@ class Task(models.Model):
     title = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     description = models.TextField(blank=True)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
-    assigned_to = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    assigned_to = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, db_constraint=False)
     start_date = models.DateField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     estimated_hours = models.DecimalField(max_digits=8, decimal_places=2, default=0, validators=[MinValueValidator(0)])

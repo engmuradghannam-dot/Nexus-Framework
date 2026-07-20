@@ -130,7 +130,7 @@ class POSession(models.Model):
     ]
 
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='pos_sessions')
-    cashier = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pos_sessions')
+    cashier = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pos_sessions', db_constraint=False)
     opening_cash = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     closing_cash = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     expected_cash = models.DecimalField(max_digits=15, decimal_places=2, default=0)
