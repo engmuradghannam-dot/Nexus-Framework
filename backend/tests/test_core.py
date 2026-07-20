@@ -36,7 +36,10 @@ def test_regular_user_cannot_create_company(user):
     # its own gate rather than falling through to "any authenticated user".
     client = APIClient()
     client.force_authenticate(user=user)
-    resp = client.post('/api/core/companies/', {'name': 'Shadow Co'}, format='json')
+    # secure=True: with DEBUG=False (as in CI), SecurityMiddleware 301s any
+    # request that isn't HTTPS - this simulates an HTTPS request without an
+    # actual TLS connection, same as any other Django test client request.
+    resp = client.post('/api/core/companies/', {'name': 'Shadow Co'}, format='json', secure=True)
     assert resp.status_code == 403
     assert not Company.objects.filter(name='Shadow Co').exists()
 
@@ -47,6 +50,6 @@ def test_staff_user_can_create_company(user):
     user.save(update_fields=['is_staff'])
     client = APIClient()
     client.force_authenticate(user=user)
-    resp = client.post('/api/core/companies/', {'name': 'Legit Co'}, format='json')
+    resp = client.post('/api/core/companies/', {'name': 'Legit Co'}, format='json', secure=True)
     assert resp.status_code == 201
     assert Company.objects.filter(name='Legit Co').exists()

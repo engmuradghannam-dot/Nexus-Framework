@@ -28,7 +28,7 @@ def test_create_tenant_rejects_unvalidated_schema_name():
     resp = client.post('/api/infra/tenants/create_tenant/', {
         'name': 'Evil Co',
         'schema_name': 'foo" TEMPLATE "nexus" --',
-    }, format='json')
+    }, format='json', secure=True)
 
     assert resp.status_code == 400
     assert not Tenant.objects.filter(name='Evil Co').exists()
