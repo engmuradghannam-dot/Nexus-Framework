@@ -3,12 +3,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import exceptions
+from django.core.cache import cache
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum, Count
 import uuid
 
-from nexus.apps.api_infra.scoping import CompanyScopedViewSet
+from nexus.apps.api_infra.scoping import CompanyScopedViewSet, user_company_ids
 from .models import (
     AccountType, ChartOfAccounts, JournalEntry, JournalEntryLine,
     Invoice, InvoiceItem, Payment, FinancialReport
@@ -119,15 +120,30 @@ class InvoiceViewSet(CompanyScopedViewSet):
 
     @action(detail=False, methods=['get'])
     def dashboard_stats(self, request):
+        # Recomputed from every invoice row on each call and hit on every
+        # Dashboard/Accounting page load - cache it briefly per company scope
+        # rather than per request. Keyed on the caller's allowed company ids
+        # (not just user id), so cache entries are naturally shared across
+        # everyone scoped to the same company/companies, and a superuser
+        # (allowed=None, sees everything) never shares a cache entry with a
+        # company-scoped user.
+        allowed = user_company_ids(request.user)
+        cache_key = f"invoice_dashboard_stats:{sorted(allowed) if allowed is not None else 'all'}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         invoices = self.get_queryset()
-        return Response({
+        data = {
             'total_invoices': invoices.count(),
             'total_sales': sum(i.total for i in invoices.filter(invoice_type='sales')),
             'total_purchases': sum(i.total for i in invoices.filter(invoice_type='purchase')),
             'overdue_count': invoices.filter(status='overdue').count(),
             'overdue_amount': sum(i.balance_due for i in invoices.filter(status='overdue')),
             'paid_amount': sum(i.amount_paid for i in invoices),
-        })
+        }
+        cache.set(cache_key, data, timeout=60)
+        return Response(data)
 
     @action(detail=False, methods=['post'])
     def recurring_invoice(self, request):

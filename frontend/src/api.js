@@ -8,12 +8,44 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
     withCredentials: true,
+    // Read Django's csrftoken cookie and echo it back as X-CSRFToken on
+    // unsafe requests (POST/PUT/PATCH/DELETE) - required by Django's CSRF
+    // protection when auth is session-cookie based, as it is here.
+    xsrfCookieName: 'csrftoken',
+    xsrfHeaderName: 'X-CSRFToken',
+    // axios only does this automatically for same-origin requests by
+    // default; the API is on a different origin (port) than the SPA.
+    withXSRFToken: true,
 });
+
+// DRF's default pagination wraps every list response as
+// {count, next, previous, results: [...]}. Pages here were written against
+// plain arrays, so unwrap that envelope transparently in one place rather
+// than touching every call site - and every DataGrid `rows={...}` prop that
+// currently receives an object instead of an array.
+api.interceptors.response.use((response) => {
+    const { data } = response;
+    if (
+        data && typeof data === 'object' && !Array.isArray(data) &&
+        Array.isArray(data.results) &&
+        ['count', 'next', 'previous'].every((key) => key in data)
+    ) {
+        response.data = data.results;
+    }
+    return response;
+});
+
+// Auth
+export const getSession = () => api.get('/core/session/');
+export const login = (username, password) => api.post('/core/session/', { username, password });
+export const logoutSession = () => api.delete('/core/session/');
 
 // Core
 export const getCompanies = () => api.get('/core/companies/');
 export const getBranches = (companyId) => api.get(`/core/branches/by_company/?company_id=${companyId}`);
+export const getAllBranches = () => api.get('/core/branches/');
 export const getWarehouses = (branchId) => api.get(`/core/warehouses/by_branch/?branch_id=${branchId}`);
+export const getAllWarehouses = () => api.get('/core/warehouses/');
 export const getHRProfiles = () => api.get('/core/hr-profiles/');
 
 // PMO
@@ -69,6 +101,7 @@ export const getPayments = () => api.get('/accounting/payments/');
 export const getFinancialReports = () => api.get('/accounting/financial-reports/');
 export const getInvoiceStats = () => api.get('/accounting/invoices/dashboard_stats/');
 
+export { api };
 export default api;
 
 
@@ -87,3 +120,28 @@ export const getMaterialRequisitions = () => api.get('/manufacturing/material-re
 export const approveRequisition = (id) => api.post(`/manufacturing/material-requisitions/${id}/approve/`);
 export const issueRequisition = (id, data) => api.post(`/manufacturing/material-requisitions/${id}/issue/`, data);
 export const getManufacturingStats = () => api.get('/manufacturing/manufacturing-orders/dashboard_stats/');
+
+// CRM
+export const getCrmCustomers = () => api.get('/crm/customers/');
+export const createCrmCustomer = (data) => api.post('/crm/customers/', data);
+export const getContacts = () => api.get('/crm/contacts/');
+export const getOpportunities = () => api.get('/crm/opportunities/');
+export const createOpportunity = (data) => api.post('/crm/opportunities/', data);
+
+// Sales
+export const getSalesOrders = () => api.get('/sales/orders/');
+export const createSalesOrder = (data) => api.post('/sales/orders/', data);
+export const getQuotations = () => api.get('/sales/quotations/');
+export const getSalesInvoices = () => api.get('/sales/invoices/');
+export const getDeliveries = () => api.get('/sales/deliveries/');
+export const getBackorders = () => api.get('/sales/backorders/');
+
+// Tenancy (admin only)
+export const getTenants = () => api.get('/infra/tenants/');
+export const createTenant = (data) => api.post('/infra/tenants/create_tenant/', data);
+export const activateTenant = (id) => api.post(`/infra/tenants/${id}/activate/`);
+export const deactivateTenant = (id) => api.post(`/infra/tenants/${id}/deactivate/`);
+export const getTenantUsers = () => api.get('/infra/tenant-users/');
+
+// Audit (admin only)
+export const getChangeHeaders = () => api.get('/audit/change-headers/');

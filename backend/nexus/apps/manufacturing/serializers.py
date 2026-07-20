@@ -93,6 +93,14 @@ class ManufacturingOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = ManufacturingOrder
         fields = '__all__'
+        read_only_fields = ['order_number']
+
+    def validate(self, attrs):
+        planned_start = attrs.get('planned_start', getattr(self.instance, 'planned_start', None))
+        planned_end = attrs.get('planned_end', getattr(self.instance, 'planned_end', None))
+        if planned_start and planned_end and planned_end < planned_start:
+            raise serializers.ValidationError('Planned end must be on or after planned start')
+        return attrs
 
 
 class MaterialRequisitionItemSerializer(serializers.ModelSerializer):
@@ -118,3 +126,4 @@ class MaterialRequisitionSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaterialRequisition
         fields = '__all__'
+        read_only_fields = ['requisition_number']

@@ -80,7 +80,9 @@ jobs:
 
     - name: Install dependencies
       working-directory: ./frontend
-      run: npm ci
+      # No committed package-lock.json yet, so `npm ci` (which requires one)
+      # isn't usable here - `npm install` resolves and installs in one step.
+      run: npm install
 
     - name: Build
       working-directory: ./frontend

@@ -1,8 +1,9 @@
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.contrib.auth.models import User
 
 class AIModel(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(2)])
     provider = models.CharField(max_length=100)
     model_id = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -14,7 +15,7 @@ class AIModel(models.Model):
         return f"{self.name} ({self.provider})"
 
 class AIConversation(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_conversations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_conversations', db_constraint=False)
     model = models.ForeignKey(AIModel, on_delete=models.CASCADE, related_name='conversations')
     title = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
