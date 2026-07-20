@@ -1,6 +1,8 @@
 import pytest
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.db import connections
+from rest_framework.test import APIClient
 
 from nexus.apps.api_infra.tenancy import Tenant, TenantUser
 from nexus.apps.api_infra.tenancy_router import (
@@ -11,6 +13,25 @@ from nexus.apps.industry.models import Product
 
 
 router = TenantDatabaseRouter()
+
+
+@pytest.mark.django_db
+def test_create_tenant_rejects_unvalidated_schema_name():
+    # schema_name ends up interpolated into a raw CREATE DATABASE statement
+    # in provision_database() - .objects.create() never runs full_clean(),
+    # so create_tenant() must validate explicitly before persisting anything
+    # that could reach that path with a malicious schema_name.
+    staff_user = User.objects.create(username='staffer', is_staff=True)
+    client = APIClient()
+    client.force_authenticate(user=staff_user)
+
+    resp = client.post('/api/infra/tenants/create_tenant/', {
+        'name': 'Evil Co',
+        'schema_name': 'foo" TEMPLATE "nexus" --',
+    }, format='json')
+
+    assert resp.status_code == 400
+    assert not Tenant.objects.filter(name='Evil Co').exists()
 
 
 def test_shared_app_always_routes_to_default():

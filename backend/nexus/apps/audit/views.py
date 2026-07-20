@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from .models import ChangeHeader
@@ -10,11 +10,24 @@ from .serializers import ChangeHeaderSerializer
 
 class ChangeHeaderViewSet(viewsets.ReadOnlyModelViewSet):
     """CDHDR/CDPOS-style audit trail - read-only, changes are only ever
-    written by the audit signal handlers."""
+    written by the audit signal handlers.
+
+    Every audited model is tracked centrally here regardless of which
+    company/tenant it belongs to (see api_infra.tenancy_router.SHARED_APPS),
+    and old/new field values routinely include sensitive data (salaries,
+    invoice amounts, etc.). ChangeHeader reaches its target only through a
+    generic content_type/object_id pair, and different audited models are
+    company-scoped through different, model-specific paths (or not at all),
+    so there's no single field to filter this queryset by company the way
+    CompanyScopedViewSet does elsewhere. Until that per-model scoping is
+    built, restrict this to staff - matching how SAP itself gates CDHDR/
+    CDPOS access to auditors/admins, not every user - rather than leaving it
+    open to any authenticated account.
+    """
 
     queryset = ChangeHeader.objects.select_related('content_type', 'changed_by').prefetch_related('items').all()
     serializer_class = ChangeHeaderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     @action(detail=False, methods=['get'])
     def for_object(self, request):

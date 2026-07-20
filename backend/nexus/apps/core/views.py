@@ -18,6 +18,16 @@ class CompanyViewSet(CompanyScopedViewSet):
     serializer_class = CompanySerializer
     company_field = "id"   # the Company IS the scope key
 
+    def get_permissions(self):
+        # CompanyScopedPermission only checks membership on existing objects
+        # (has_object_permission, never called for create) - creating a new
+        # top-level Company is the one action here that isn't scoped by
+        # anything, so it needs its own explicit gate rather than falling
+        # through to "any authenticated user".
+        if self.action == 'create':
+            return [IsAdminUser()]
+        return super().get_permissions()
+
     def perform_create(self, serializer):
         # CompanyScopedViewSet.perform_create() assumes the model being
         # created has a `company` FK to read from validated_data - Company

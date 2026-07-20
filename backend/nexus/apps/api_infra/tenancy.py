@@ -66,8 +66,12 @@ class Tenant(models.Model):
         database's migration bookkeeping to match `default`'s, so future
         `migrate_tenants` runs only ever apply new, forward migrations.
 
-        schema_name is alphanumeric-validated, so it's safe to interpolate
-        into the CREATE DATABASE identifier.
+        `schema_name` has a model-field validator, but that only runs
+        through full_clean()/a serializer - Model.save()/.objects.create()
+        never call it. This method is the one place a bad schema_name would
+        actually cause damage (raw DDL), so it re-validates here regardless
+        of what already happened upstream, and uses a properly quoted SQL
+        identifier rather than trusting the string at all.
         """
         import os
         import subprocess
@@ -76,6 +80,9 @@ class Tenant(models.Model):
         from django.conf import settings
         from django.db import connections
         from django.db.migrations.recorder import MigrationRecorder
+        from psycopg2 import sql
+
+        alphanumeric_validator(self.schema_name)
 
         default_cfg = settings.DATABASES['default']
         conn = psycopg2.connect(
@@ -88,7 +95,7 @@ class Tenant(models.Model):
                 cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", [self.db_name])
                 already_existed = cur.fetchone() is not None
                 if not already_existed:
-                    cur.execute(f'CREATE DATABASE "{self.db_name}"')
+                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(self.db_name)))
         finally:
             conn.close()
 
@@ -188,6 +195,8 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def create_tenant(self, request):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
         name = request.data.get('name')
         schema = request.data.get('schema_name')
         if not name or not schema:
@@ -196,8 +205,16 @@ class TenantViewSet(viewsets.ModelViewSet):
         if Tenant.objects.filter(schema_name=schema).exists():
             return Response({"error": "Schema already exists"},
                             status=status.HTTP_400_BAD_REQUEST)
-        tenant = Tenant.objects.create(
-            name=name, schema_name=schema, plan=request.data.get('plan', 'free'))
+        # .objects.create() never calls full_clean() - schema_name ends up
+        # interpolated into a raw CREATE DATABASE statement in
+        # provision_database(), so it must be validated before it's ever
+        # persisted, not just left to that method's own defense-in-depth check.
+        tenant = Tenant(name=name, schema_name=schema, plan=request.data.get('plan', 'free'))
+        try:
+            tenant.full_clean()
+        except DjangoValidationError as exc:
+            return Response({"error": exc.message_dict}, status=status.HTTP_400_BAD_REQUEST)
+        tenant.save()
         Domain.objects.create(tenant=tenant, domain=f"{schema}.nexus.local", is_primary=True)
 
         provisioning_error = None
