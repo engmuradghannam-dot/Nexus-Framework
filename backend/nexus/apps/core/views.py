@@ -1,9 +1,13 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.views import APIView
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from nexus.apps.api_infra.scoping import CompanyScopedViewSet, user_company_ids
 from .models import Company, Branch, Warehouse, SubWarehouse, Department, HRProfile
@@ -11,6 +15,47 @@ from .serializers import (
     CompanySerializer, BranchSerializer, WarehouseSerializer,
     SubWarehouseSerializer, DepartmentSerializer, HRProfileSerializer, UserSerializer
 )
+
+
+def _user_payload(user):
+    return {
+        'authenticated': True,
+        'username': user.username,
+        'email': user.email,
+        'is_staff': user.is_staff,
+        'is_superuser': user.is_superuser,
+    }
+
+
+@method_decorator(ensure_csrf_cookie, name='get')
+class SessionView(APIView):
+    """SPA session auth: GET reports whether the caller is logged in (and,
+    as a side effect, sets the csrftoken cookie so a subsequent POST here
+    can carry a valid X-CSRFToken - there's no server-rendered form for the
+    browser to pick that cookie up from otherwise). POST logs in, DELETE
+    logs out."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({'authenticated': False})
+        return Response(_user_payload(request.user))
+
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        if not username or not password:
+            return Response({'error': 'username and password are required'},
+                             status=status.HTTP_400_BAD_REQUEST)
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        login(request, user)
+        return Response(_user_payload(user))
+
+    def delete(self, request):
+        logout(request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CompanyViewSet(CompanyScopedViewSet):

@@ -3,9 +3,11 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from graphene_django.views import GraphQLView
 from nexus.apps.api_infra.schema import schema
+from nexus.apps.api_infra.health import health
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('health/', health, name='health'),
     path('api/auth/', include('rest_framework.urls')),
     path('api/pmo/', include('nexus.apps.pmo.urls')),
     path('api/industry/', include('nexus.apps.industry.urls')),

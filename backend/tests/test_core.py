@@ -53,3 +53,40 @@ def test_staff_user_can_create_company(user):
     resp = client.post('/api/core/companies/', {'name': 'Legit Co'}, format='json', secure=True)
     assert resp.status_code == 201
     assert Company.objects.filter(name='Legit Co').exists()
+
+
+@pytest.mark.django_db
+def test_session_get_reports_unauthenticated():
+    client = APIClient()
+    resp = client.get('/api/core/session/', secure=True)
+    assert resp.status_code == 200
+    assert resp.data['authenticated'] is False
+
+
+@pytest.mark.django_db
+def test_session_login_with_valid_credentials(user):
+    client = APIClient()
+    resp = client.post('/api/core/session/', {'username': 'testuser', 'password': 'testpass'},
+                        format='json', secure=True)
+    assert resp.status_code == 200
+    assert resp.data['authenticated'] is True
+    assert resp.data['username'] == 'testuser'
+    # the session cookie from login persists on the client for later requests
+    resp2 = client.get('/api/core/session/', secure=True)
+    assert resp2.data['authenticated'] is True
+
+
+@pytest.mark.django_db
+def test_session_login_with_invalid_credentials(user):
+    client = APIClient()
+    resp = client.post('/api/core/session/', {'username': 'testuser', 'password': 'wrongpass'},
+                        format='json', secure=True)
+    assert resp.status_code == 401
+
+
+@pytest.mark.django_db
+def test_session_logout(user):
+    client = APIClient()
+    client.force_authenticate(user=user)
+    resp = client.delete('/api/core/session/', secure=True)
+    assert resp.status_code == 204

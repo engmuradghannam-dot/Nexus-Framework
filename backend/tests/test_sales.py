@@ -1,7 +1,9 @@
 from decimal import Decimal
 
 import pytest
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from rest_framework.test import APIClient
 
 from nexus.apps.core.models import Branch, Company, Warehouse
 from nexus.apps.crm.models import Customer
@@ -69,3 +71,22 @@ def test_credit_check_blocks_over_limit_order(customer, warehouse):
         customer=customer, warehouse=warehouse, total_amount=25000, shipping_address='123 King Fahd Rd',
     )
     assert order.check_credit() is False
+
+
+@pytest.mark.django_db
+def test_create_order_via_api_serializes_cleanly(customer, warehouse):
+    # order_date used to default to timezone.now() (a datetime) on a
+    # DateField - harmless via .objects.create(), but DRF's serializer
+    # asserts on representing a raw datetime as a date field and crashed
+    # with a 500 on every single order created through the API.
+    user = User.objects.create_user('salesuser', 'sales@test.com', 'pass')
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    resp = client.post('/api/sales/orders/', {
+        'customer': customer.id, 'warehouse': warehouse.id,
+        'shipping_address': '123 King Fahd Rd', 'required_date': '2026-08-01',
+    }, format='json', secure=True)
+
+    assert resp.status_code == 201
+    assert resp.data['order_date'] is not None

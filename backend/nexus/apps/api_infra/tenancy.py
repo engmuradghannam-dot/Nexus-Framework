@@ -11,7 +11,7 @@ in the shared `default` database — see tenancy_router.SHARED_APPS.
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.contrib.auth.models import User
-from rest_framework import viewsets, status
+from rest_framework import serializers, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -174,9 +174,25 @@ def user_is_member(user, tenant):
     return TenantUser.objects.filter(tenant=tenant, user=user, is_active=True).exists()
 
 
+class TenantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tenant
+        fields = '__all__'
+
+
+class TenantUserSerializer(serializers.ModelSerializer):
+    tenant_name = serializers.CharField(source='tenant.name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = TenantUser
+        fields = '__all__'
+
+
 class TenantViewSet(viewsets.ModelViewSet):
     """Tenant management — admin only."""
     queryset = Tenant.objects.all()
+    serializer_class = TenantSerializer
     permission_classes = [IsAdminUser]
 
     @action(detail=True, methods=['post'])
@@ -235,6 +251,7 @@ class TenantViewSet(viewsets.ModelViewSet):
 class TenantUserViewSet(viewsets.ModelViewSet):
     """Tenant membership management."""
     queryset = TenantUser.objects.all()
+    serializer_class = TenantUserSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):

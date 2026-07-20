@@ -34,6 +34,23 @@ def test_create_tenant_rejects_unvalidated_schema_name():
     assert not Tenant.objects.filter(name='Evil Co').exists()
 
 
+@pytest.mark.django_db
+def test_tenant_list_endpoint_does_not_500():
+    # TenantViewSet/TenantUserViewSet had no serializer_class, so every
+    # default action (list/retrieve/update/destroy) crashed with an
+    # AssertionError - only the custom @action endpoints happened to work,
+    # since those build responses by hand.
+    staff_user = User.objects.create(username='staffer2', is_staff=True)
+    client = APIClient()
+    client.force_authenticate(user=staff_user)
+
+    resp = client.get('/api/infra/tenants/', secure=True)
+    assert resp.status_code == 200
+
+    resp2 = client.get('/api/infra/tenant-users/', secure=True)
+    assert resp2.status_code == 200
+
+
 def test_shared_app_always_routes_to_default():
     token = set_current_tenant_db('tenant_whatever')
     try:

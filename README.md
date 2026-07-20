@@ -96,6 +96,25 @@ All of the above are already configured in this repo (`backend/nexus/settings.py
 - `POST /api/core/companies/` (creating a new top-level company) and the audit log (`/api/audit/change-headers/`) both require `is_staff` - creating a company isn't scoped by anything (it's the root of the scoping hierarchy), and the audit trail spans every company/tenant by design (see Multi-tenancy above), so both are treated as administrative operations rather than opened to every authenticated user.
 - `Tenant.provision_database()` validates `schema_name` before using it in any DDL or shell-out to `pg_dump`/`psql`, and uses a properly quoted SQL identifier rather than string interpolation - `TenantViewSet.create_tenant` re-validates via `full_clean()` before persisting anything, since `Model.objects.create()` does not run model validators on its own.
 
+## SAP Comparison (Gap Analysis)
+
+An honest read against SAP S/4HANA / Business One, since that's the standard this codebase's conventions (auto-numbered documents, CDHDR/CDPOS, release-strategy-style approvals) already gesture toward.
+
+**Closed in this pass:**
+- Every module now has a real UI (CRM, Sales, Tenants, and the Audit Log had backends with zero frontend before this pass).
+- A real login/logout flow - previously the SPA had no authentication screen of its own at all.
+- The full request path actually works end-to-end (CORS, CSRF, session cookies, DRF pagination) - previously every single page failed to load any data.
+- A liveness endpoint (`/health/`) and caching on the one endpoint hit on every dashboard load - baseline expectations for anything deployed behind a load balancer.
+- Two endpoints (`TenantViewSet`, `TenantUserViewSet`) that had never worked at all (missing `serializer_class`, a pure oversight) and one that crashed on every single create (`SalesOrder.order_date` defaulting to a datetime on a date field).
+
+**Realistically still open** (not attempted here - each is a multi-week-plus undertaking on its own, not a gap this pass could responsibly close):
+- Real double-entry GL depth: sub-ledgers, period close, multi-currency revaluation, intercompany eliminations.
+- A workflow/BPM designer with a visual editor, not just a fixed approval-chain model.
+- Localization: multi-language UI, country-specific tax/statutory reporting.
+- Query-level performance work beyond the one cache added here - several list endpoints iterate querysets in Python for aggregates (`sum(i.total for i in invoices)`) rather than using DB-side `Sum()`; fine at demo scale, worth revisiting under real data volume.
+- A proper background job/queue dashboard (Celery is a dependency but has no operational visibility here).
+- Formal RBAC administration UI for the field/record-level permission models that already exist on the backend.
+
 ## License
 
 MIT License - Free forever.

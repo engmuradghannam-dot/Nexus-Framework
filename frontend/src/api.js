@@ -35,10 +35,17 @@ api.interceptors.response.use((response) => {
     return response;
 });
 
+// Auth
+export const getSession = () => api.get('/core/session/');
+export const login = (username, password) => api.post('/core/session/', { username, password });
+export const logoutSession = () => api.delete('/core/session/');
+
 // Core
 export const getCompanies = () => api.get('/core/companies/');
 export const getBranches = (companyId) => api.get(`/core/branches/by_company/?company_id=${companyId}`);
+export const getAllBranches = () => api.get('/core/branches/');
 export const getWarehouses = (branchId) => api.get(`/core/warehouses/by_branch/?branch_id=${branchId}`);
+export const getAllWarehouses = () => api.get('/core/warehouses/');
 export const getHRProfiles = () => api.get('/core/hr-profiles/');
 
 // PMO
@@ -113,3 +120,28 @@ export const getMaterialRequisitions = () => api.get('/manufacturing/material-re
 export const approveRequisition = (id) => api.post(`/manufacturing/material-requisitions/${id}/approve/`);
 export const issueRequisition = (id, data) => api.post(`/manufacturing/material-requisitions/${id}/issue/`, data);
 export const getManufacturingStats = () => api.get('/manufacturing/manufacturing-orders/dashboard_stats/');
+
+// CRM
+export const getCrmCustomers = () => api.get('/crm/customers/');
+export const createCrmCustomer = (data) => api.post('/crm/customers/', data);
+export const getContacts = () => api.get('/crm/contacts/');
+export const getOpportunities = () => api.get('/crm/opportunities/');
+export const createOpportunity = (data) => api.post('/crm/opportunities/', data);
+
+// Sales
+export const getSalesOrders = () => api.get('/sales/orders/');
+export const createSalesOrder = (data) => api.post('/sales/orders/', data);
+export const getQuotations = () => api.get('/sales/quotations/');
+export const getSalesInvoices = () => api.get('/sales/invoices/');
+export const getDeliveries = () => api.get('/sales/deliveries/');
+export const getBackorders = () => api.get('/sales/backorders/');
+
+// Tenancy (admin only)
+export const getTenants = () => api.get('/infra/tenants/');
+export const createTenant = (data) => api.post('/infra/tenants/create_tenant/', data);
+export const activateTenant = (id) => api.post(`/infra/tenants/${id}/activate/`);
+export const deactivateTenant = (id) => api.post(`/infra/tenants/${id}/deactivate/`);
+export const getTenantUsers = () => api.get('/infra/tenant-users/');
+
+// Audit (admin only)
+export const getChangeHeaders = () => api.get('/audit/change-headers/');

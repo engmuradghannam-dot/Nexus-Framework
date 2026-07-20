@@ -10,6 +10,12 @@ from nexus.apps.crm.models import Customer
 from nexus.apps.industry.models import Inventory, Product
 
 
+def today():
+    # A module-level function (not a lambda) so Django's migration writer
+    # can serialize this default - lambdas aren't importable/referenceable.
+    return timezone.now().date()
+
+
 class SalesOrder(models.Model):
     """SAL module - sales_orders table."""
 
@@ -27,7 +33,7 @@ class SalesOrder(models.Model):
 
     so_id = models.CharField(max_length=50, unique=True, blank=True)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='sales_orders')
-    order_date = models.DateField(default=timezone.now)
+    order_date = models.DateField(default=today)
     required_date = models.DateField(null=True, blank=True)
     total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
@@ -159,7 +165,7 @@ class Invoice(models.Model):
 
     invoice_id = models.CharField(max_length=50, unique=True, blank=True)
     order = models.OneToOneField(SalesOrder, on_delete=models.CASCADE, related_name='invoice')
-    issue_date = models.DateField(default=timezone.now)
+    issue_date = models.DateField(default=today)
     due_date = models.DateField(null=True, blank=True)
     total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
