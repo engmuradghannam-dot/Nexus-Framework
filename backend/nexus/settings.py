@@ -202,11 +202,18 @@ REST_FRAMEWORK = {
     'VERSION_PARAM': 'version',
 }
 
+# Parse Redis URL for channels
+import urllib.parse
+_redis_url = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1')
+_parsed = urllib.parse.urlparse(_redis_url)
+_redis_host = _parsed.hostname or '127.0.0.1'
+_redis_port = _parsed.port or 6379
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+            'hosts': [(_redis_host, _redis_port)],
         },
     },
 }

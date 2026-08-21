@@ -3,6 +3,10 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 import uuid
 
+def generate_webhook_secret():
+    return uuid.uuid4().hex
+
+
 class Webhook(models.Model):
     EVENT_CHOICES = [
         ('*', 'All Events'),
@@ -23,7 +27,7 @@ class Webhook(models.Model):
     name = models.CharField(max_length=255)
     url = models.URLField()
     events = models.JSONField(default=list, help_text="List of event names")
-    secret = models.CharField(max_length=255, default=lambda: uuid.uuid4().hex)
+    secret = models.CharField(max_length=255, default=generate_webhook_secret)
     is_active = models.BooleanField(default=True)
     retry_count = models.PositiveIntegerField(default=3)
     timeout = models.PositiveIntegerField(default=30)
