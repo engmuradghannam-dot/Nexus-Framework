@@ -1,19 +1,19 @@
-version: '3.8'
+version: '3.9'
 
 services:
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      POSTGRES_DB: nexus
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-nexus}
+      POSTGRES_USER: ${DB_USER:-nexus}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nexus123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nexus} -d ${DB_NAME:-nexus}"]
+      interval: 10s
       timeout: 5s
       retries: 5
 
@@ -23,84 +23,89 @@ services:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
   backend:
-    build: ./backend
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DEBUG: "True"
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-only}
+      DATABASE_URL: postgres://${DB_USER:-nexus}:${DB_PASSWORD:-nexus123}@db:5432/${DB_NAME:-nexus}
+      REDIS_URL: redis://redis:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      ALLOWED_HOSTS: localhost,127.0.0.1,backend
     volumes:
       - ./backend:/app
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=True
-      - SECRET_KEY=django-insecure-docker-dev-key
-      - DB_HOST=db
-      - DB_NAME=nexus
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_URL=redis://redis:6379/1
-      - CORS_ALLOWED_ORIGINS=http://localhost:3000
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DEBUG: "True"
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-only}
+      DATABASE_URL: postgres://${DB_USER:-nexus}:${DB_PASSWORD:-nexus123}@db:5432/${DB_NAME:-nexus}
+      REDIS_URL: redis://redis:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - redis
+      - backend
+    command: celery -A nexus worker -l info
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DEBUG: "True"
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-only}
+      DATABASE_URL: postgres://${DB_USER:-nexus}:${DB_PASSWORD:-nexus123}@db:5432/${DB_NAME:-nexus}
+      REDIS_URL: redis://redis:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - redis
+      - backend
+    command: celery -A nexus beat -l info
 
   frontend:
-    build: ./frontend
-    command: npm start
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    ports:
-      - "3000:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:8000/api
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     depends_on:
       - backend
-
-  celery:
-    build: ./backend
-    command: celery -A nexus worker -l info
-    volumes:
-      - ./backend:/app
-    environment:
-      - DEBUG=True
-      - SECRET_KEY=django-insecure-docker-dev-key
-      - DB_HOST=db
-      - DB_NAME=nexus
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_URL=redis://redis:6379/1
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  celery-beat:
-    build: ./backend
-    command: celery -A nexus beat -l info
-    volumes:
-      - ./backend:/app
-    environment:
-      - DEBUG=True
-      - SECRET_KEY=django-insecure-docker-dev-key
-      - DB_HOST=db
-      - DB_NAME=nexus
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_URL=redis://redis:6379/1
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    command: npm start
 
 volumes:
   postgres_data:

@@ -16,3 +16,5 @@ channels==4.0.0
 channels-redis==4.1.0
 httpx==0.25.2
 whitenoise==6.6.0
+djangorestframework-simplejwt==5.3.1
+PyJWT==2.8.0
